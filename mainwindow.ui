@@ -6,26 +6,750 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>800</width>
-    <height>600</height>
+    <width>1024</width>
+    <height>700</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>WasteGuard Smart Bins</string>
   </property>
-  <widget class="QWidget" name="centralwidget"/>
-  <widget class="QMenuBar" name="menubar">
-   <property name="geometry">
-    <rect>
-     <x>0</x>
-     <y>0</y>
-     <width>800</width>
-     <height>27</height>
-    </rect>
-   </property>
+  <property name="styleSheet">
+   <string notr="true">
+    /* GLOBAL FONTS &amp; SETTINGS */
+    * { font-family: 'Segoe UI', Arial, sans-serif; }
+    
+    /* MAIN BACKGROUND */
+    QMainWindow, QWidget#centralwidget, QTabWidget::pane {
+        background-color: #eff3f8; /* Light professional grey-blue */
+        border: none;
+    }
+
+    /* =========================
+       SIDEBAR STYLING 
+       (Applied to the container widgets in all 3 tabs)
+       ========================= */
+    QWidget#verticalLayoutWidget_1, QWidget#verticalLayoutWidget_2, QWidget#verticalLayoutWidget_3 {
+        background-color: #0f2c4f; /* Deep Navy Blue */
+    }
+
+    /* Sidebar Buttons */
+    QWidget#verticalLayoutWidget_1 QPushButton, 
+    QWidget#verticalLayoutWidget_2 QPushButton, 
+    QWidget#verticalLayoutWidget_3 QPushButton {
+        color: #cfd8dc;
+        text-align: left;
+        padding-left: 20px;
+        height: 40px;
+        border: none;
+        font-size: 14px;
+        background-color: transparent;
+    }
+    
+    /* Sidebar Button Hover Effect */
+    QWidget#verticalLayoutWidget_1 QPushButton:hover, 
+    QWidget#verticalLayoutWidget_2 QPushButton:hover, 
+    QWidget#verticalLayoutWidget_3 QPushButton:hover {
+        background-color: #1d4e89; /* Slightly lighter blue */
+        color: white;
+        border-left: 4px solid #4caf50; /* Green accent line */
+    }
+    
+    /* Logo Label Styling */
+    QLabel#label_1, QLabel#label_2, QLabel#label_3 {
+        color: white;
+        font-weight: bold;
+        font-size: 18px;
+        padding: 20px 0 20px 20px;
+    }
+
+    /* =========================
+       TOP BAR STYLING 
+       ========================= */
+    QWidget#horizontalLayoutWidget_1, QWidget#horizontalLayoutWidget_2, QWidget#horizontalLayoutWidget_3 {
+        background-color: #3b6998; /* Header Blue */
+    }
+    
+    /* Top Bar Text */
+    QLabel#lb_1, QLabel#lb_2, QLabel#lb_3, QLabel#user_1, QLabel#user_2, QLabel#user_3 {
+        color: white;
+        font-weight: bold;
+        font-size: 14px;
+    }
+
+    /* Top Bar Buttons (Notification/Profile) */
+    QWidget#horizontalLayoutWidget_1 QPushButton, 
+    QWidget#horizontalLayoutWidget_2 QPushButton, 
+    QWidget#horizontalLayoutWidget_3 QPushButton {
+        background-color: rgba(255, 255, 255, 0.2);
+        color: white;
+        border-radius: 4px;
+        padding: 5px 15px;
+        border: none;
+    }
+
+    /* =========================
+       TAB 3: MODIFIER CARD STYLING
+       ========================= */
+    QFrame#cardFrame {
+        background-color: white;
+        border-radius: 12px;
+        border: 1px solid #dce1e8;
+    }
+
+    /* Labels inside card */
+    QFrame#cardFrame QLabel {
+        color: #2c3e50;
+        font-size: 13px;
+        font-weight: 600;
+        padding-bottom: 2px;
+    }
+    
+    /* Main Title inside card */
+    QLabel#lblCardTitle {
+        font-size: 20px;
+        font-weight: bold;
+        color: #1a1a1a;
+        margin-bottom: 10px;
+    }
+    
+    /* Inputs */
+    QLineEdit, QComboBox {
+        background-color: #f7f9fc;
+        border: 1px solid #e1e4e8;
+        border-radius: 6px;
+        padding: 8px;
+        color: #333;
+        font-size: 13px;
+    }
+    QLineEdit:focus {
+        border: 1px solid #3b6998;
+        background-color: white;
+    }
+    
+    /* Action Buttons */
+    QPushButton#btnSave {
+        background-color: #4caf50; /* Green */
+        color: white;
+        font-weight: bold;
+        border-radius: 6px;
+        font-size: 14px;
+    }
+    QPushButton#btnSave:hover { background-color: #43a047; }
+    
+    QPushButton#btnCancel {
+        background-color: #90a4ae; /* Grey */
+        color: white;
+        font-weight: bold;
+        border-radius: 6px;
+        font-size: 14px;
+    }
+    QPushButton#btnCancel:hover { background-color: #78909c; }
+
+   </string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <widget class="QTabWidget" name="tabWidget">
+    <property name="geometry">
+     <rect>
+      <x>0</x>
+      <y>0</y>
+      <width>1024</width>
+      <height>700</height>
+     </rect>
+    </property>
+    <property name="currentIndex">
+     <number>2</number>
+    </property>
+    <widget class="QWidget" name="dashboard">
+     <attribute name="title">
+      <string>Dashboard</string>
+     </attribute>
+     <widget class="QWidget" name="verticalLayoutWidget_1">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>221</width>
+        <height>700</height>
+       </rect>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_1">
+       <property name="spacing">
+        <number>5</number>
+       </property>
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
+        <number>20</number>
+       </property>
+       <item>
+        <widget class="QLabel" name="label_1">
+         <property name="text">
+          <string/>
+         </property>
+         <property name="pixmap">
+          <pixmap resource="logo.qrc">:/logo1.png</pixmap>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="vs1">
+         <property name="orientation">
+          <enum>Qt::Orientation::Vertical</enum>
+         </property>
+         <property name="sizeType">
+          <enum>QSizePolicy::Policy::Fixed</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnhome_1">
+         <property name="text">
+          <string>  Accueil</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnstock_1">
+         <property name="text">
+          <string>  Stock</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnproduit_1">
+         <property name="text">
+          <string>  Produits</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnclient_1">
+         <property name="text">
+          <string>  Clients</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnemploye_1">
+         <property name="text">
+          <string>  Employés</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnmaintenance_1">
+         <property name="text">
+          <string>  Maintenance</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btncmd_1">
+         <property name="text">
+          <string>  Commandes</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="vs1_2">
+         <property name="orientation">
+          <enum>Qt::Orientation::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>0</width>
+           <height>0</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="horizontalLayoutWidget_1">
+      <property name="geometry">
+       <rect>
+        <x>220</x>
+        <y>0</y>
+        <width>804</width>
+        <height>60</height>
+       </rect>
+      </property>
+      <layout class="QHBoxLayout" name="horizontalLayout_1">
+       <property name="leftMargin">
+        <number>20</number>
+       </property>
+       <property name="rightMargin">
+        <number>20</number>
+       </property>
+       <item>
+        <widget class="QLabel" name="lb_1">
+         <property name="text">
+          <string>TABLEAU DE BORD</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="hs1">
+         <property name="orientation">
+          <enum>Qt::Orientation::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>0</width>
+           <height>0</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QLabel" name="user_1">
+         <property name="text">
+          <string>Chef d'Atelier</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="hs1_b">
+         <property name="orientation">
+          <enum>Qt::Orientation::Horizontal</enum>
+         </property>
+         <property name="sizeType">
+          <enum>QSizePolicy::Policy::Fixed</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>10</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnnotif_1">
+         <property name="text">
+          <string>🔔</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnprofil_1">
+         <property name="text">
+          <string>👤</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+    <widget class="QWidget" name="ajout">
+     <attribute name="title">
+      <string>Ajout</string>
+     </attribute>
+     <widget class="QWidget" name="verticalLayoutWidget_2">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>220</width>
+        <height>700</height>
+       </rect>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_2">
+       <property name="spacing">
+        <number>5</number>
+       </property>
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
+        <number>20</number>
+       </property>
+       <item>
+        <widget class="QLabel" name="label_2">
+         <property name="text">
+          <string/>
+         </property>
+         <property name="pixmap">
+          <pixmap resource="logo.qrc">:/logo1.png</pixmap>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="vs2">
+         <property name="orientation">
+          <enum>Qt::Orientation::Vertical</enum>
+         </property>
+         <property name="sizeType">
+          <enum>QSizePolicy::Policy::Fixed</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnhome_2">
+         <property name="text">
+          <string>  Accueil</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnstock_2">
+         <property name="text">
+          <string>  Stock</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnproduit_2">
+         <property name="text">
+          <string>  Produits</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnclient_2">
+         <property name="text">
+          <string>  Clients</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnemploye_2">
+         <property name="text">
+          <string>  Employés</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnmaintenance_2">
+         <property name="text">
+          <string>  Maintenance</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btncmd_2">
+         <property name="text">
+          <string>  Commandes</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="vs2_2">
+         <property name="orientation">
+          <enum>Qt::Orientation::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>0</width>
+           <height>0</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="horizontalLayoutWidget_2">
+      <property name="geometry">
+       <rect>
+        <x>220</x>
+        <y>0</y>
+        <width>804</width>
+        <height>60</height>
+       </rect>
+      </property>
+      <layout class="QHBoxLayout" name="horizontalLayout_2">
+       <property name="leftMargin">
+        <number>20</number>
+       </property>
+       <property name="rightMargin">
+        <number>20</number>
+       </property>
+       <item>
+        <widget class="QLabel" name="lb_2">
+         <property name="text">
+          <string>AJOUTER UN BAC</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="hs2">
+         <property name="orientation">
+          <enum>Qt::Orientation::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>0</width>
+           <height>0</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QLabel" name="user_2">
+         <property name="text">
+          <string>Chef d'Atelier</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="hs2_b">
+         <property name="orientation">
+          <enum>Qt::Orientation::Horizontal</enum>
+         </property>
+         <property name="sizeType">
+          <enum>QSizePolicy::Policy::Fixed</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>10</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnnotif_2">
+         <property name="text">
+          <string>🔔</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnprofil_2">
+         <property name="text">
+          <string>👤</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+    <widget class="QWidget" name="modifier">
+     <attribute name="title">
+      <string>Modifier</string>
+     </attribute>
+     <widget class="QWidget" name="verticalLayoutWidget_3">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>220</width>
+        <height>700</height>
+       </rect>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_3">
+       <property name="spacing">
+        <number>5</number>
+       </property>
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
+        <number>20</number>
+       </property>
+       <item>
+        <widget class="QLabel" name="label_3">
+         <property name="text">
+          <string/>
+         </property>
+         <property name="pixmap">
+          <pixmap resource="logo.qrc">:/logo1.png</pixmap>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="vs3">
+         <property name="orientation">
+          <enum>Qt::Orientation::Vertical</enum>
+         </property>
+         <property name="sizeType">
+          <enum>QSizePolicy::Policy::Fixed</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnhome_3">
+         <property name="text">
+          <string>  Accueil</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnstock_3">
+         <property name="text">
+          <string>  Stock</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnproduit_3">
+         <property name="text">
+          <string>  Produits</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnclient_3">
+         <property name="text">
+          <string>  Clients</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnemploye_3">
+         <property name="text">
+          <string>  Employés</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnmaintenance_3">
+         <property name="text">
+          <string>  Maintenance</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btncmd_3">
+         <property name="text">
+          <string>  Commandes</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="vs3_2">
+         <property name="orientation">
+          <enum>Qt::Orientation::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>0</width>
+           <height>0</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="horizontalLayoutWidget_3">
+      <property name="geometry">
+       <rect>
+        <x>220</x>
+        <y>0</y>
+        <width>804</width>
+        <height>60</height>
+       </rect>
+      </property>
+      <layout class="QHBoxLayout" name="horizontalLayout_3">
+       <property name="leftMargin">
+        <number>20</number>
+       </property>
+       <property name="rightMargin">
+        <number>20</number>
+       </property>
+       <item>
+        <widget class="QLabel" name="lb_3">
+         <property name="text">
+          <string>MODIFIER UN BAC</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="hs3">
+         <property name="orientation">
+          <enum>Qt::Orientation::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>0</width>
+           <height>0</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QLabel" name="user_3">
+         <property name="text">
+          <string>Chef d'Atelier</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="hs3_b">
+         <property name="orientation">
+          <enum>Qt::Orientation::Horizontal</enum>
+         </property>
+         <property name="sizeType">
+          <enum>QSizePolicy::Policy::Fixed</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>10</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnnotif_3">
+         <property name="text">
+          <string>🔔</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnprofil_3">
+         <property name="text">
+          <string>👤</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </widget>
   </widget>
-  <widget class="QStatusBar" name="statusbar"/>
  </widget>
- <resources/>
+ <resources>
+  <include location="logo.qrc"/>
+ </resources>
  <connections/>
 </ui>
