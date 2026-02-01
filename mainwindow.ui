@@ -18,7 +18,7 @@
 /* 1. CONFIGURATION GÉNÉRALE */
 /* ======================================================= */
 QMainWindow, QWidget {
-    background-color: #f4f6f9; /* C'est la couleur de fond principale */
+    background-color: #f4f6f9; /* Couleur de fond principale */
     font-family: &quot;Segoe UI&quot;, sans-serif;
 }
 
@@ -28,7 +28,7 @@ QLabel {
 }
 
 /* ======================================================= */
-/* 2. SIDEBAR */
+/* 2. SIDEBAR (MENU GAUCHE) */
 /* ======================================================= */
 QFrame#sidebar {
     background-color: #0f2b4c;
@@ -36,7 +36,15 @@ QFrame#sidebar {
 }
 QFrame#sidebar QLabel {
     color: white !important;
+    background-color: transparent; /* 🔥 CORRECTION : Fond transparent pour le texte */
 }
+
+/* 🔥 CORRECTION SPÉCIALE POUR LE LOGO 🔥 */
+QLabel#label_logo {
+    background-color: transparent !important; /* Force la transparence pour ne pas avoir de carré blanc */
+    border: none;
+}
+
 QFrame#sidebar QPushButton {
     background-color: transparent;
     border: none;
@@ -53,17 +61,13 @@ QFrame#sidebar QPushButton:hover {
 }
 
 /* ======================================================= */
-/* 3. CARTES (CARDS) - FOND BLANC SUPPRIMÉ */
+/* 3. CARTES (CARDS) */
 /* ======================================================= */
 QFrame#statCard, QFrame#actionCard, QFrame#cardFrame, QFrame#cardFrame_2 { 
-    /* AVANT : background-color: white; */
-    /* MAINTENANT : On met la même couleur que le fond principal */
-    background-color: #f4f6f9; 
+    background-color: #f4f6f9;
     border-radius: 12px;
-    /* On garde une bordure fine pour délimiter les zones */
-    border: 1px solid #dce1e6; 
-    /* On enlève l'ombre portée épaisse du bas qui fait bizarre sans fond blanc */
-    border-bottom: 1px solid #dce1e6; 
+    border: 1px solid #dce1e6;
+    border-bottom: 2px solid #dce1e6;
 }
 
 QLabel#lblStatNumber {
@@ -75,6 +79,7 @@ QLabel#lblStatNumber {
 /* ======================================================= */
 /* 4. BOUTONS */
 /* ======================================================= */
+/* Boutons Actions Rapides */
 QPushButton#btnExport, QPushButton#btnFichePaie {
     background-color: #ffffff;
     color: #333333 !important;
@@ -92,6 +97,7 @@ QPushButton#btnExport:hover, QPushButton#btnFichePaie:hover {
     color: #0f2b4c !important;
 }
 
+/* Autres Boutons */
 QPushButton#btnSave, QPushButton#btnAjouter, QPushButton#btnNouveau {
     background-color: #28a745;
     color: white !important;
@@ -122,6 +128,7 @@ QPushButton#btnAnnuler:hover, QPushButton#btnAnnuler_Ajout:hover {
     background-color: #5a6268;
 }
 
+/* Bouton Supprimer Rouge */
 QPushButton#btnDelete {
     background-color: #dc3545;
     color: white !important;
@@ -135,13 +142,11 @@ QPushButton#btnDelete:hover {
 }
 
 /* ======================================================= */
-/* 5. TABLEAU - FOND BLANC SUPPRIMÉ */
+/* 5. TABLEAU */
 /* ======================================================= */
 QTableWidget {
-    /* AVANT : background-color: white; */
-    background-color: #f4f6f9; /* Fond principal */
-    /* Couleur alternée légèrement plus foncée que le fond */
-    alternate-background-color: #e8ebf0; 
+    background-color: #f4f6f9;
+    alternate-background-color: #e8ebf0;
     color: #000000 !important;
     gridline-color: transparent;
     border: 1px solid #dce1e6;
@@ -151,7 +156,7 @@ QTableWidget {
 QTableWidget::item {
     color: #000000 !important;
     padding: 5px;
-    border-bottom: 1px solid #e0e6ed; /* Séparateur subtil */
+    border-bottom: 1px solid #e0e6ed;
 }
 QTableWidget::item:selected {
     background-color: #e3f2fd;
@@ -169,7 +174,6 @@ QHeaderView::section {
 /* ======================================================= */
 /* 6. INPUTS &amp; COMBOBOX */
 /* ======================================================= */
-/* Note : Je garde les champs de saisie en blanc pour qu'ils ressortent */
 QLineEdit {
     background-color: #ffffff;
     color: #000000;
@@ -199,17 +203,16 @@ QComboBox QAbstractItemView {
     border: 1px solid #cccccc;
 }
 
-/* Zones d'image sans fond blanc */
 QLabel#imageLabel, QLabel#imageLabel_2 {
-    border: 2px dashed #cccccc;
+    border: 1px solid #cccccc;
     border-radius: 10px;
-    background-color: #f4f6f9; /* Fond principal au lieu de blanc */
+    background-color: #f4f6f9;
     color: #888888 !important;
 }
 
 QTabWidget::pane { border: none; }
 QTabBar::tab {
-    background: #e0e4e8; /* Onglets non sélectionnés un peu plus foncés */
+    background: #e0e4e8;
     color: #333 !important;
     padding: 8px 20px;
     margin-right: 2px;
