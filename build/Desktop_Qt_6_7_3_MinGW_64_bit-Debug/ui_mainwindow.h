@@ -113,6 +113,8 @@ public:
     QVBoxLayout *verticalLayout_Salaire_Modif;
     QSlider *sliderSalaire_Modif;
     QLabel *lblValSalaire_Modif;
+    QLabel *label;
+    QLineEdit *txtEmailModif;
     QSpacerItem *verticalSpacer_Form;
     QHBoxLayout *horizontalLayout_Buttons;
     QPushButton *btnDelete;
@@ -145,6 +147,8 @@ public:
     QVBoxLayout *verticalLayout_Salaire_Ajout;
     QSlider *sliderSalaire_Ajout;
     QLabel *lblValSalaire_Ajout;
+    QLineEdit *txtEmailAjout;
+    QLabel *label_2;
     QSpacerItem *verticalSpacer_Form_2;
     QHBoxLayout *horizontalLayout_Buttons_2;
     QSpacerItem *horizontalSpacer_Buttons_2;
@@ -835,17 +839,17 @@ public:
         lblNom = new QLabel(cardFrame);
         lblNom->setObjectName("lblNom");
 
-        formLayout_Modif->setWidget(1, QFormLayout::LabelRole, lblNom);
+        formLayout_Modif->setWidget(2, QFormLayout::LabelRole, lblNom);
 
         txtNom = new QLineEdit(cardFrame);
         txtNom->setObjectName("txtNom");
 
-        formLayout_Modif->setWidget(1, QFormLayout::FieldRole, txtNom);
+        formLayout_Modif->setWidget(2, QFormLayout::FieldRole, txtNom);
 
         lblSpecialite = new QLabel(cardFrame);
         lblSpecialite->setObjectName("lblSpecialite");
 
-        formLayout_Modif->setWidget(2, QFormLayout::LabelRole, lblSpecialite);
+        formLayout_Modif->setWidget(3, QFormLayout::LabelRole, lblSpecialite);
 
         cbSpecialite = new QComboBox(cardFrame);
         cbSpecialite->addItem(QString());
@@ -853,12 +857,12 @@ public:
         cbSpecialite->addItem(QString());
         cbSpecialite->setObjectName("cbSpecialite");
 
-        formLayout_Modif->setWidget(2, QFormLayout::FieldRole, cbSpecialite);
+        formLayout_Modif->setWidget(3, QFormLayout::FieldRole, cbSpecialite);
 
         lblStatut = new QLabel(cardFrame);
         lblStatut->setObjectName("lblStatut");
 
-        formLayout_Modif->setWidget(3, QFormLayout::LabelRole, lblStatut);
+        formLayout_Modif->setWidget(4, QFormLayout::LabelRole, lblStatut);
 
         cbStatut = new QComboBox(cardFrame);
         cbStatut->addItem(QString());
@@ -866,12 +870,12 @@ public:
         cbStatut->addItem(QString());
         cbStatut->setObjectName("cbStatut");
 
-        formLayout_Modif->setWidget(3, QFormLayout::FieldRole, cbStatut);
+        formLayout_Modif->setWidget(4, QFormLayout::FieldRole, cbStatut);
 
         lblSalaire_Modif = new QLabel(cardFrame);
         lblSalaire_Modif->setObjectName("lblSalaire_Modif");
 
-        formLayout_Modif->setWidget(4, QFormLayout::LabelRole, lblSalaire_Modif);
+        formLayout_Modif->setWidget(5, QFormLayout::LabelRole, lblSalaire_Modif);
 
         verticalLayout_Salaire_Modif = new QVBoxLayout();
         verticalLayout_Salaire_Modif->setObjectName("verticalLayout_Salaire_Modif");
@@ -895,7 +899,17 @@ public:
         verticalLayout_Salaire_Modif->addWidget(lblValSalaire_Modif);
 
 
-        formLayout_Modif->setLayout(4, QFormLayout::FieldRole, verticalLayout_Salaire_Modif);
+        formLayout_Modif->setLayout(5, QFormLayout::FieldRole, verticalLayout_Salaire_Modif);
+
+        label = new QLabel(cardFrame);
+        label->setObjectName("label");
+
+        formLayout_Modif->setWidget(1, QFormLayout::LabelRole, label);
+
+        txtEmailModif = new QLineEdit(cardFrame);
+        txtEmailModif->setObjectName("txtEmailModif");
+
+        formLayout_Modif->setWidget(1, QFormLayout::FieldRole, txtEmailModif);
 
 
         verticalLayout_FormRight->addLayout(formLayout_Modif);
@@ -1017,31 +1031,31 @@ public:
         label_8 = new QLabel(cardFrame_2);
         label_8->setObjectName("label_8");
 
-        formLayout_Ajout->setWidget(1, QFormLayout::LabelRole, label_8);
+        formLayout_Ajout->setWidget(2, QFormLayout::LabelRole, label_8);
 
         cbSpecialite_Ajout = new QComboBox(cardFrame_2);
         cbSpecialite_Ajout->addItem(QString());
         cbSpecialite_Ajout->addItem(QString());
         cbSpecialite_Ajout->setObjectName("cbSpecialite_Ajout");
 
-        formLayout_Ajout->setWidget(1, QFormLayout::FieldRole, cbSpecialite_Ajout);
+        formLayout_Ajout->setWidget(2, QFormLayout::FieldRole, cbSpecialite_Ajout);
 
         label_9 = new QLabel(cardFrame_2);
         label_9->setObjectName("label_9");
 
-        formLayout_Ajout->setWidget(2, QFormLayout::LabelRole, label_9);
+        formLayout_Ajout->setWidget(3, QFormLayout::LabelRole, label_9);
 
         cbStatut_Ajout = new QComboBox(cardFrame_2);
         cbStatut_Ajout->addItem(QString());
         cbStatut_Ajout->addItem(QString());
         cbStatut_Ajout->setObjectName("cbStatut_Ajout");
 
-        formLayout_Ajout->setWidget(2, QFormLayout::FieldRole, cbStatut_Ajout);
+        formLayout_Ajout->setWidget(3, QFormLayout::FieldRole, cbStatut_Ajout);
 
         lblSalaire_Ajout = new QLabel(cardFrame_2);
         lblSalaire_Ajout->setObjectName("lblSalaire_Ajout");
 
-        formLayout_Ajout->setWidget(3, QFormLayout::LabelRole, lblSalaire_Ajout);
+        formLayout_Ajout->setWidget(4, QFormLayout::LabelRole, lblSalaire_Ajout);
 
         verticalLayout_Salaire_Ajout = new QVBoxLayout();
         verticalLayout_Salaire_Ajout->setObjectName("verticalLayout_Salaire_Ajout");
@@ -1063,7 +1077,17 @@ public:
         verticalLayout_Salaire_Ajout->addWidget(lblValSalaire_Ajout);
 
 
-        formLayout_Ajout->setLayout(3, QFormLayout::FieldRole, verticalLayout_Salaire_Ajout);
+        formLayout_Ajout->setLayout(4, QFormLayout::FieldRole, verticalLayout_Salaire_Ajout);
+
+        txtEmailAjout = new QLineEdit(cardFrame_2);
+        txtEmailAjout->setObjectName("txtEmailAjout");
+
+        formLayout_Ajout->setWidget(1, QFormLayout::FieldRole, txtEmailAjout);
+
+        label_2 = new QLabel(cardFrame_2);
+        label_2->setObjectName("label_2");
+
+        formLayout_Ajout->setWidget(1, QFormLayout::LabelRole, label_2);
 
 
         verticalLayout_FormRight_2->addLayout(formLayout_Ajout);
@@ -1115,7 +1139,7 @@ public:
 
         retranslateUi(MainWindow);
 
-        tabWidget->setCurrentIndex(0);
+        tabWidget->setCurrentIndex(1);
 
 
         QMetaObject::connectSlotsByName(MainWindow);
@@ -1231,6 +1255,8 @@ public:
 
         lblSalaire_Modif->setText(QCoreApplication::translate("MainWindow", "Salaire", nullptr));
         lblValSalaire_Modif->setText(QCoreApplication::translate("MainWindow", "1200 DT", nullptr));
+        label->setText(QCoreApplication::translate("MainWindow", "EMAIL", nullptr));
+        txtEmailModif->setPlaceholderText(QCoreApplication::translate("MainWindow", "xyz@emeple.com", nullptr));
         btnDelete->setText(QCoreApplication::translate("MainWindow", "Supprimer", nullptr));
         btnAnnuler->setText(QCoreApplication::translate("MainWindow", "Annuler", nullptr));
         btnSave->setText(QCoreApplication::translate("MainWindow", "Sauvegarder", nullptr));
@@ -1250,6 +1276,8 @@ public:
 
         lblSalaire_Ajout->setText(QCoreApplication::translate("MainWindow", "Salaire", nullptr));
         lblValSalaire_Ajout->setText(QCoreApplication::translate("MainWindow", "1200 DT", nullptr));
+        txtEmailAjout->setPlaceholderText(QCoreApplication::translate("MainWindow", "xyz@emeple.com", nullptr));
+        label_2->setText(QCoreApplication::translate("MainWindow", "EMAIL", nullptr));
         btnAnnuler_Ajout->setText(QCoreApplication::translate("MainWindow", "Annuler", nullptr));
         btnAjouter->setText(QCoreApplication::translate("MainWindow", "Ajouter", nullptr));
         tabWidget->setTabText(tabWidget->indexOf(ajout), QCoreApplication::translate("MainWindow", "Ajout", nullptr));
