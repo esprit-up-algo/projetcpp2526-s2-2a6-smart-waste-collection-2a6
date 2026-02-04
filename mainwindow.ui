@@ -108,7 +108,10 @@
           <string/>
          </property>
          <property name="pixmap">
-          <pixmap resource="logo.qrc">:/logo1.png</pixmap>
+          <pixmap resource="logo.qrc">:/WASTEGUARD (1).png</pixmap>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignmentFlag::AlignCenter</set>
          </property>
         </widget>
        </item>
@@ -575,7 +578,10 @@
           <string/>
          </property>
          <property name="pixmap">
-          <pixmap resource="logo.qrc">:/logo1.png</pixmap>
+          <pixmap resource="logo.qrc">:/WASTEGUARD (1).png</pixmap>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignmentFlag::AlignCenter</set>
          </property>
         </widget>
        </item>
@@ -751,6 +757,12 @@
         <layout class="QVBoxLayout" name="vl_img_add">
          <item>
           <widget class="QLabel" name="lblImgPreview_Add">
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>250</height>
+            </size>
+           </property>
            <property name="text">
             <string>Glisser Image Ici</string>
            </property>
@@ -1200,7 +1212,10 @@
           <string/>
          </property>
          <property name="pixmap">
-          <pixmap resource="logo.qrc">:/logo1.png</pixmap>
+          <pixmap resource="logo.qrc">:/WASTEGUARD (1).png</pixmap>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignmentFlag::AlignCenter</set>
          </property>
         </widget>
        </item>
@@ -1374,6 +1389,12 @@
        </property>
        <item>
         <widget class="QLabel" name="imgBin">
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>250</height>
+          </size>
+         </property>
          <property name="text">
           <string>[ Image Actuelle ]</string>
          </property>
