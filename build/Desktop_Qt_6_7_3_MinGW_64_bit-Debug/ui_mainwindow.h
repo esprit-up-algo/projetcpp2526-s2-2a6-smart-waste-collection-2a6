@@ -55,6 +55,11 @@ public:
     QLabel *label_Title;
     QSpacerItem *horizontalSpacer;
     QPushButton *btnNouveau;
+    QSpacerItem *horizontalSpacer_User;
+    QFrame *frameUser;
+    QVBoxLayout *verticalLayout_User;
+    QLabel *lblUserName;
+    QLabel *lblUserRole;
     QHBoxLayout *horizontalLayout_Search;
     QLineEdit *txtSearch;
     QComboBox *cbSort;
@@ -125,7 +130,7 @@ public:
     {
         if (MainWindow->objectName().isEmpty())
             MainWindow->setObjectName("MainWindow");
-        MainWindow->resize(1100, 750);
+        MainWindow->resize(1141, 750);
         MainWindow->setStyleSheet(QString::fromUtf8("/* ======================================================= */\n"
 "/* 1. CONFIGURATION G\303\211N\303\211RALE */\n"
 "/* ======================================================= */\n"
@@ -148,13 +153,12 @@ public:
 "}\n"
 "QFrame#sidebar QLabel {\n"
 "    color: white !important;\n"
-"    background-color: transparent; /* \360\237\224\245 CORRECTION : Fond transparent pour le texte */\n"
+"    background-color: transparent; \n"
 "}\n"
 "\n"
-"/* \360\237\224\245 CORRECTION SP\303\211CIALE POUR LE LOGO \360\237\224\245 */\n"
+"/* LOGO */\n"
 "QLabel#label_logo {\n"
-"    background-color: transparent !important; /* Force la transparen"
-                        "ce pour ne pas avoir de carr\303\251 blanc */\n"
+"    background-color: transparent !important;\n"
 "    border: none;\n"
 "}\n"
 "\n"
@@ -162,7 +166,8 @@ public:
 "    background-color: transparent;\n"
 "    border: none;\n"
 "    color: #bdc3c7;\n"
-"    text-align: left;\n"
+"  "
+                        "  text-align: left;\n"
 "    padding: 12px 20px;\n"
 "    font-size: 14px;\n"
 "    border-left: 3px solid transparent;\n"
@@ -189,13 +194,12 @@ public:
 "    color: #0f2b4c !important;\n"
 "}\n"
 "\n"
-"/* ============================"
-                        "=========================== */\n"
+"/* ======================================================= */\n"
 "/* 4. BOUTONS */\n"
 "/* ======================================================= */\n"
-"/* Boutons Actions Rapides */\n"
 "QPushButton#btnExport, QPushButton#btnFichePaie {\n"
-"    background-color: #ffffff;\n"
+"    background-color: #ffff"
+                        "ff;\n"
 "    color: #333333 !important;\n"
 "    border: 1px solid #cccccc;\n"
 "    border-radius: 8px;\n"
@@ -211,7 +215,6 @@ public:
 "    color: #0f2b4c !important;\n"
 "}\n"
 "\n"
-"/* Autres Boutons */\n"
 "QPushButton#btnSave, QPushButton#btnAjouter, QPushButton#btnNouveau {\n"
 "    background-color: #28a745;\n"
 "    color: white !important;\n"
@@ -220,8 +223,7 @@ public:
 "    font-weight: bold;\n"
 "    border: none;\n"
 "}\n"
-"QPushButton#btnSave:hover, QPushButton#btnAjouter:hover, QPushButton#btnNouveau:hover "
-                        "{\n"
+"QPushButton#btnSave:hover, QPushButton#btnAjouter:hover, QPushButton#btnNouveau:hover {\n"
 "    background-color: #218838;\n"
 "}\n"
 "QPushButton#btnNouveau {\n"
@@ -232,7 +234,8 @@ public:
 "}\n"
 "\n"
 "QPushButton#btnAnnuler, QPushButton#btnAnnuler_Ajout {\n"
-"    background-color: #6c757d;\n"
+"    b"
+                        "ackground-color: #6c757d;\n"
 "    color: white !important;\n"
 "    border-radius: 5px;\n"
 "    padding: 8px 15px;\n"
@@ -243,7 +246,6 @@ public:
 "    background-color: #5a6268;\n"
 "}\n"
 "\n"
-"/* Bouton Supprimer Rouge */\n"
 "QPushButton#btnDelete {\n"
 "    background-color: #dc3545;\n"
 "    color: white !important;\n"
@@ -259,8 +261,7 @@ public:
 "/* ======================================================= */\n"
 "/* 5. TABLEAU */\n"
 "/* ======================================================= */\n"
-"Q"
-                        "TableWidget {\n"
+"QTableWidget {\n"
 "    background-color: #f4f6f9;\n"
 "    alternate-background-color: #e8ebf0;\n"
 "    color: #000000 !important;\n"
@@ -270,7 +271,8 @@ public:
 "    font-size: 13px;\n"
 "}\n"
 "QTableWidget::item {\n"
-"    color: #000000 !important;\n"
+"    co"
+                        "lor: #000000 !important;\n"
 "    padding: 5px;\n"
 "    border-bottom: 1px solid #e0e6ed;\n"
 "}\n"
@@ -297,8 +299,7 @@ public:
 "    border-radius: 5px;\n"
 "    padding: 6px;\n"
 "}\n"
-"Q"
-                        "LineEdit:focus {\n"
+"QLineEdit:focus {\n"
 "    border: 1px solid #3498db;\n"
 "}\n"
 "\n"
@@ -312,7 +313,8 @@ public:
 "QComboBox:focus {\n"
 "    border: 1px solid #3498db;\n"
 "}\n"
-"QComboBox QAbstractItemView {\n"
+""
+                        "QComboBox QAbstractItemView {\n"
 "    background-color: #ffffff;\n"
 "    color: #333333;\n"
 "    selection-background-color: #0f2b4c;\n"
@@ -337,6 +339,22 @@ public:
 "QTabBar::tab:selected {\n"
 "    background: #0f2b4c;\n"
 "    color: white !important;\n"
+"}\n"
+"\n"
+"/* ======================================================= */\n"
+"/* 7. PROFIL UTILISATEUR (HEADER) */\n"
+"/* ======================================================= */\n"
+"QLabel#lblUserName {\n"
+"    font-size: 14px;\n"
+"    font-weight: bold;\n"
+"    color: #0f2b4c !important;\n"
+"}\n"
+"QLabel#lblUserRole {\n"
+"    font-size: 12px;\n"
+""
+                        "    font-weight: bold;\n"
+"    color: #28a745 !important; /* Vert style 'Disponible' */\n"
+"    margin-top: -2px;\n"
 "}"));
         centralwidget = new QWidget(MainWindow);
         centralwidget->setObjectName("centralwidget");
@@ -355,6 +373,7 @@ public:
         label_logo = new QLabel(sidebar);
         label_logo->setObjectName("label_logo");
         label_logo->setMinimumSize(QSize(0, 100));
+        label_logo->setPixmap(QPixmap(QString::fromUtf8(":/Gemini_Generated_Image_8k5i7p8k5i7p8k5i-removebg-preview (2).png")));
         label_logo->setAlignment(Qt::AlignmentFlag::AlignCenter);
 
         verticalLayout_4->addWidget(label_logo);
@@ -426,6 +445,32 @@ public:
 
         horizontalLayout_Header->addWidget(btnNouveau);
 
+        horizontalSpacer_User = new QSpacerItem(20, 20, QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Minimum);
+
+        horizontalLayout_Header->addItem(horizontalSpacer_User);
+
+        frameUser = new QFrame(affichage);
+        frameUser->setObjectName("frameUser");
+        frameUser->setFrameShape(QFrame::Shape::NoFrame);
+        verticalLayout_User = new QVBoxLayout(frameUser);
+        verticalLayout_User->setSpacing(2);
+        verticalLayout_User->setObjectName("verticalLayout_User");
+        verticalLayout_User->setContentsMargins(0, 0, 5, 0);
+        lblUserName = new QLabel(frameUser);
+        lblUserName->setObjectName("lblUserName");
+        lblUserName->setAlignment(Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter);
+
+        verticalLayout_User->addWidget(lblUserName);
+
+        lblUserRole = new QLabel(frameUser);
+        lblUserRole->setObjectName("lblUserRole");
+        lblUserRole->setAlignment(Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter);
+
+        verticalLayout_User->addWidget(lblUserRole);
+
+
+        horizontalLayout_Header->addWidget(frameUser);
+
 
         verticalLayout_Left->addLayout(horizontalLayout_Header);
 
@@ -460,7 +505,6 @@ public:
         QTableWidgetItem *__qtablewidgetitem3 = new QTableWidgetItem();
         tableEmployes->setHorizontalHeaderItem(3, __qtablewidgetitem3);
         QTableWidgetItem *__qtablewidgetitem4 = new QTableWidgetItem();
-        __qtablewidgetitem4->setTextAlignment(Qt::AlignCenter);
         tableEmployes->setHorizontalHeaderItem(4, __qtablewidgetitem4);
         if (tableEmployes->rowCount() < 4)
             tableEmployes->setRowCount(4);
@@ -517,9 +561,9 @@ public:
         __qtablewidgetitem28->setTextAlignment(Qt::AlignCenter);
         tableEmployes->setItem(3, 4, __qtablewidgetitem28);
         tableEmployes->setObjectName("tableEmployes");
-        tableEmployes->setShowGrid(false);
         tableEmployes->setAlternatingRowColors(true);
         tableEmployes->setSelectionBehavior(QAbstractItemView::SelectionBehavior::SelectRows);
+        tableEmployes->setShowGrid(false);
         tableEmployes->horizontalHeader()->setStretchLastSection(true);
 
         verticalLayout_Left->addWidget(tableEmployes);
@@ -536,7 +580,7 @@ public:
         QFont font1;
         font1.setFamilies({QString::fromUtf8("Segoe UI")});
         font1.setPointSize(12);
-        font1.setBold(true);
+        font1.setWeight(QFont::DemiBold);
         label_StatTitle->setFont(font1);
 
         verticalLayout_Right->addWidget(label_StatTitle);
@@ -611,7 +655,7 @@ public:
         QFont font2;
         font2.setFamilies({QString::fromUtf8("Segoe UI")});
         font2.setPointSize(11);
-        font2.setBold(true);
+        font2.setWeight(QFont::DemiBold);
         label_Actions->setFont(font2);
 
         verticalLayout_Actions->addWidget(label_Actions);
@@ -847,7 +891,7 @@ public:
         MainWindow->setCentralWidget(centralwidget);
         menubar = new QMenuBar(MainWindow);
         menubar->setObjectName("menubar");
-        menubar->setGeometry(QRect(0, 0, 1100, 25));
+        menubar->setGeometry(QRect(0, 0, 1141, 25));
         MainWindow->setMenuBar(menubar);
         statusbar = new QStatusBar(MainWindow);
         statusbar->setObjectName("statusbar");
@@ -864,7 +908,7 @@ public:
     void retranslateUi(QMainWindow *MainWindow)
     {
         MainWindow->setWindowTitle(QCoreApplication::translate("MainWindow", "WasteGuard - Gestion des Employ\303\251s", nullptr));
-        label_logo->setText(QCoreApplication::translate("MainWindow", "WASTEGUARD", nullptr));
+        label_logo->setText(QString());
         btnAccueil->setText(QCoreApplication::translate("MainWindow", "Accueil", nullptr));
         btnStock->setText(QCoreApplication::translate("MainWindow", "Stock", nullptr));
         btnProduits->setText(QCoreApplication::translate("MainWindow", "Produits", nullptr));
@@ -872,6 +916,8 @@ public:
         btnMaintenance->setText(QCoreApplication::translate("MainWindow", "Maintenance", nullptr));
         label_Title->setText(QCoreApplication::translate("MainWindow", "Tableau de Bord des Employ\303\251s", nullptr));
         btnNouveau->setText(QCoreApplication::translate("MainWindow", "+ Nouvel Employ\303\251", nullptr));
+        lblUserName->setText(QCoreApplication::translate("MainWindow", "Admin System", nullptr));
+        lblUserRole->setText(QCoreApplication::translate("MainWindow", "Chef d'Atelier", nullptr));
         txtSearch->setPlaceholderText(QCoreApplication::translate("MainWindow", "Rechercher par Nom...", nullptr));
         cbSort->setItemText(0, QCoreApplication::translate("MainWindow", "Trier par: Sp\303\251cialit\303\251", nullptr));
         cbSort->setItemText(1, QCoreApplication::translate("MainWindow", "Trier par: Nom", nullptr));

@@ -59,6 +59,8 @@ OBJECTS       = debug/main.o \
 		debug/moc_mainwindow.o
 
 DIST          = ../../../../Downloads/Gemini_Generated_Image_8k5i7p8k5i7p8k5i-removebg-preview \
+		(2).png \
+		../../../../Downloads/Gemini_Generated_Image_8k5i7p8k5i7p8k5i-removebg-preview \
 		(2).png ..\..\mainwindow.h ..\..\main.cpp \
 		..\..\mainwindow.cpp
 QMAKE_TARGET  = WasteGuard

@@ -24,6 +24,7 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
 DISTFILES += \
+    ../../../../Downloads/Gemini_Generated_Image_8k5i7p8k5i7p8k5i-removebg-preview (2).png \
     ../../../../Downloads/Gemini_Generated_Image_8k5i7p8k5i7p8k5i-removebg-preview (2).png
 
 RESOURCES += \
