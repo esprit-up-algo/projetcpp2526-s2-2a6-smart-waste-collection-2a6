@@ -61,6 +61,9 @@ OBJECTS       = debug/main.o \
 DIST          = ../../../../Downloads/Gemini_Generated_Image_8k5i7p8k5i7p8k5i-removebg-preview \
 		(2).png \
 		../../../../Downloads/Gemini_Generated_Image_8k5i7p8k5i7p8k5i-removebg-preview \
+		(2).png \
+		../../../../Downloads/WASTEGUARD_1.png \
+		Gemini_Generated_Image_8k5i7p8k5i7p8k5i-removebg-preview \
 		(2).png ..\..\mainwindow.h ..\..\main.cpp \
 		..\..\mainwindow.cpp
 QMAKE_TARGET  = WasteGuard
@@ -766,6 +769,7 @@ debug/mainwindow.o: ../../mainwindow.cpp ../../mainwindow.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QPushButton \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qpushbutton.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qabstractbutton.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QSlider \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QSpacerItem \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QStatusBar \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qstatusbar.h \

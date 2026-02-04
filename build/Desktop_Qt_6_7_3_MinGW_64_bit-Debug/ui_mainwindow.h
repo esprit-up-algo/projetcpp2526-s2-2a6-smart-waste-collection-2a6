@@ -22,6 +22,7 @@
 #include <QtWidgets/QMainWindow>
 #include <QtWidgets/QMenuBar>
 #include <QtWidgets/QPushButton>
+#include <QtWidgets/QSlider>
 #include <QtWidgets/QSpacerItem>
 #include <QtWidgets/QStatusBar>
 #include <QtWidgets/QTabWidget>
@@ -70,11 +71,11 @@ public:
     QVBoxLayout *verticalLayout_5;
     QLabel *label_10;
     QLabel *lblStatNumber;
-    QFrame *statCard1;
+    QFrame *statCard_2;
     QVBoxLayout *verticalLayout_6;
     QLabel *label_12;
     QLabel *lblStatNumber1;
-    QFrame *statCard2;
+    QFrame *statCard_3;
     QVBoxLayout *verticalLayout_7;
     QLabel *label_14;
     QLabel *lblStatNumber2;
@@ -86,9 +87,18 @@ public:
     QSpacerItem *verticalSpacer_Right;
     QWidget *modification;
     QGridLayout *gridLayout_Modif;
+    QHBoxLayout *headerLayout_Modif;
+    QSpacerItem *horizontalSpacer_HeaderModif;
+    QFrame *frameUser_Modif;
+    QVBoxLayout *verticalLayout_User_Modif;
+    QLabel *lblUserName_Modif;
+    QLabel *lblUserRole_Modif;
     QFrame *cardFrame;
     QHBoxLayout *horizontalLayout_ModifFrame;
+    QVBoxLayout *verticalLayout_Photo_Modif;
     QLabel *imageLabel;
+    QPushButton *btnUploadPhoto;
+    QSpacerItem *verticalSpacer_Photo;
     QVBoxLayout *verticalLayout_FormRight;
     QFormLayout *formLayout_Modif;
     QLabel *lblMatricule;
@@ -99,6 +109,10 @@ public:
     QComboBox *cbSpecialite;
     QLabel *lblStatut;
     QComboBox *cbStatut;
+    QLabel *lblSalaire_Modif;
+    QVBoxLayout *verticalLayout_Salaire_Modif;
+    QSlider *sliderSalaire_Modif;
+    QLabel *lblValSalaire_Modif;
     QSpacerItem *verticalSpacer_Form;
     QHBoxLayout *horizontalLayout_Buttons;
     QPushButton *btnDelete;
@@ -107,9 +121,18 @@ public:
     QPushButton *btnSave;
     QWidget *ajout;
     QGridLayout *gridLayout_Ajout;
+    QHBoxLayout *headerLayout_Ajout;
+    QSpacerItem *horizontalSpacer_HeaderAjout;
+    QFrame *frameUser_Ajout;
+    QVBoxLayout *verticalLayout_User_Ajout;
+    QLabel *lblUserName_Ajout;
+    QLabel *lblUserRole_Ajout;
     QFrame *cardFrame_2;
     QHBoxLayout *horizontalLayout_AjoutFrame;
+    QVBoxLayout *verticalLayout_Photo_Ajout;
     QLabel *imageLabel_2;
+    QPushButton *btnUploadPhoto_Ajout;
+    QSpacerItem *verticalSpacer_Photo_Ajout;
     QVBoxLayout *verticalLayout_FormRight_2;
     QFormLayout *formLayout_Ajout;
     QLabel *label_7;
@@ -118,6 +141,10 @@ public:
     QComboBox *cbSpecialite_Ajout;
     QLabel *label_9;
     QComboBox *cbStatut_Ajout;
+    QLabel *lblSalaire_Ajout;
+    QVBoxLayout *verticalLayout_Salaire_Ajout;
+    QSlider *sliderSalaire_Ajout;
+    QLabel *lblValSalaire_Ajout;
     QSpacerItem *verticalSpacer_Form_2;
     QHBoxLayout *horizontalLayout_Buttons_2;
     QSpacerItem *horizontalSpacer_Buttons_2;
@@ -130,7 +157,7 @@ public:
     {
         if (MainWindow->objectName().isEmpty())
             MainWindow->setObjectName("MainWindow");
-        MainWindow->resize(1141, 750);
+        MainWindow->resize(1100, 750);
         MainWindow->setStyleSheet(QString::fromUtf8("/* ======================================================= */\n"
 "/* 1. CONFIGURATION G\303\211N\303\211RALE */\n"
 "/* ======================================================= */\n"
@@ -179,9 +206,10 @@ public:
 "}\n"
 "\n"
 "/* ======================================================= */\n"
-"/* 3. CARTES (CARDS) */\n"
+"/* 3. CARTES (CARDS) - FIX FOND NOIR */\n"
 "/* ======================================================= */\n"
-"QFrame#statCard, QFrame#actionCard, QFrame#cardFrame, QFrame#cardFrame_2 { \n"
+"/* J'ai ajout\303\251 statCard_2 et statCard_3 \303\240 la liste pour qu'elles soient blanches */\n"
+"QFrame#statCard, QFrame#statCard_2, QFrame#statCard_3, QFrame#actionCard, QFrame#cardFrame, QFrame#cardFrame_2 { \n"
 "    background-color: #f4f6f9;\n"
 "    border-radius: 12px;\n"
 "    border: 1px solid #dce1e6;\n"
@@ -195,11 +223,11 @@ public:
 "}\n"
 "\n"
 "/* ======================================================= */\n"
-"/* 4. BOUTONS */\n"
+"/* 4. BOUTON"
+                        "S */\n"
 "/* ======================================================= */\n"
 "QPushButton#btnExport, QPushButton#btnFichePaie {\n"
-"    background-color: #ffff"
-                        "ff;\n"
+"    background-color: #ffffff;\n"
 "    color: #333333 !important;\n"
 "    border: 1px solid #cccccc;\n"
 "    border-radius: 8px;\n"
@@ -227,15 +255,15 @@ public:
 "    background-color: #218838;\n"
 "}\n"
 "QPushButton#btnNouveau {\n"
-"    background-color: #0f2b4c;\n"
+"    background-color: #0f2b4c;"
+                        "\n"
 "}\n"
 "QPushButton#btnNouveau:hover {\n"
 "    background-color: #1a4270;\n"
 "}\n"
 "\n"
 "QPushButton#btnAnnuler, QPushButton#btnAnnuler_Ajout {\n"
-"    b"
-                        "ackground-color: #6c757d;\n"
+"    background-color: #6c757d;\n"
 "    color: white !important;\n"
 "    border-radius: 5px;\n"
 "    padding: 8px 15px;\n"
@@ -258,6 +286,22 @@ public:
 "    background-color: #c82333;\n"
 "}\n"
 "\n"
+"/* STYLE POUR LE BOUTON PHOTO */\n"
+"QPushButton#btnUploadPhoto, QPushButton#btnUploadPhoto_Ajout {\n"
+"    background-color: #ffffff;\n"
+"    color: #0f2b4c !important;\n"
+"    border: 1px dashed #0f2b4c;\n"
+"    border-radius: 8px;\n"
+"    padding: 6px;\n"
+"    font-weight: bold;\n"
+"    ma"
+                        "rgin-top: 5px;\n"
+"}\n"
+"QPushButton#btnUploadPhoto:hover, QPushButton#btnUploadPhoto_Ajout:hover {\n"
+"    background-color: #e3f2fd;\n"
+"    border: 1px solid #0f2b4c;\n"
+"}\n"
+"\n"
 "/* ======================================================= */\n"
 "/* 5. TABLEAU */\n"
 "/* ======================================================= */\n"
@@ -271,8 +315,7 @@ public:
 "    font-size: 13px;\n"
 "}\n"
 "QTableWidget::item {\n"
-"    co"
-                        "lor: #000000 !important;\n"
+"    color: #000000 !important;\n"
 "    padding: 5px;\n"
 "    border-bottom: 1px solid #e0e6ed;\n"
 "}\n"
@@ -288,7 +331,8 @@ public:
 "    font-weight: bold;\n"
 "    font-size: 13px;\n"
 "}\n"
-"\n"
+""
+                        "\n"
 "/* ======================================================= */\n"
 "/* 6. INPUTS & COMBOBOX */\n"
 "/* ======================================================= */\n"
@@ -313,8 +357,7 @@ public:
 "QComboBox:focus {\n"
 "    border: 1px solid #3498db;\n"
 "}\n"
-""
-                        "QComboBox QAbstractItemView {\n"
+"QComboBox QAbstractItemView {\n"
 "    background-color: #ffffff;\n"
 "    color: #333333;\n"
 "    selection-background-color: #0f2b4c;\n"
@@ -327,7 +370,8 @@ public:
 "    border-radius: 10px;\n"
 "    background-color: #f4f6f9;\n"
 "    color: #888888 !important;\n"
-"}\n"
+""
+                        "}\n"
 "\n"
 "QTabWidget::pane { border: none; }\n"
 "QTabBar::tab {\n"
@@ -344,17 +388,36 @@ public:
 "/* ======================================================= */\n"
 "/* 7. PROFIL UTILISATEUR (HEADER) */\n"
 "/* ======================================================= */\n"
-"QLabel#lblUserName {\n"
+"QLabel#lblUserName, QLabel#lblUserName_Modif, QLabel#lblUserName_Ajout {\n"
 "    font-size: 14px;\n"
 "    font-weight: bold;\n"
 "    color: #0f2b4c !important;\n"
 "}\n"
-"QLabel#lblUserRole {\n"
+"QLabel#lblUserRole, QLabel#lblUserRole_Modif, QLabel#lblUserRole_Ajout {\n"
 "    font-size: 12px;\n"
-""
-                        "    font-weight: bold;\n"
-"    color: #28a745 !important; /* Vert style 'Disponible' */\n"
+"    font-weight: bold;\n"
+"    color: #28a745 !important;\n"
 "    margin-top: -2px;\n"
+"}\n"
+"\n"
+"/* ======================================================= */\n"
+"/* 8. SLIDER STYLE */\n"
+"/* ======================================================= */\n"
+"QSlider::groove:horizontal {\n"
+""
+                        "    border: 1px solid #cccccc;\n"
+"    height: 8px;\n"
+"    background: #e0e0e0;\n"
+"    margin: 2px 0;\n"
+"    border-radius: 4px;\n"
+"}\n"
+"QSlider::handle:horizontal {\n"
+"    background: #0f2b4c;\n"
+"    border: 1px solid #0f2b4c;\n"
+"    width: 18px;\n"
+"    height: 18px;\n"
+"    margin: -6px 0;\n"
+"    border-radius: 9px;\n"
 "}"));
         centralwidget = new QWidget(MainWindow);
         centralwidget->setObjectName("centralwidget");
@@ -403,7 +466,7 @@ public:
 
         verticalLayout_4->addWidget(btnMaintenance);
 
-        verticalSpacer = new QSpacerItem(20, 40, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
+        verticalSpacer = new QSpacerItem(20, 250, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Preferred);
 
         verticalLayout_4->addItem(verticalSpacer);
 
@@ -428,7 +491,7 @@ public:
         label_Title->setObjectName("label_Title");
         QFont font;
         font.setFamilies({QString::fromUtf8("Segoe UI")});
-        font.setPointSize(14);
+        font.setPointSize(18);
         font.setWeight(QFont::DemiBold);
         label_Title->setFont(font);
 
@@ -440,7 +503,7 @@ public:
 
         btnNouveau = new QPushButton(affichage);
         btnNouveau->setObjectName("btnNouveau");
-        btnNouveau->setMinimumSize(QSize(0, 35));
+        btnNouveau->setMinimumSize(QSize(0, 40));
         btnNouveau->setCursor(QCursor(Qt::CursorShape::PointingHandCursor));
 
         horizontalLayout_Header->addWidget(btnNouveau);
@@ -478,7 +541,7 @@ public:
         horizontalLayout_Search->setObjectName("horizontalLayout_Search");
         txtSearch = new QLineEdit(affichage);
         txtSearch->setObjectName("txtSearch");
-        txtSearch->setMinimumSize(QSize(0, 35));
+        txtSearch->setMinimumSize(QSize(0, 40));
 
         horizontalLayout_Search->addWidget(txtSearch);
 
@@ -486,7 +549,7 @@ public:
         cbSort->addItem(QString());
         cbSort->addItem(QString());
         cbSort->setObjectName("cbSort");
-        cbSort->setMinimumSize(QSize(150, 35));
+        cbSort->setMinimumSize(QSize(180, 40));
 
         horizontalLayout_Search->addWidget(cbSort);
 
@@ -561,10 +624,18 @@ public:
         __qtablewidgetitem28->setTextAlignment(Qt::AlignCenter);
         tableEmployes->setItem(3, 4, __qtablewidgetitem28);
         tableEmployes->setObjectName("tableEmployes");
+        QSizePolicy sizePolicy(QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Expanding);
+        sizePolicy.setHorizontalStretch(0);
+        sizePolicy.setVerticalStretch(0);
+        sizePolicy.setHeightForWidth(tableEmployes->sizePolicy().hasHeightForWidth());
+        tableEmployes->setSizePolicy(sizePolicy);
         tableEmployes->setAlternatingRowColors(true);
         tableEmployes->setSelectionBehavior(QAbstractItemView::SelectionBehavior::SelectRows);
+        tableEmployes->setVerticalScrollMode(QAbstractItemView::ScrollMode::ScrollPerPixel);
+        tableEmployes->setHorizontalScrollMode(QAbstractItemView::ScrollMode::ScrollPerPixel);
         tableEmployes->setShowGrid(false);
         tableEmployes->horizontalHeader()->setStretchLastSection(true);
+        tableEmployes->verticalHeader()->setVisible(false);
 
         verticalLayout_Left->addWidget(tableEmployes);
 
@@ -572,9 +643,9 @@ public:
         horizontalLayout_Split->addLayout(verticalLayout_Left);
 
         verticalLayout_Right = new QVBoxLayout();
-        verticalLayout_Right->setSpacing(15);
+        verticalLayout_Right->setSpacing(20);
         verticalLayout_Right->setObjectName("verticalLayout_Right");
-        verticalLayout_Right->setContentsMargins(10, -1, -1, -1);
+        verticalLayout_Right->setContentsMargins(15, -1, -1, -1);
         label_StatTitle = new QLabel(affichage);
         label_StatTitle->setObjectName("label_StatTitle");
         QFont font1;
@@ -588,7 +659,6 @@ public:
         statCard = new QFrame(affichage);
         statCard->setObjectName("statCard");
         statCard->setFrameShape(QFrame::Shape::StyledPanel);
-        statCard->setFrameShadow(QFrame::Shadow::Raised);
         verticalLayout_5 = new QVBoxLayout(statCard);
         verticalLayout_5->setObjectName("verticalLayout_5");
         label_10 = new QLabel(statCard);
@@ -604,51 +674,48 @@ public:
 
         verticalLayout_Right->addWidget(statCard);
 
-        statCard1 = new QFrame(affichage);
-        statCard1->setObjectName("statCard1");
-        statCard1->setFrameShape(QFrame::Shape::StyledPanel);
-        statCard1->setFrameShadow(QFrame::Shadow::Raised);
-        verticalLayout_6 = new QVBoxLayout(statCard1);
+        statCard_2 = new QFrame(affichage);
+        statCard_2->setObjectName("statCard_2");
+        statCard_2->setFrameShape(QFrame::Shape::StyledPanel);
+        verticalLayout_6 = new QVBoxLayout(statCard_2);
         verticalLayout_6->setObjectName("verticalLayout_6");
-        label_12 = new QLabel(statCard1);
+        label_12 = new QLabel(statCard_2);
         label_12->setObjectName("label_12");
 
         verticalLayout_6->addWidget(label_12);
 
-        lblStatNumber1 = new QLabel(statCard1);
+        lblStatNumber1 = new QLabel(statCard_2);
         lblStatNumber1->setObjectName("lblStatNumber1");
 
         verticalLayout_6->addWidget(lblStatNumber1);
 
 
-        verticalLayout_Right->addWidget(statCard1);
+        verticalLayout_Right->addWidget(statCard_2);
 
-        statCard2 = new QFrame(affichage);
-        statCard2->setObjectName("statCard2");
-        statCard2->setFrameShape(QFrame::Shape::StyledPanel);
-        statCard2->setFrameShadow(QFrame::Shadow::Raised);
-        verticalLayout_7 = new QVBoxLayout(statCard2);
+        statCard_3 = new QFrame(affichage);
+        statCard_3->setObjectName("statCard_3");
+        statCard_3->setFrameShape(QFrame::Shape::StyledPanel);
+        verticalLayout_7 = new QVBoxLayout(statCard_3);
         verticalLayout_7->setObjectName("verticalLayout_7");
-        label_14 = new QLabel(statCard2);
+        label_14 = new QLabel(statCard_3);
         label_14->setObjectName("label_14");
 
         verticalLayout_7->addWidget(label_14);
 
-        lblStatNumber2 = new QLabel(statCard2);
+        lblStatNumber2 = new QLabel(statCard_3);
         lblStatNumber2->setObjectName("lblStatNumber2");
-        lblStatNumber2->setStyleSheet(QString::fromUtf8("color: #28a745 !important;"));
+        lblStatNumber2->setStyleSheet(QString::fromUtf8("color: #27ae60 !important;"));
 
         verticalLayout_7->addWidget(lblStatNumber2);
 
 
-        verticalLayout_Right->addWidget(statCard2);
+        verticalLayout_Right->addWidget(statCard_3);
 
         actionCard = new QFrame(affichage);
         actionCard->setObjectName("actionCard");
         actionCard->setFrameShape(QFrame::Shape::StyledPanel);
-        actionCard->setFrameShadow(QFrame::Shadow::Raised);
         verticalLayout_Actions = new QVBoxLayout(actionCard);
-        verticalLayout_Actions->setSpacing(10);
+        verticalLayout_Actions->setSpacing(15);
         verticalLayout_Actions->setObjectName("verticalLayout_Actions");
         label_Actions = new QLabel(actionCard);
         label_Actions->setObjectName("label_Actions");
@@ -689,18 +756,65 @@ public:
         modification->setObjectName("modification");
         gridLayout_Modif = new QGridLayout(modification);
         gridLayout_Modif->setObjectName("gridLayout_Modif");
+        headerLayout_Modif = new QHBoxLayout();
+        headerLayout_Modif->setObjectName("headerLayout_Modif");
+        horizontalSpacer_HeaderModif = new QSpacerItem(40, 20, QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Minimum);
+
+        headerLayout_Modif->addItem(horizontalSpacer_HeaderModif);
+
+        frameUser_Modif = new QFrame(modification);
+        frameUser_Modif->setObjectName("frameUser_Modif");
+        frameUser_Modif->setFrameShape(QFrame::Shape::NoFrame);
+        verticalLayout_User_Modif = new QVBoxLayout(frameUser_Modif);
+        verticalLayout_User_Modif->setSpacing(2);
+        verticalLayout_User_Modif->setObjectName("verticalLayout_User_Modif");
+        verticalLayout_User_Modif->setContentsMargins(0, 0, 5, 0);
+        lblUserName_Modif = new QLabel(frameUser_Modif);
+        lblUserName_Modif->setObjectName("lblUserName_Modif");
+        lblUserName_Modif->setAlignment(Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter);
+
+        verticalLayout_User_Modif->addWidget(lblUserName_Modif);
+
+        lblUserRole_Modif = new QLabel(frameUser_Modif);
+        lblUserRole_Modif->setObjectName("lblUserRole_Modif");
+        lblUserRole_Modif->setAlignment(Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter);
+
+        verticalLayout_User_Modif->addWidget(lblUserRole_Modif);
+
+
+        headerLayout_Modif->addWidget(frameUser_Modif);
+
+
+        gridLayout_Modif->addLayout(headerLayout_Modif, 0, 0, 1, 2);
+
         cardFrame = new QFrame(modification);
         cardFrame->setObjectName("cardFrame");
         cardFrame->setFrameShape(QFrame::Shape::StyledPanel);
         cardFrame->setFrameShadow(QFrame::Shadow::Raised);
         horizontalLayout_ModifFrame = new QHBoxLayout(cardFrame);
         horizontalLayout_ModifFrame->setObjectName("horizontalLayout_ModifFrame");
+        verticalLayout_Photo_Modif = new QVBoxLayout();
+        verticalLayout_Photo_Modif->setSpacing(10);
+        verticalLayout_Photo_Modif->setObjectName("verticalLayout_Photo_Modif");
         imageLabel = new QLabel(cardFrame);
         imageLabel->setObjectName("imageLabel");
         imageLabel->setMinimumSize(QSize(200, 300));
         imageLabel->setAlignment(Qt::AlignmentFlag::AlignCenter);
 
-        horizontalLayout_ModifFrame->addWidget(imageLabel);
+        verticalLayout_Photo_Modif->addWidget(imageLabel);
+
+        btnUploadPhoto = new QPushButton(cardFrame);
+        btnUploadPhoto->setObjectName("btnUploadPhoto");
+        btnUploadPhoto->setCursor(QCursor(Qt::CursorShape::PointingHandCursor));
+
+        verticalLayout_Photo_Modif->addWidget(btnUploadPhoto);
+
+        verticalSpacer_Photo = new QSpacerItem(20, 40, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
+
+        verticalLayout_Photo_Modif->addItem(verticalSpacer_Photo);
+
+
+        horizontalLayout_ModifFrame->addLayout(verticalLayout_Photo_Modif);
 
         verticalLayout_FormRight = new QVBoxLayout();
         verticalLayout_FormRight->setObjectName("verticalLayout_FormRight");
@@ -754,6 +868,35 @@ public:
 
         formLayout_Modif->setWidget(3, QFormLayout::FieldRole, cbStatut);
 
+        lblSalaire_Modif = new QLabel(cardFrame);
+        lblSalaire_Modif->setObjectName("lblSalaire_Modif");
+
+        formLayout_Modif->setWidget(4, QFormLayout::LabelRole, lblSalaire_Modif);
+
+        verticalLayout_Salaire_Modif = new QVBoxLayout();
+        verticalLayout_Salaire_Modif->setObjectName("verticalLayout_Salaire_Modif");
+        sliderSalaire_Modif = new QSlider(cardFrame);
+        sliderSalaire_Modif->setObjectName("sliderSalaire_Modif");
+        sliderSalaire_Modif->setMinimum(600);
+        sliderSalaire_Modif->setMaximum(5000);
+        sliderSalaire_Modif->setValue(1200);
+        sliderSalaire_Modif->setOrientation(Qt::Orientation::Horizontal);
+
+        verticalLayout_Salaire_Modif->addWidget(sliderSalaire_Modif);
+
+        lblValSalaire_Modif = new QLabel(cardFrame);
+        lblValSalaire_Modif->setObjectName("lblValSalaire_Modif");
+        QFont font3;
+        font3.setFamilies({QString::fromUtf8("Segoe UI")});
+        font3.setWeight(QFont::DemiBold);
+        lblValSalaire_Modif->setFont(font3);
+        lblValSalaire_Modif->setAlignment(Qt::AlignmentFlag::AlignCenter);
+
+        verticalLayout_Salaire_Modif->addWidget(lblValSalaire_Modif);
+
+
+        formLayout_Modif->setLayout(4, QFormLayout::FieldRole, verticalLayout_Salaire_Modif);
+
 
         verticalLayout_FormRight->addLayout(formLayout_Modif);
 
@@ -790,25 +933,71 @@ public:
         horizontalLayout_ModifFrame->addLayout(verticalLayout_FormRight);
 
 
-        gridLayout_Modif->addWidget(cardFrame, 0, 0, 1, 1);
+        gridLayout_Modif->addWidget(cardFrame, 1, 0, 1, 1);
 
         tabWidget->addTab(modification, QString());
         ajout = new QWidget();
         ajout->setObjectName("ajout");
         gridLayout_Ajout = new QGridLayout(ajout);
         gridLayout_Ajout->setObjectName("gridLayout_Ajout");
+        headerLayout_Ajout = new QHBoxLayout();
+        headerLayout_Ajout->setObjectName("headerLayout_Ajout");
+        horizontalSpacer_HeaderAjout = new QSpacerItem(40, 20, QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Minimum);
+
+        headerLayout_Ajout->addItem(horizontalSpacer_HeaderAjout);
+
+        frameUser_Ajout = new QFrame(ajout);
+        frameUser_Ajout->setObjectName("frameUser_Ajout");
+        frameUser_Ajout->setFrameShape(QFrame::Shape::NoFrame);
+        verticalLayout_User_Ajout = new QVBoxLayout(frameUser_Ajout);
+        verticalLayout_User_Ajout->setSpacing(2);
+        verticalLayout_User_Ajout->setObjectName("verticalLayout_User_Ajout");
+        verticalLayout_User_Ajout->setContentsMargins(0, 0, 5, 0);
+        lblUserName_Ajout = new QLabel(frameUser_Ajout);
+        lblUserName_Ajout->setObjectName("lblUserName_Ajout");
+        lblUserName_Ajout->setAlignment(Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter);
+
+        verticalLayout_User_Ajout->addWidget(lblUserName_Ajout);
+
+        lblUserRole_Ajout = new QLabel(frameUser_Ajout);
+        lblUserRole_Ajout->setObjectName("lblUserRole_Ajout");
+        lblUserRole_Ajout->setAlignment(Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter);
+
+        verticalLayout_User_Ajout->addWidget(lblUserRole_Ajout);
+
+
+        headerLayout_Ajout->addWidget(frameUser_Ajout);
+
+
+        gridLayout_Ajout->addLayout(headerLayout_Ajout, 0, 0, 1, 2);
+
         cardFrame_2 = new QFrame(ajout);
         cardFrame_2->setObjectName("cardFrame_2");
         cardFrame_2->setFrameShape(QFrame::Shape::StyledPanel);
-        cardFrame_2->setFrameShadow(QFrame::Shadow::Raised);
         horizontalLayout_AjoutFrame = new QHBoxLayout(cardFrame_2);
         horizontalLayout_AjoutFrame->setObjectName("horizontalLayout_AjoutFrame");
+        verticalLayout_Photo_Ajout = new QVBoxLayout();
+        verticalLayout_Photo_Ajout->setSpacing(10);
+        verticalLayout_Photo_Ajout->setObjectName("verticalLayout_Photo_Ajout");
         imageLabel_2 = new QLabel(cardFrame_2);
         imageLabel_2->setObjectName("imageLabel_2");
         imageLabel_2->setMinimumSize(QSize(200, 300));
         imageLabel_2->setAlignment(Qt::AlignmentFlag::AlignCenter);
 
-        horizontalLayout_AjoutFrame->addWidget(imageLabel_2);
+        verticalLayout_Photo_Ajout->addWidget(imageLabel_2);
+
+        btnUploadPhoto_Ajout = new QPushButton(cardFrame_2);
+        btnUploadPhoto_Ajout->setObjectName("btnUploadPhoto_Ajout");
+        btnUploadPhoto_Ajout->setCursor(QCursor(Qt::CursorShape::PointingHandCursor));
+
+        verticalLayout_Photo_Ajout->addWidget(btnUploadPhoto_Ajout);
+
+        verticalSpacer_Photo_Ajout = new QSpacerItem(20, 40, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
+
+        verticalLayout_Photo_Ajout->addItem(verticalSpacer_Photo_Ajout);
+
+
+        horizontalLayout_AjoutFrame->addLayout(verticalLayout_Photo_Ajout);
 
         verticalLayout_FormRight_2 = new QVBoxLayout();
         verticalLayout_FormRight_2->setObjectName("verticalLayout_FormRight_2");
@@ -849,6 +1038,33 @@ public:
 
         formLayout_Ajout->setWidget(2, QFormLayout::FieldRole, cbStatut_Ajout);
 
+        lblSalaire_Ajout = new QLabel(cardFrame_2);
+        lblSalaire_Ajout->setObjectName("lblSalaire_Ajout");
+
+        formLayout_Ajout->setWidget(3, QFormLayout::LabelRole, lblSalaire_Ajout);
+
+        verticalLayout_Salaire_Ajout = new QVBoxLayout();
+        verticalLayout_Salaire_Ajout->setObjectName("verticalLayout_Salaire_Ajout");
+        sliderSalaire_Ajout = new QSlider(cardFrame_2);
+        sliderSalaire_Ajout->setObjectName("sliderSalaire_Ajout");
+        sliderSalaire_Ajout->setMinimum(600);
+        sliderSalaire_Ajout->setMaximum(5000);
+        sliderSalaire_Ajout->setValue(1200);
+        sliderSalaire_Ajout->setOrientation(Qt::Orientation::Horizontal);
+
+        verticalLayout_Salaire_Ajout->addWidget(sliderSalaire_Ajout);
+
+        lblValSalaire_Ajout = new QLabel(cardFrame_2);
+        lblValSalaire_Ajout->setObjectName("lblValSalaire_Ajout");
+        lblValSalaire_Ajout->setMinimumSize(QSize(70, 0));
+        lblValSalaire_Ajout->setFont(font3);
+        lblValSalaire_Ajout->setAlignment(Qt::AlignmentFlag::AlignCenter);
+
+        verticalLayout_Salaire_Ajout->addWidget(lblValSalaire_Ajout);
+
+
+        formLayout_Ajout->setLayout(3, QFormLayout::FieldRole, verticalLayout_Salaire_Ajout);
+
 
         verticalLayout_FormRight_2->addLayout(formLayout_Ajout);
 
@@ -879,7 +1095,7 @@ public:
         horizontalLayout_AjoutFrame->addLayout(verticalLayout_FormRight_2);
 
 
-        gridLayout_Ajout->addWidget(cardFrame_2, 0, 0, 1, 1);
+        gridLayout_Ajout->addWidget(cardFrame_2, 1, 0, 1, 1);
 
         tabWidget->addTab(ajout, QString());
 
@@ -891,7 +1107,7 @@ public:
         MainWindow->setCentralWidget(centralwidget);
         menubar = new QMenuBar(MainWindow);
         menubar->setObjectName("menubar");
-        menubar->setGeometry(QRect(0, 0, 1141, 25));
+        menubar->setGeometry(QRect(0, 0, 1100, 25));
         MainWindow->setMenuBar(menubar);
         statusbar = new QStatusBar(MainWindow);
         statusbar->setObjectName("statusbar");
@@ -914,24 +1130,24 @@ public:
         btnProduits->setText(QCoreApplication::translate("MainWindow", "Produits", nullptr));
         btnEmployes->setText(QCoreApplication::translate("MainWindow", "Employ\303\251s", nullptr));
         btnMaintenance->setText(QCoreApplication::translate("MainWindow", "Maintenance", nullptr));
-        label_Title->setText(QCoreApplication::translate("MainWindow", "Tableau de Bord des Employ\303\251s", nullptr));
+        label_Title->setText(QCoreApplication::translate("MainWindow", "Tableau de Bord", nullptr));
         btnNouveau->setText(QCoreApplication::translate("MainWindow", "+ Nouvel Employ\303\251", nullptr));
         lblUserName->setText(QCoreApplication::translate("MainWindow", "Admin System", nullptr));
         lblUserRole->setText(QCoreApplication::translate("MainWindow", "Chef d'Atelier", nullptr));
-        txtSearch->setPlaceholderText(QCoreApplication::translate("MainWindow", "Rechercher par Nom...", nullptr));
+        txtSearch->setPlaceholderText(QCoreApplication::translate("MainWindow", "\360\237\224\215 Rechercher un employ\303\251...", nullptr));
         cbSort->setItemText(0, QCoreApplication::translate("MainWindow", "Trier par: Sp\303\251cialit\303\251", nullptr));
         cbSort->setItemText(1, QCoreApplication::translate("MainWindow", "Trier par: Nom", nullptr));
 
         QTableWidgetItem *___qtablewidgetitem = tableEmployes->horizontalHeaderItem(0);
-        ___qtablewidgetitem->setText(QCoreApplication::translate("MainWindow", "Matricule", nullptr));
+        ___qtablewidgetitem->setText(QCoreApplication::translate("MainWindow", "MATRICULE", nullptr));
         QTableWidgetItem *___qtablewidgetitem1 = tableEmployes->horizontalHeaderItem(1);
-        ___qtablewidgetitem1->setText(QCoreApplication::translate("MainWindow", "Nom Complet", nullptr));
+        ___qtablewidgetitem1->setText(QCoreApplication::translate("MainWindow", "NOM COMPLET", nullptr));
         QTableWidgetItem *___qtablewidgetitem2 = tableEmployes->horizontalHeaderItem(2);
-        ___qtablewidgetitem2->setText(QCoreApplication::translate("MainWindow", "Sp\303\251cialit\303\251", nullptr));
+        ___qtablewidgetitem2->setText(QCoreApplication::translate("MainWindow", "SP\303\211CIALIT\303\211", nullptr));
         QTableWidgetItem *___qtablewidgetitem3 = tableEmployes->horizontalHeaderItem(3);
-        ___qtablewidgetitem3->setText(QCoreApplication::translate("MainWindow", "Disponibilit\303\251", nullptr));
+        ___qtablewidgetitem3->setText(QCoreApplication::translate("MainWindow", "DISPONIBILIT\303\211", nullptr));
         QTableWidgetItem *___qtablewidgetitem4 = tableEmployes->horizontalHeaderItem(4);
-        ___qtablewidgetitem4->setText(QCoreApplication::translate("MainWindow", "Actions", nullptr));
+        ___qtablewidgetitem4->setText(QCoreApplication::translate("MainWindow", "ACTIONS", nullptr));
         QTableWidgetItem *___qtablewidgetitem5 = tableEmployes->verticalHeaderItem(0);
         ___qtablewidgetitem5->setText(QCoreApplication::translate("MainWindow", "1", nullptr));
         QTableWidgetItem *___qtablewidgetitem6 = tableEmployes->verticalHeaderItem(1);
@@ -952,7 +1168,7 @@ public:
         QTableWidgetItem *___qtablewidgetitem12 = tableEmployes->item(0, 3);
         ___qtablewidgetitem12->setText(QCoreApplication::translate("MainWindow", "Disponible", nullptr));
         QTableWidgetItem *___qtablewidgetitem13 = tableEmployes->item(0, 4);
-        ___qtablewidgetitem13->setText(QCoreApplication::translate("MainWindow", "\342\234\217\357\270\217  |  \360\237\227\221\357\270\217", nullptr));
+        ___qtablewidgetitem13->setText(QCoreApplication::translate("MainWindow", "\342\234\217\357\270\217 | \360\237\227\221\357\270\217", nullptr));
         QTableWidgetItem *___qtablewidgetitem14 = tableEmployes->item(1, 0);
         ___qtablewidgetitem14->setText(QCoreApplication::translate("MainWindow", "EMP-002", nullptr));
         QTableWidgetItem *___qtablewidgetitem15 = tableEmployes->item(1, 1);
@@ -962,7 +1178,7 @@ public:
         QTableWidgetItem *___qtablewidgetitem17 = tableEmployes->item(1, 3);
         ___qtablewidgetitem17->setText(QCoreApplication::translate("MainWindow", "En Mission", nullptr));
         QTableWidgetItem *___qtablewidgetitem18 = tableEmployes->item(1, 4);
-        ___qtablewidgetitem18->setText(QCoreApplication::translate("MainWindow", "\342\234\217\357\270\217  |  \360\237\227\221\357\270\217", nullptr));
+        ___qtablewidgetitem18->setText(QCoreApplication::translate("MainWindow", "\342\234\217\357\270\217 | \360\237\227\221\357\270\217", nullptr));
         QTableWidgetItem *___qtablewidgetitem19 = tableEmployes->item(2, 0);
         ___qtablewidgetitem19->setText(QCoreApplication::translate("MainWindow", "EMP-003", nullptr));
         QTableWidgetItem *___qtablewidgetitem20 = tableEmployes->item(2, 1);
@@ -972,7 +1188,7 @@ public:
         QTableWidgetItem *___qtablewidgetitem22 = tableEmployes->item(2, 3);
         ___qtablewidgetitem22->setText(QCoreApplication::translate("MainWindow", "Cong\303\251", nullptr));
         QTableWidgetItem *___qtablewidgetitem23 = tableEmployes->item(2, 4);
-        ___qtablewidgetitem23->setText(QCoreApplication::translate("MainWindow", "\342\234\217\357\270\217  |  \360\237\227\221\357\270\217", nullptr));
+        ___qtablewidgetitem23->setText(QCoreApplication::translate("MainWindow", "\342\234\217\357\270\217 | \360\237\227\221\357\270\217", nullptr));
         QTableWidgetItem *___qtablewidgetitem24 = tableEmployes->item(3, 0);
         ___qtablewidgetitem24->setText(QCoreApplication::translate("MainWindow", "EMP-004", nullptr));
         QTableWidgetItem *___qtablewidgetitem25 = tableEmployes->item(3, 1);
@@ -982,10 +1198,10 @@ public:
         QTableWidgetItem *___qtablewidgetitem27 = tableEmployes->item(3, 3);
         ___qtablewidgetitem27->setText(QCoreApplication::translate("MainWindow", "Disponible", nullptr));
         QTableWidgetItem *___qtablewidgetitem28 = tableEmployes->item(3, 4);
-        ___qtablewidgetitem28->setText(QCoreApplication::translate("MainWindow", "\342\234\217\357\270\217  |  \360\237\227\221\357\270\217", nullptr));
+        ___qtablewidgetitem28->setText(QCoreApplication::translate("MainWindow", "\342\234\217\357\270\217 | \360\237\227\221\357\270\217", nullptr));
         tableEmployes->setSortingEnabled(__sortingEnabled);
 
-        label_StatTitle->setText(QCoreApplication::translate("MainWindow", "Statistiques", nullptr));
+        label_StatTitle->setText(QCoreApplication::translate("MainWindow", "Aper\303\247u", nullptr));
         label_10->setText(QCoreApplication::translate("MainWindow", "Total Employ\303\251s", nullptr));
         lblStatNumber->setText(QCoreApplication::translate("MainWindow", "12", nullptr));
         label_12->setText(QCoreApplication::translate("MainWindow", "Charge de Travail", nullptr));
@@ -996,7 +1212,10 @@ public:
         btnExport->setText(QCoreApplication::translate("MainWindow", "\360\237\223\204  Export PDF / CSV", nullptr));
         btnFichePaie->setText(QCoreApplication::translate("MainWindow", "\360\237\222\260  G\303\251n\303\251rer Fiche de Paie", nullptr));
         tabWidget->setTabText(tabWidget->indexOf(affichage), QCoreApplication::translate("MainWindow", "Affichage", nullptr));
+        lblUserName_Modif->setText(QCoreApplication::translate("MainWindow", "Admin System", nullptr));
+        lblUserRole_Modif->setText(QCoreApplication::translate("MainWindow", "Chef d'Atelier", nullptr));
         imageLabel->setText(QCoreApplication::translate("MainWindow", "Photo", nullptr));
+        btnUploadPhoto->setText(QCoreApplication::translate("MainWindow", "\360\237\223\267 Charger une photo", nullptr));
         lblMatricule->setText(QCoreApplication::translate("MainWindow", "Matricule", nullptr));
         txtMatricule->setPlaceholderText(QCoreApplication::translate("MainWindow", "Auto", nullptr));
         lblNom->setText(QCoreApplication::translate("MainWindow", "Nom Complet", nullptr));
@@ -1010,11 +1229,16 @@ public:
         cbStatut->setItemText(1, QCoreApplication::translate("MainWindow", "En intervention", nullptr));
         cbStatut->setItemText(2, QCoreApplication::translate("MainWindow", "Cong\303\251", nullptr));
 
+        lblSalaire_Modif->setText(QCoreApplication::translate("MainWindow", "Salaire", nullptr));
+        lblValSalaire_Modif->setText(QCoreApplication::translate("MainWindow", "1200 DT", nullptr));
         btnDelete->setText(QCoreApplication::translate("MainWindow", "Supprimer", nullptr));
         btnAnnuler->setText(QCoreApplication::translate("MainWindow", "Annuler", nullptr));
         btnSave->setText(QCoreApplication::translate("MainWindow", "Sauvegarder", nullptr));
         tabWidget->setTabText(tabWidget->indexOf(modification), QCoreApplication::translate("MainWindow", "Modification", nullptr));
+        lblUserName_Ajout->setText(QCoreApplication::translate("MainWindow", "Admin System", nullptr));
+        lblUserRole_Ajout->setText(QCoreApplication::translate("MainWindow", "Chef d'Atelier", nullptr));
         imageLabel_2->setText(QCoreApplication::translate("MainWindow", "Photo", nullptr));
+        btnUploadPhoto_Ajout->setText(QCoreApplication::translate("MainWindow", "\360\237\223\267 Charger une photo", nullptr));
         label_7->setText(QCoreApplication::translate("MainWindow", "Nom Complet", nullptr));
         label_8->setText(QCoreApplication::translate("MainWindow", "Sp\303\251cialit\303\251", nullptr));
         cbSpecialite_Ajout->setItemText(0, QCoreApplication::translate("MainWindow", "M\303\251canicien", nullptr));
@@ -1024,6 +1248,8 @@ public:
         cbStatut_Ajout->setItemText(0, QCoreApplication::translate("MainWindow", "Disponible", nullptr));
         cbStatut_Ajout->setItemText(1, QCoreApplication::translate("MainWindow", "En intervention", nullptr));
 
+        lblSalaire_Ajout->setText(QCoreApplication::translate("MainWindow", "Salaire", nullptr));
+        lblValSalaire_Ajout->setText(QCoreApplication::translate("MainWindow", "1200 DT", nullptr));
         btnAnnuler_Ajout->setText(QCoreApplication::translate("MainWindow", "Annuler", nullptr));
         btnAjouter->setText(QCoreApplication::translate("MainWindow", "Ajouter", nullptr));
         tabWidget->setTabText(tabWidget->indexOf(ajout), QCoreApplication::translate("MainWindow", "Ajout", nullptr));

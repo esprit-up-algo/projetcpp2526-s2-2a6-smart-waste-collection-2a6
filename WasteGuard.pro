@@ -25,7 +25,9 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 DISTFILES += \
     ../../../../Downloads/Gemini_Generated_Image_8k5i7p8k5i7p8k5i-removebg-preview (2).png \
-    ../../../../Downloads/Gemini_Generated_Image_8k5i7p8k5i7p8k5i-removebg-preview (2).png
+    ../../../../Downloads/Gemini_Generated_Image_8k5i7p8k5i7p8k5i-removebg-preview (2).png \
+    ../../../../Downloads/WASTEGUARD_1.png \
+    Gemini_Generated_Image_8k5i7p8k5i7p8k5i-removebg-preview (2).png
 
 RESOURCES += \
     logo.qrc
