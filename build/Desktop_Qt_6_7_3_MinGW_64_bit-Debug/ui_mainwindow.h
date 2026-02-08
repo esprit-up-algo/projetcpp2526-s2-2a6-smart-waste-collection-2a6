@@ -245,7 +245,7 @@ public:
 "    color: #0f2b4c !important;\n"
 "}\n"
 "\n"
-"QPushButton#btnExport, QPushButton#btnFichePaie, QPushButton#btnGoMission, QPushButton#btnGoPointage, QPushButton#btnGoStats {\n"
+"QPushButton#btnExport, QPushButton#btnFichePaie {\n"
 "    background-color: #ffffff;\n"
 "    color: #333333 !important;\n"
 "    border: 1px solid #cccccc;\n"
@@ -256,21 +256,21 @@ public:
 "    font-size: 13px;\n"
 "    margin-top: 5px;\n"
 "}\n"
-"QPushButton#btnExport:hover, QPushButton#btnFichePaie:hover, QPushButton#btnGoMission:hover, QPushButton#btnGoPointage:hover, QPushButton#btnGoStats:hover {\n"
+"QPushButton#btnExport:hover, QPushButton#btnFichePaie:hover {\n"
 "    background-color: #e3f2fd;\n"
 "    border: 1px solid #3498db;\n"
 "    color: #0f2b4c !important;\n"
 "}\n"
 "\n"
 "QPushButton#btnSave, QPushButton#btnAjouter, QPushButton#btnNouveau {\n"
-""
-                        "    background-color: #28a745;\n"
+"    background-color: #28a745;\n"
 "    color: white !important;\n"
 "    border-radius: 5px;\n"
 "    padding: 8px 15px;\n"
 "    font-weight: bold;\n"
 "    border: none;\n"
-"}\n"
+""
+                        "}\n"
 "QPushButton#btnSave:hover, QPushButton#btnAjouter:hover, QPushButton#btnNouveau:hover {\n"
 "    background-color: #218838;\n"
 "}\n"
@@ -301,13 +301,13 @@ public:
 "    font-weight: bold;\n"
 "    border: none;\n"
 "}\n"
-"QPu"
-                        "shButton#btnDelete:hover {\n"
+"QPushButton#btnDelete:hover {\n"
 "    background-color: #c82333;\n"
 "}\n"
 "\n"
 "QPushButton#btnUploadPhoto, QPushButton#btnUploadPhoto_Ajout {\n"
-"    background-color: #ffffff;\n"
+"    background-color: #fffff"
+                        "f;\n"
 "    color: #0f2b4c !important;\n"
 "    border: 1px dashed #0f2b4c;\n"
 "    border-radius: 8px;\n"
@@ -338,14 +338,14 @@ public:
 "    background-color: #e3f2fd;\n"
 "    color: #0f2b4c !important;\n"
 "}\n"
-"QH"
-                        "eaderView::section {\n"
+"QHeaderView::section {\n"
 "    background-color: #0f2b4c;\n"
 "    color: white;\n"
 "    padding: 8px;\n"
 "    border: none;\n"
 "    font-weight: bold;\n"
-"    font-size: 13px;\n"
+"    font-size: 13px"
+                        ";\n"
 "}\n"
 "\n"
 "QLineEdit {\n"
@@ -381,15 +381,15 @@ public:
 "    border: 1px solid #cccccc;\n"
 "    border-radius: 10px;\n"
 "    background-color: #f4f6f9;\n"
-"    color: "
-                        "#888888 !important;\n"
+"    color: #888888 !important;\n"
 "}\n"
 "\n"
 "QTabWidget::pane { border: none; }\n"
 "QTabBar::tab {\n"
 "    background: #e0e4e8;\n"
 "    color: #333 !important;\n"
-"    padding: 8px 20px;\n"
+"    padding: 8px 2"
+                        "0px;\n"
 "    margin-right: 2px;\n"
 "}\n"
 "QTabBar::tab:selected {\n"
@@ -421,8 +421,7 @@ public:
 "    background-color: #5b4cc4;\n"
 "}\n"
 "QLabel#lblTitreMission {\n"
-"    fo"
-                        "nt-size: 16px;\n"
+"    font-size: 16px;\n"
 "    color: #0f2b4c !important;\n"
 "}\n"
 "QLabel#lblResultat {\n"
@@ -430,7 +429,8 @@ public:
 "    color: #27ae60 !important;\n"
 "}\n"
 "\n"
-"/* Style pour l'onglet Pointage */\n"
+"/* Style pour l'"
+                        "onglet Pointage */\n"
 "QLabel#lblStatutRFID {\n"
 "    background-color: #ecf0f1;\n"
 "    color: #7f8c8d;\n"
@@ -464,9 +464,133 @@ public:
 "    border: 1px solid #0f2b4c;\n"
 "    width: 18px;\n"
 "    height: 18px;\n"
-""
-                        "    margin: -6px 0;\n"
+"    margin: -6px 0;\n"
 "    border-radius: 9px;\n"
+"}\n"
+"/* ======================================================= */\n"
+"/* STYLE UNIFI\303\211 POUR LES 5 BOUTONS PR"
+                        "INCIPAUX              */\n"
+"/* ======================================================= */\n"
+"\n"
+"/* 1. Style de base pour les deux boutons du haut ET les trois du bas */\n"
+"QPushButton#btnFichePaie, QPushButton#btnExport,\n"
+"QPushButton#btnGoMission, QPushButton#btnGoPointage, QPushButton#btnGoStats {\n"
+"    background-color: #ffffff;  /* Fond blanc */\n"
+"    color: #333333;             /* Texte gris fonc\303\251 (le standard pro) */\n"
+"    border: 1px solid #dcdcdc;  /* Bordure grise subtile */\n"
+"    border-radius: 8px;         /* Coins joliment arrondis */\n"
+"    padding: 15px 20px;         /* Espace int\303\251rieur confortable */\n"
+"    font-size: 14px;            /* Taille de texte lisible */\n"
+"    font-weight: bold;          /* Texte en gras pour l'importance */\n"
+"    text-align: left;           /* Alignement du texte */\n"
+"}\n"
+"\n"
+"/* 2. Effet quand la souris passe dessus (Hover) pour les 5 boutons */\n"
+"QPushButton#btnFichePaie:hover, QPushButton#btnExport:hover,\n"
+"QPushButton#btn"
+                        "GoMission:hover, QPushButton#btnGoPointage:hover, QPushButton#btnGoStats:hover {\n"
+"    background-color: #f0f8ff;  /* Fond bleu tr\303\250s p\303\242le au survol */\n"
+"    border: 1px solid #3498db;  /* La bordure devient bleue */\n"
+"    color: #000000;             /* Le texte devient noir pur */\n"
+"}\n"
+"\n"
+"/* 3. Effet quand on clique dessus (Pressed) pour les 5 boutons */\n"
+"QPushButton#btnFichePaie:pressed, QPushButton#btnExport:pressed,\n"
+"QPushButton#btnGoMission:pressed, QPushButton#btnGoPointage:pressed, QPushButton#btnGoStats:pressed {\n"
+"    background-color: #e1ecf4;  /* Fond un peu plus fonc\303\251 au clic */\n"
+"    border: 1px solid #2980b9;\n"
+"}\n"
+"/* Style pour les boutons de RETOUR dans les pages Mission, Pointage et Stats */\n"
+"QPushButton#btnAnnulerMission, \n"
+"QPushButton#btnAnnulerPointage, \n"
+"QPushButton#btnAnnulerStats {\n"
+"    background-color: #6c757d;  /* Gris fonc\303\251 standard pour \"Annuler/Retour\" */\n"
+"    color: white;               /* Texte blanc */\n"
+"  "
+                        "  border: none;\n"
+"    border-radius: 5px;\n"
+"    padding: 10px 20px;\n"
+"    font-weight: bold;\n"
+"    font-size: 14px;\n"
+"    min-width: 200px;           /* Largeur minimale pour \303\252tre bien visible */\n"
+"    margin-top: 20px;           /* Un peu d'espace au-dessus */\n"
+"}\n"
+"\n"
+"/* Effet au survol */\n"
+"QPushButton#btnAnnulerMission:hover, \n"
+"QPushButton#btnAnnulerPointage:hover, \n"
+"QPushButton#btnAnnulerStats:hover {\n"
+"    background-color: #5a6268;  /* Gris un peu plus fonc\303\251 */\n"
+"}\n"
+"/* ======================================================= */\n"
+"/* 1. CORRECTION DES BOUTONS DE RETOUR (Pages internes)    */\n"
+"/* ======================================================= */\n"
+"/* Cela rendra les boutons \"Retour\" bien visibles en gris fonc\303\251 */\n"
+"QPushButton#btnAnnulerMission, \n"
+"QPushButton#btnAnnulerPointage, \n"
+"QPushButton#btnAnnulerStats {\n"
+"    background-color: #6c757d;  /* Gris fonc\303\251 */\n"
+"    color: white !important;    /* Texte BLANC forc\303"
+                        "\251 */\n"
+"    border: none;\n"
+"    border-radius: 6px;\n"
+"    padding: 10px 25px;         /* Plus large pour \303\252tre cliquable */\n"
+"    font-weight: bold;\n"
+"    font-size: 14px;\n"
+"    margin-top: 15px;           /* Espace au dessus */\n"
+"    min-width: 150px;           /* Largeur minimale */\n"
+"}\n"
+"\n"
+"QPushButton#btnAnnulerMission:hover, \n"
+"QPushButton#btnAnnulerPointage:hover, \n"
+"QPushButton#btnAnnulerStats:hover {\n"
+"    background-color: #5a6268;  /* Gris plus fonc\303\251 au survol */\n"
+"}\n"
+"\n"
+"/* ======================================================= */\n"
+"/* 2. CORRECTION DE LA BOITE DE DIALOGUE (Supprimer)       */\n"
+"/* ======================================================= */\n"
+"/* Cela corrige les boutons \"Yes/No\" illisibles */\n"
+"QMessageBox {\n"
+"    background-color: white;\n"
+"}\n"
+"\n"
+"QMessageBox QPushButton {\n"
+"    background-color: #0f2b4c;  /* Bleu fonc\303\251 */\n"
+"    color: white !important;    /* Texte blanc */\n"
+"    border-radius: 5px;\n"
+"  "
+                        "  padding: 6px 20px;\n"
+"    min-width: 80px;            /* Taille correcte */\n"
+"    font-weight: bold;\n"
+"}\n"
+"\n"
+"QMessageBox QPushButton:hover {\n"
+"    background-color: #1a4270;  /* Bleu plus clair au survol */\n"
+"}\n"
+"\n"
+"/* ======================================================= */\n"
+"/* 3. UNIFICATION DES 5 BOUTONS DU DASHBOARD (Accueil)     */\n"
+"/* ======================================================= */\n"
+"/* Pour que les 3 boutons du bas ressemblent \303\240 ceux du haut */\n"
+"QPushButton#btnFichePaie, QPushButton#btnExport,\n"
+"QPushButton#btnGoMission, QPushButton#btnGoPointage, QPushButton#btnGoStats {\n"
+"    background-color: #ffffff;\n"
+"    color: #333333 !important;  /* Gris fonc\303\251 lisible */\n"
+"    border: 1px solid #dcdcdc;\n"
+"    border-radius: 8px;\n"
+"    padding: 15px;\n"
+"    font-size: 14px;\n"
+"    font-weight: bold;\n"
+"    text-align: center;         /* Centr\303\251 ou left selon pr\303\251f\303\251rence */\n"
+"}\n"
+"\n"
+"QPushButton#btnFichePaie:hover, QPu"
+                        "shButton#btnExport:hover,\n"
+"QPushButton#btnGoMission:hover, QPushButton#btnGoPointage:hover, QPushButton#btnGoStats:hover {\n"
+"    background-color: #e3f2fd;\n"
+"    border: 1px solid #3498db;\n"
+"    color: #000000 !important;\n"
 "}"));
         centralwidget = new QWidget(MainWindow);
         centralwidget->setObjectName("centralwidget");
@@ -892,7 +1016,7 @@ public:
         verticalLayout_FormRight->setObjectName("verticalLayout_FormRight");
         formLayout_Modif = new QFormLayout();
         formLayout_Modif->setObjectName("formLayout_Modif");
-        formLayout_Modif->setVerticalSpacing(65);
+        formLayout_Modif->setVerticalSpacing(15);
         lblMatricule = new QLabel(cardFrame);
         lblMatricule->setObjectName("lblMatricule");
 
@@ -1086,7 +1210,7 @@ public:
         verticalLayout_FormRight_2->setObjectName("verticalLayout_FormRight_2");
         formLayout_Ajout = new QFormLayout();
         formLayout_Ajout->setObjectName("formLayout_Ajout");
-        formLayout_Ajout->setVerticalSpacing(65);
+        formLayout_Ajout->setVerticalSpacing(15);
         label_7 = new QLabel(cardFrame_2);
         label_7->setObjectName("label_7");
 
@@ -1236,14 +1360,6 @@ public:
 
         btnAnnulerMission = new QPushButton(mission);
         btnAnnulerMission->setObjectName("btnAnnulerMission");
-        btnAnnulerMission->setCursor(QCursor(Qt::CursorShape::PointingHandCursor));
-        btnAnnulerMission->setStyleSheet(QString::fromUtf8("\n"
-"                background-color: #6c757d; \n"
-"                color: white; \n"
-"                padding: 10px; \n"
-"                border-radius: 5px; \n"
-"                font-weight: bold;\n"
-"               "));
 
         verticalLayout_Mission->addWidget(btnAnnulerMission);
 
@@ -1298,14 +1414,6 @@ public:
 
         btnAnnulerPointage = new QPushButton(pointage);
         btnAnnulerPointage->setObjectName("btnAnnulerPointage");
-        btnAnnulerPointage->setCursor(QCursor(Qt::CursorShape::PointingHandCursor));
-        btnAnnulerPointage->setStyleSheet(QString::fromUtf8("\n"
-"                background-color: #6c757d; \n"
-"                color: white; \n"
-"                padding: 10px; \n"
-"                border-radius: 5px; \n"
-"                font-weight: bold;\n"
-"               "));
 
         verticalLayout_Pointage->addWidget(btnAnnulerPointage);
 
@@ -1335,14 +1443,6 @@ public:
 
         btnAnnulerStats = new QPushButton(statistiques);
         btnAnnulerStats->setObjectName("btnAnnulerStats");
-        btnAnnulerStats->setCursor(QCursor(Qt::CursorShape::PointingHandCursor));
-        btnAnnulerStats->setStyleSheet(QString::fromUtf8("\n"
-"                background-color: #6c757d; \n"
-"                color: white; \n"
-"                padding: 10px; \n"
-"                border-radius: 5px; \n"
-"                font-weight: bold;\n"
-"               "));
 
         verticalLayout_StatsPage->addWidget(btnAnnulerStats);
 
@@ -1520,7 +1620,7 @@ public:
         ___qtablewidgetitem31->setText(QCoreApplication::translate("MainWindow", "Comp\303\251tence Cl\303\251", nullptr));
         QTableWidgetItem *___qtablewidgetitem32 = tableResultat->horizontalHeaderItem(3);
         ___qtablewidgetitem32->setText(QCoreApplication::translate("MainWindow", "Score Match", nullptr));
-        btnAnnulerMission->setText(QCoreApplication::translate("MainWindow", "\360\237\224\231 Retourner au Tableau de Bord", nullptr));
+        btnAnnulerMission->setText(QCoreApplication::translate("MainWindow", "Retour / Annuler", nullptr));
         lblTitrePointage->setText(QCoreApplication::translate("MainWindow", "\303\211tat du Lecteur RFID :", nullptr));
         lblStatutRFID->setText(QCoreApplication::translate("MainWindow", "\360\237\225\222 EN ATTENTE DE BADGE...", nullptr));
         btnSimulerBadge->setText(QCoreApplication::translate("MainWindow", "\360\237\224\256 Simuler un passage de badge (D\303\251mo)", nullptr));
@@ -1533,8 +1633,8 @@ public:
         ___qtablewidgetitem35->setText(QCoreApplication::translate("MainWindow", "Employ\303\251", nullptr));
         QTableWidgetItem *___qtablewidgetitem36 = tablePointage->horizontalHeaderItem(3);
         ___qtablewidgetitem36->setText(QCoreApplication::translate("MainWindow", "Statut", nullptr));
-        btnAnnulerPointage->setText(QCoreApplication::translate("MainWindow", "\360\237\224\231 Retourner au Tableau de Bord", nullptr));
-        btnAnnulerStats->setText(QCoreApplication::translate("MainWindow", "\360\237\224\231 Retourner au Tableau de Bord", nullptr));
+        btnAnnulerPointage->setText(QCoreApplication::translate("MainWindow", "Retour / Annuler", nullptr));
+        btnAnnulerStats->setText(QCoreApplication::translate("MainWindow", "Retour / Annuler", nullptr));
     } // retranslateUi
 
 };

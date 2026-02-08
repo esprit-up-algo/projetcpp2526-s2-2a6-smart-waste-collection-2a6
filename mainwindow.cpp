@@ -77,6 +77,11 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->btnAnnulerMission, &QPushButton::clicked, [=](){ ui->stackedWidget->setCurrentIndex(0); });
     connect(ui->btnAnnulerPointage, &QPushButton::clicked, [=](){ ui->stackedWidget->setCurrentIndex(0); });
     connect(ui->btnAnnulerStats, &QPushButton::clicked, [=](){ ui->stackedWidget->setCurrentIndex(0); });
+    // --- BOUTONS ANNULER / RETOUR (Navigation) ---
+    // Ces lignes disent : "Quand on clique sur Annuler, revenir à la page 0 (Tableau de bord)"
+    connect(ui->btnAnnulerMission, &QPushButton::clicked, [=](){ ui->stackedWidget->setCurrentIndex(0); });
+    connect(ui->btnAnnulerPointage, &QPushButton::clicked, [=](){ ui->stackedWidget->setCurrentIndex(0); });
+    connect(ui->btnAnnulerStats, &QPushButton::clicked, [=](){ ui->stackedWidget->setCurrentIndex(0); });
 
     setupStatistics();
 }
