@@ -66,7 +66,7 @@ MainWindow::MainWindow(QWidget *parent)
     // Connexion du bouton Annuler de la page Modification
     connect(ui->btnAnnuler, &QPushButton::clicked, [=](){ ui->stackedWidget->setCurrentIndex(0); });
     connect(ui->btnFichePaie, &QPushButton::clicked, this, &MainWindow::on_btnFichePaie_clicked);
-    connect(ui->btnExport, &QPushButton::clicked, this, &MainWindow::on_btnExport_clicked);
+
 
     // --- NAVIGATION DASHBOARD (ACTIONS RAPIDES) ---
     connect(ui->btnGoMission, &QPushButton::clicked, [=](){ ui->stackedWidget->setCurrentIndex(3); });
@@ -82,6 +82,18 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->btnAnnulerMission, &QPushButton::clicked, [=](){ ui->stackedWidget->setCurrentIndex(0); });
     connect(ui->btnAnnulerPointage, &QPushButton::clicked, [=](){ ui->stackedWidget->setCurrentIndex(0); });
     connect(ui->btnAnnulerStats, &QPushButton::clicked, [=](){ ui->stackedWidget->setCurrentIndex(0); });
+    
+    // Connexion ComboBox Projet Stats
+    connect(ui->cbProjetStats, &QComboBox::currentTextChanged, this, &MainWindow::updateTaskChart);
+
+    // --- SLIDERS DYNAMIQUES (SALAIRE) ---
+    connect(ui->sliderSalaire_Ajout, &QSlider::valueChanged, [=](int value){
+        ui->lblValSalaire_Ajout->setText(QString::number(value) + " DT");
+    });
+
+    connect(ui->sliderSalaire_Modif, &QSlider::valueChanged, [=](int value){
+        ui->lblValSalaire_Modif->setText(QString::number(value) + " DT");
+    });
 
     setupStatistics();
 }
@@ -168,55 +180,7 @@ void MainWindow::on_btnFichePaie_clicked()
         }
     }
 }
-void MainWindow::on_btnExport_clicked()
-{
-    // 1. Définir les choix possibles
-    QStringList specialites;
-    specialites << "Tout afficher" << "Mécanicien" << "Chauffeur" << "Électronicien" << "Responsable";
 
-    // 2. Configurer la fenêtre de dialogue (Style bleu pour être visible)
-    QInputDialog dialog(this);
-    dialog.setWindowTitle("Filtrer par Spécialité");
-    dialog.setLabelText("Sélectionnez la spécialité à afficher :");
-    dialog.setComboBoxItems(specialites);
-    dialog.setComboBoxEditable(false);
-    dialog.resize(400, 200);
-
-    // Style pour s'assurer que les boutons sont visibles
-    dialog.setStyleSheet(
-        "QDialog { background-color: white; }"
-        "QLabel { color: #333333; font-weight: bold; font-size: 14px; }"
-        "QComboBox { border: 1px solid #ccc; border-radius: 5px; padding: 5px; color: black; background-color: white; }"
-        "QPushButton { background-color: #0f2b4c; color: white; border-radius: 5px; padding: 8px 15px; font-weight: bold; min-width: 70px; }"
-        "QPushButton:hover { background-color: #1a4270; }"
-        );
-
-    // 3. Exécuter le dialogue
-    if (dialog.exec() == QDialog::Accepted) {
-        QString choix = dialog.textValue();
-
-        // 4. Boucle de filtrage du tableau
-        for (int i = 0; i < ui->tableEmployes->rowCount(); ++i) {
-            // Récupère le texte de la colonne 2 (Spécialité)
-            QTableWidgetItem *item = ui->tableEmployes->item(i, 2);
-
-            if (item) {
-                // Si "Tout afficher" ou si la spécialité correspond -> On affiche la ligne
-                if (choix == "Tout afficher" || item->text() == choix) {
-                    ui->tableEmployes->setRowHidden(i, false);
-                } else {
-                    // Sinon, on cache la ligne
-                    ui->tableEmployes->setRowHidden(i, true);
-                }
-            }
-        }
-
-        // Petit message de confirmation (Optionnel)
-        if (choix != "Tout afficher") {
-            QMessageBox::information(this, "Filtrage", "Affichage des : " + choix);
-        }
-    }
-}
 
 void MainWindow::setupStatistics()
 {
@@ -281,4 +245,68 @@ void MainWindow::setupStatistics()
     // Assigner à la vue
     ui->chartViewWorkload->setChart(workloadChart);
     ui->chartViewWorkload->setRenderHint(QPainter::Antialiasing);
+
+    // --- GRAPHIQUE 3 : Courbe "Tâches accomplies" (Line Chart) ---
+    // Initialisation avec le premier projet par défaut ou vide
+    updateTaskChart("Projet A"); 
+}
+
+void MainWindow::updateTaskChart(const QString &projectName)
+{
+    // Création de la série de données (Courbe)
+    QLineSeries *series = new QLineSeries();
+    series->setName("Tâches accomplies - " + projectName);
+
+    // Données fictives selon le projet sélectionné
+    if (projectName == "Projet A") {
+        series->append(0, 12); // Jour 0, 12 tâches
+        series->append(1, 18);
+        series->append(2, 10);
+        series->append(3, 22);
+        series->append(4, 15);
+    } else if (projectName == "Projet B") {
+        series->append(0, 5);
+        series->append(1, 8);
+        series->append(2, 12);
+        series->append(3, 10);
+        series->append(4, 20);
+    } else {
+        series->append(0, 8);
+        series->append(1, 15);
+        series->append(2, 18);
+        series->append(3, 12);
+        series->append(4, 25);
+    }
+
+    // Création du graphique
+    QChart *chart = new QChart();
+    chart->addSeries(series);
+    chart->setTitle("Progression : " + projectName);
+    chart->setTitleFont(QFont("Segoe UI", 12, QFont::Bold));
+    chart->setAnimationOptions(QChart::SeriesAnimations);
+    chart->legend()->setAlignment(Qt::AlignBottom);
+
+    // Axe X (Jours)
+    QValueAxis *axisX = new QValueAxis();
+    axisX->setTitleText("Jours");
+    axisX->setLabelFormat("%d");
+    axisX->setTickCount(6);
+    chart->addAxis(axisX, Qt::AlignBottom);
+    series->attachAxis(axisX);
+
+    // Axe Y (Tâches)
+    QValueAxis *axisY = new QValueAxis();
+    axisY->setTitleText("Tâches");
+    axisY->setLabelFormat("%d");
+    chart->addAxis(axisY, Qt::AlignLeft);
+    series->attachAxis(axisY);
+
+    // Assigner à la vue
+    ui->chartViewTasks->setChart(chart);
+    ui->chartViewTasks->setRenderHint(QPainter::Antialiasing);
+}
+
+void MainWindow::on_cbProjetStats_currentIndexChanged(const QString &arg1)
+{
+    updateTaskChart(arg1);
 }

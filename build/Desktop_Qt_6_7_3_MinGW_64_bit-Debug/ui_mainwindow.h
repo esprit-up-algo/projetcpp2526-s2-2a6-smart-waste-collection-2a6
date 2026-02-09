@@ -84,7 +84,6 @@ public:
     QFrame *actionCard;
     QVBoxLayout *verticalLayout_Actions;
     QLabel *label_Actions;
-    QPushButton *btnExport;
     QPushButton *btnFichePaie;
     QPushButton *btnGoMission;
     QPushButton *btnGoPointage;
@@ -182,6 +181,8 @@ public:
     QHBoxLayout *horizontalLayout_Stats;
     QChartView *chartViewAbsence;
     QChartView *chartViewWorkload;
+    QComboBox *cbProjetStats;
+    QChartView *chartViewTasks;
     QPushButton *btnAnnulerStats;
     QMenuBar *menubar;
     QStatusBar *statusbar;
@@ -601,6 +602,11 @@ public:
         sidebar = new QFrame(centralwidget);
         sidebar->setObjectName("sidebar");
         sidebar->setMinimumSize(QSize(250, 0));
+        QSizePolicy sizePolicy(QSizePolicy::Policy::Fixed, QSizePolicy::Policy::Expanding);
+        sizePolicy.setHorizontalStretch(0);
+        sizePolicy.setVerticalStretch(0);
+        sizePolicy.setHeightForWidth(sidebar->sizePolicy().hasHeightForWidth());
+        sidebar->setSizePolicy(sizePolicy);
         sidebar->setMaximumSize(QSize(250, 16777215));
         sidebar->setFrameShape(QFrame::Shape::StyledPanel);
         sidebar->setFrameShadow(QFrame::Shadow::Raised);
@@ -653,10 +659,17 @@ public:
 
         contentArea = new QWidget(centralwidget);
         contentArea->setObjectName("contentArea");
+        QSizePolicy sizePolicy1(QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Expanding);
+        sizePolicy1.setHorizontalStretch(0);
+        sizePolicy1.setVerticalStretch(0);
+        sizePolicy1.setHeightForWidth(contentArea->sizePolicy().hasHeightForWidth());
+        contentArea->setSizePolicy(sizePolicy1);
         verticalLayout_Main = new QVBoxLayout(contentArea);
         verticalLayout_Main->setObjectName("verticalLayout_Main");
         stackedWidget = new QStackedWidget(contentArea);
         stackedWidget->setObjectName("stackedWidget");
+        sizePolicy1.setHeightForWidth(stackedWidget->sizePolicy().hasHeightForWidth());
+        stackedWidget->setSizePolicy(sizePolicy1);
         affichage = new QWidget();
         affichage->setObjectName("affichage");
         horizontalLayout_Split = new QHBoxLayout(affichage);
@@ -802,11 +815,8 @@ public:
         __qtablewidgetitem28->setTextAlignment(Qt::AlignCenter);
         tableEmployes->setItem(3, 4, __qtablewidgetitem28);
         tableEmployes->setObjectName("tableEmployes");
-        QSizePolicy sizePolicy(QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Expanding);
-        sizePolicy.setHorizontalStretch(0);
-        sizePolicy.setVerticalStretch(0);
-        sizePolicy.setHeightForWidth(tableEmployes->sizePolicy().hasHeightForWidth());
-        tableEmployes->setSizePolicy(sizePolicy);
+        sizePolicy1.setHeightForWidth(tableEmployes->sizePolicy().hasHeightForWidth());
+        tableEmployes->setSizePolicy(sizePolicy1);
         tableEmployes->setAlternatingRowColors(true);
         tableEmployes->setSelectionBehavior(QAbstractItemView::SelectionBehavior::SelectRows);
         tableEmployes->setVerticalScrollMode(QAbstractItemView::ScrollMode::ScrollPerPixel);
@@ -904,12 +914,6 @@ public:
         label_Actions->setFont(font2);
 
         verticalLayout_Actions->addWidget(label_Actions);
-
-        btnExport = new QPushButton(actionCard);
-        btnExport->setObjectName("btnExport");
-        btnExport->setCursor(QCursor(Qt::CursorShape::PointingHandCursor));
-
-        verticalLayout_Actions->addWidget(btnExport);
 
         btnFichePaie = new QPushButton(actionCard);
         btnFichePaie->setObjectName("btnFichePaie");
@@ -1016,7 +1020,7 @@ public:
         verticalLayout_FormRight->setObjectName("verticalLayout_FormRight");
         formLayout_Modif = new QFormLayout();
         formLayout_Modif->setObjectName("formLayout_Modif");
-        formLayout_Modif->setVerticalSpacing(15);
+        formLayout_Modif->setVerticalSpacing(65);
         lblMatricule = new QLabel(cardFrame);
         lblMatricule->setObjectName("lblMatricule");
 
@@ -1210,7 +1214,7 @@ public:
         verticalLayout_FormRight_2->setObjectName("verticalLayout_FormRight_2");
         formLayout_Ajout = new QFormLayout();
         formLayout_Ajout->setObjectName("formLayout_Ajout");
-        formLayout_Ajout->setVerticalSpacing(15);
+        formLayout_Ajout->setVerticalSpacing(65);
         label_7 = new QLabel(cardFrame_2);
         label_7->setObjectName("label_7");
 
@@ -1441,6 +1445,20 @@ public:
 
         verticalLayout_StatsPage->addLayout(horizontalLayout_Stats);
 
+        cbProjetStats = new QComboBox(statistiques);
+        cbProjetStats->addItem(QString());
+        cbProjetStats->addItem(QString());
+        cbProjetStats->addItem(QString());
+        cbProjetStats->setObjectName("cbProjetStats");
+
+        verticalLayout_StatsPage->addWidget(cbProjetStats);
+
+        chartViewTasks = new QChartView(statistiques);
+        chartViewTasks->setObjectName("chartViewTasks");
+        chartViewTasks->setMinimumSize(QSize(0, 300));
+
+        verticalLayout_StatsPage->addWidget(chartViewTasks);
+
         btnAnnulerStats = new QPushButton(statistiques);
         btnAnnulerStats->setObjectName("btnAnnulerStats");
 
@@ -1559,7 +1577,6 @@ public:
         label_14->setText(QCoreApplication::translate("MainWindow", "Disponibilit\303\251", nullptr));
         lblStatAvailability->setText(QCoreApplication::translate("MainWindow", "4 Dispo", nullptr));
         label_Actions->setText(QCoreApplication::translate("MainWindow", "Actions Rapides", nullptr));
-        btnExport->setText(QCoreApplication::translate("MainWindow", "\360\237\223\204  Tout les employees", nullptr));
         btnFichePaie->setText(QCoreApplication::translate("MainWindow", "\360\237\222\260  G\303\251n\303\251rer Fiche de Paie", nullptr));
         btnGoMission->setText(QCoreApplication::translate("MainWindow", "\360\237\244\226  Affectation IA", nullptr));
         btnGoPointage->setText(QCoreApplication::translate("MainWindow", "\342\217\261\357\270\217  Pointage", nullptr));
@@ -1634,6 +1651,11 @@ public:
         QTableWidgetItem *___qtablewidgetitem36 = tablePointage->horizontalHeaderItem(3);
         ___qtablewidgetitem36->setText(QCoreApplication::translate("MainWindow", "Statut", nullptr));
         btnAnnulerPointage->setText(QCoreApplication::translate("MainWindow", "Retour / Annuler", nullptr));
+        cbProjetStats->setItemText(0, QCoreApplication::translate("MainWindow", "Projet A", nullptr));
+        cbProjetStats->setItemText(1, QCoreApplication::translate("MainWindow", "Projet B", nullptr));
+        cbProjetStats->setItemText(2, QCoreApplication::translate("MainWindow", "Projet C", nullptr));
+
+        cbProjetStats->setPlaceholderText(QCoreApplication::translate("MainWindow", "S\303\251lectionnez un projet...", nullptr));
         btnAnnulerStats->setText(QCoreApplication::translate("MainWindow", "Retour / Annuler", nullptr));
     } // retranslateUi
 

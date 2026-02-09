@@ -68,8 +68,9 @@ constexpr auto qt_meta_stringdata_CLASSMainWindowENDCLASS = QtMocHelpers::string
     "on_btnAnalyser_clicked",
     "on_btnSimulerBadge_clicked",
     "on_btnSupprimer_clicked",
-    "on_btnFichePaie_clicked",
-    "on_btnExport_clicked"
+    "on_cbProjetStats_currentIndexChanged",
+    "arg1",
+    "on_btnFichePaie_clicked"
 );
 #else  // !QT_MOC_HAS_STRINGDATA
 #error "qtmochelpers.h not found or too old."
@@ -96,8 +97,8 @@ Q_CONSTINIT static const uint qt_meta_data_CLASSMainWindowENDCLASS[] = {
        5,    0,   65,    2, 0x08,    4 /* Private */,
        6,    0,   66,    2, 0x08,    5 /* Private */,
        7,    0,   67,    2, 0x08,    6 /* Private */,
-       8,    0,   68,    2, 0x08,    7 /* Private */,
-       9,    0,   69,    2, 0x08,    8 /* Private */,
+       8,    1,   68,    2, 0x08,    7 /* Private */,
+      10,    0,   71,    2, 0x08,    9 /* Private */,
 
  // slots: parameters
     QMetaType::Void,
@@ -106,7 +107,7 @@ Q_CONSTINIT static const uint qt_meta_data_CLASSMainWindowENDCLASS[] = {
     QMetaType::Void,
     QMetaType::Void,
     QMetaType::Void,
-    QMetaType::Void,
+    QMetaType::Void, QMetaType::QString,    9,
     QMetaType::Void,
 
        0        // eod
@@ -133,9 +134,10 @@ Q_CONSTINIT const QMetaObject MainWindow::staticMetaObject = { {
         QtPrivate::TypeAndForceComplete<void, std::false_type>,
         // method 'on_btnSupprimer_clicked'
         QtPrivate::TypeAndForceComplete<void, std::false_type>,
-        // method 'on_btnFichePaie_clicked'
+        // method 'on_cbProjetStats_currentIndexChanged'
         QtPrivate::TypeAndForceComplete<void, std::false_type>,
-        // method 'on_btnExport_clicked'
+        QtPrivate::TypeAndForceComplete<const QString &, std::false_type>,
+        // method 'on_btnFichePaie_clicked'
         QtPrivate::TypeAndForceComplete<void, std::false_type>
     >,
     nullptr
@@ -153,12 +155,11 @@ void MainWindow::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
         case 3: _t->on_btnAnalyser_clicked(); break;
         case 4: _t->on_btnSimulerBadge_clicked(); break;
         case 5: _t->on_btnSupprimer_clicked(); break;
-        case 6: _t->on_btnFichePaie_clicked(); break;
-        case 7: _t->on_btnExport_clicked(); break;
+        case 6: _t->on_cbProjetStats_currentIndexChanged((*reinterpret_cast< std::add_pointer_t<QString>>(_a[1]))); break;
+        case 7: _t->on_btnFichePaie_clicked(); break;
         default: ;
         }
     }
-    (void)_a;
 }
 
 const QMetaObject *MainWindow::metaObject() const

@@ -32,12 +32,14 @@ private slots:
 
     // On garde le bouton supprimer car il est utile
     void on_btnSupprimer_clicked();
+    void on_cbProjetStats_currentIndexChanged(const QString &arg1);
     void on_btnFichePaie_clicked();
-    void on_btnExport_clicked();
 
 private:
     void setupStatistics();
     Ui::MainWindow *ui;
+    void setupCharts();
+    void updateTaskChart(const QString &projectName);
 };
 
 #endif // MAINWINDOW_H
