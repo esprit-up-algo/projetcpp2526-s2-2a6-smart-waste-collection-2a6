@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QButtonGroup> // AJOUTÉ
 
 #include <QtCharts>
 #include <QChartView>
@@ -38,7 +39,11 @@ private slots:
 private:
     void setupStatistics();
     Ui::MainWindow *ui;
-    void setupCharts();
+    //void setupCharts(); // Seems unused or removed in previous steps? but I will keep it consistent with the file content if it was there.
+    // Wait, the file content shows setupCharts() in line 41. I should keep it.
+    // Actually, to be safe, I will just target the specific lines I want to change.
+    QButtonGroup *sidebarGroup; // AJOUTÉ
+    void setupCharts(); 
     void updateTaskChart(const QString &projectName);
 };
 

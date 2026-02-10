@@ -15,6 +15,49 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+    // --- SIDEBAR NAVIGATION LOGIC ---
+    sidebarGroup = new QButtonGroup(this);
+    sidebarGroup->setExclusive(true);
+
+    // Add buttons to group and make checkable
+    QList<QPushButton*> sidebarButtons = {
+        ui->btnAccueil, ui->btnStock, ui->btnProduits,
+        ui->btnEmployes, ui->btnStatistiques, ui->btnMaintenance
+    };
+
+    for(QPushButton* btn : sidebarButtons) {
+        btn->setCheckable(true);
+        sidebarGroup->addButton(btn);
+    }
+    
+    // Default Selection
+    ui->btnEmployes->setChecked(true); // Assuming Employes/Dashboard is start page
+
+    // Connect Sidebar Buttons to StackedWidget (Extend as needed)
+    connect(ui->btnEmployes, &QPushButton::clicked, [=](){ 
+        ui->stackedWidget->setCurrentIndex(0); 
+    });
+    connect(ui->btnAccueil, &QPushButton::clicked, [=](){ 
+        ui->stackedWidget->setCurrentIndex(0); // For now pointing to same
+    });
+
+    // --- DYNAMIC SLIDERS LOGIC ---
+    /* MISSING IN UI - UNCOMMENT AFTER ADDING IN QT DESIGNER
+    // Battery Slider
+    connect(ui->slider_bat_add, &QSlider::valueChanged, this, [=](int value){
+        ui->lblBatValue_Add->setText(QString::number(value) + " mAh");
+    });
+    // Initialize label
+    ui->lblBatValue_Add->setText(QString::number(ui->slider_bat_add->value()) + " mAh");
+
+    // Capacity Slider
+    connect(ui->slider_cap_add, &QSlider::valueChanged, this, [=](int value){
+        ui->lblCapValue_Add->setText(QString::number(value) + " L");
+    });
+    // Initialize label
+    ui->lblCapValue_Add->setText(QString::number(ui->slider_cap_add->value()) + " L");
+    */
+
     // --- REMPLISSAGE DU TABLEAU ---
     ui->tableEmployes->setRowCount(0);
 
@@ -87,6 +130,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->cbProjetStats, &QComboBox::currentTextChanged, this, &MainWindow::updateTaskChart);
 
     // --- SLIDERS DYNAMIQUES (SALAIRE) ---
+    /* MISSING IN UI - UNCOMMENT AFTER ADDING IN QT DESIGNER
     connect(ui->sliderSalaire_Ajout, &QSlider::valueChanged, [=](int value){
         ui->lblValSalaire_Ajout->setText(QString::number(value) + " DT");
     });
@@ -94,6 +138,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->sliderSalaire_Modif, &QSlider::valueChanged, [=](int value){
         ui->lblValSalaire_Modif->setText(QString::number(value) + " DT");
     });
+    */
 
     setupStatistics();
 }

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1100</width>
-    <height>750</height>
+    <height>769</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -48,26 +48,75 @@ QFrame#sidebar QPushButton {
     font-size: 14px;
     border-left: 3px solid transparent;
 }
-QFrame#sidebar QPushButton:hover {
+QFrame#sidebar QPushButton:hover, QFrame#sidebar QPushButton:checked {
     background-color: #1a4270;
     color: white;
     border-left: 3px solid #3498db;
 }
 
+/* STAT CARDS BASE */
 QFrame#statCard, QFrame#statCard_2, QFrame#statCard_3, QFrame#actionCard, QFrame#cardFrame, QFrame#cardFrame_2 { 
-    background-color: #f4f6f9;
+    background-color: #ffffff;
     border-radius: 12px;
     border: 1px solid #dce1e6;
     border-bottom: 2px solid #dce1e6;
 }
 
+/* 1. Total Employés (BLUE) */
+QFrame#statCard {
+    background-color: #e3f2fd;
+    border: 1px solid #90caf9;
+}
+QFrame#statCard QLabel {
+    color: #1565c0 !important;
+}
 QLabel#lblStatNumber {
-    font-size: 24px;
-    font-weight: bold;
-    color: #0f2b4c !important;
+    color: #0d47a1 !important; /* Darker Blue */
+    font-size: 28px;
 }
 
-QPushButton#btnExport, QPushButton#btnFichePaie {
+/* 2. Charge de Travail (GREY/NEUTRAL) */
+QFrame#statCard_2 {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+}
+QFrame#statCard_2 QLabel {
+    color: #495057 !important;
+}
+QLabel#lblStatWorkload {
+    color: #343a40 !important;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+/* 3. Disponibilité (GREEN) */
+QFrame#statCard_3 {
+    background-color: #e8f5e9;
+    border: 1px solid #a5d6a7;
+}
+QFrame#statCard_3 QLabel {
+    color: #2e7d32 !important;
+}
+QLabel#lblStatAvailability {
+    color: #1b5e20 !important;
+    font-weight: bold;
+    font-size: 24px;
+}
+
+/* 4. Actions Rapides (WHITE/CLEAN) */
+QFrame#actionCard {
+    background-color: #ffffff;
+    border: 1px solid #dce1e6;
+}
+QFrame#actionCard QLabel#label_Actions {
+    color: #37474f;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+
+
+QPushButton#btnExport, QPushButton#btnFichePaie, QPushButton#btnGoMission, QPushButton#btnGoPointage, QPushButton#btnGoStats {
     background-color: #ffffff;
     color: #333333 !important;
     border: 1px solid #cccccc;
@@ -78,7 +127,7 @@ QPushButton#btnExport, QPushButton#btnFichePaie {
     font-size: 13px;
     margin-top: 5px;
 }
-QPushButton#btnExport:hover, QPushButton#btnFichePaie:hover {
+QPushButton#btnExport:hover, QPushButton#btnFichePaie:hover, QPushButton#btnGoMission:hover, QPushButton#btnGoPointage:hover, QPushButton#btnGoStats:hover {
     background-color: #e3f2fd;
     border: 1px solid #3498db;
     color: #0f2b4c !important;
@@ -350,7 +399,7 @@ QPushButton#btnAnnulerStats {
     padding: 10px 25px;         /* Plus large pour être cliquable */
     font-weight: bold;
     font-size: 14px;
-    margin-top: 15px;           /* Espace au dessus */
+    margin-top: 50px;           /* Espace au dessus (Augmenté) */
     min-width: 150px;           /* Largeur minimale */
 }
 
@@ -423,17 +472,17 @@ QPushButton#btnGoMission:hover, QPushButton#btnGoPointage:hover, QPushButton#btn
     </property>
     <item>
      <widget class="QFrame" name="sidebar">
-      <property name="minimumSize">
-       <size>
-        <width>250</width>
-        <height>0</height>
-       </size>
-      </property>
       <property name="sizePolicy">
        <sizepolicy hsizetype="Fixed" vsizetype="Expanding">
         <horstretch>0</horstretch>
         <verstretch>0</verstretch>
        </sizepolicy>
+      </property>
+      <property name="minimumSize">
+       <size>
+        <width>250</width>
+        <height>0</height>
+       </size>
       </property>
       <property name="maximumSize">
        <size>
@@ -688,6 +737,16 @@ QPushButton#btnGoMission:hover, QPushButton#btnGoPointage:hover, QPushButton#btn
                  <item>
                   <property name="text">
                    <string>Trier par: Spécialité</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>Trier par: note de fin d annes</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>Trier par: salaire</string>
                   </property>
                  </item>
                  <item>
@@ -972,9 +1031,6 @@ QPushButton#btnGoMission:hover, QPushButton#btnGoPointage:hover, QPushButton#btn
                 </item>
                 <item>
                  <widget class="QLabel" name="lblStatAvailability">
-                  <property name="styleSheet">
-                   <string notr="true">color: #27ae60 !important;</string>
-                  </property>
                   <property name="text">
                    <string>4 Dispo</string>
                   </property>
@@ -1779,13 +1835,6 @@ QPushButton#btnGoMission:hover, QPushButton#btnGoPointage:hover, QPushButton#btn
             </widget>
            </item>
            <item>
-            <widget class="QPushButton" name="btnAnnulerMission">
-             <property name="text">
-              <string>Retour / Annuler</string>
-             </property>
-            </widget>
-           </item>
-           <item>
             <spacer name="verticalSpacer_Mission">
              <property name="orientation">
               <enum>Qt::Orientation::Vertical</enum>
@@ -1800,6 +1849,13 @@ QPushButton#btnGoMission:hover, QPushButton#btnGoPointage:hover, QPushButton#btn
               </size>
              </property>
             </spacer>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btnAnnulerMission">
+             <property name="text">
+              <string>Retour / Annuler</string>
+             </property>
+            </widget>
            </item>
           </layout>
          </widget>
@@ -1873,13 +1929,6 @@ QPushButton#btnGoMission:hover, QPushButton#btnGoPointage:hover, QPushButton#btn
             </widget>
            </item>
            <item>
-            <widget class="QPushButton" name="btnAnnulerPointage">
-             <property name="text">
-              <string>Retour / Annuler</string>
-             </property>
-            </widget>
-           </item>
-           <item>
             <spacer name="verticalSpacer_Pointage">
              <property name="orientation">
               <enum>Qt::Orientation::Vertical</enum>
@@ -1894,6 +1943,13 @@ QPushButton#btnGoMission:hover, QPushButton#btnGoPointage:hover, QPushButton#btn
               </size>
              </property>
             </spacer>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btnAnnulerPointage">
+             <property name="text">
+              <string>Retour / Annuler</string>
+             </property>
+            </widget>
            </item>
           </layout>
          </widget>
@@ -1932,7 +1988,7 @@ QPushButton#btnGoMission:hover, QPushButton#btnGoPointage:hover, QPushButton#btn
             </widget>
            </item>
            <item>
-            <widget class="QChartView" name="chartViewTasks" native="true">
+            <widget class="QChartView" name="chartViewTasks">
              <property name="minimumSize">
               <size>
                <width>0</width>
@@ -1941,7 +1997,23 @@ QPushButton#btnGoMission:hover, QPushButton#btnGoPointage:hover, QPushButton#btn
              </property>
             </widget>
            </item>
-           <item>
+                       <item>
+             <spacer name="verticalSpacer_Stats">
+              <property name="orientation">
+               <enum>Qt::Orientation::Vertical</enum>
+              </property>
+              <property name="sizeType">
+               <enum>QSizePolicy::Policy::Expanding</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>20</width>
+                <height>40</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+<item>
             <widget class="QPushButton" name="btnAnnulerStats">
              <property name="text">
               <string>Retour / Annuler</string>
