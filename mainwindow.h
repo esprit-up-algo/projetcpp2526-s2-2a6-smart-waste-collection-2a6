@@ -2,7 +2,6 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QResizeEvent>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -16,14 +15,11 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
-protected:
-    void resizeEvent(QResizeEvent *e) override;
-
 private slots:
-    void openAjoutPopup();
-    void openModifierPopup();
-    void closePopup();
-    void openStatsPopup();
+    void goAffichage();
+    void goAjout();
+    void goModification();
+    void goStatistiques();
 
     void handleEditClicked();
     void handleDeleteClicked();
@@ -31,7 +27,7 @@ private slots:
 private:
     Ui::MainWindow *ui;
 
-    void showPopup(int pageIndex); // 0=Ajout, 1=Modifier
+    void applyStyleFix();          // <-- IMPORTANT: fixes QSS not applying
     void refreshActionButtons();
     void buildStatsCharts();
 
