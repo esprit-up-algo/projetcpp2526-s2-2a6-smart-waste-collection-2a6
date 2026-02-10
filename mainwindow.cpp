@@ -7,57 +7,81 @@
 #include <QPushButton>
 #include <QHeaderView>
 #include <QBrush>
-#include <QPalette>
 #include <QTimer>
 #include <QFrame>
 #include <QVBoxLayout>
+#include <QApplication>
+#include <QStyle>
+
 #include <QtCharts/QPieSeries>
 #include <QtCharts/QPieSlice>
-
 #include <QtCharts/QChartView>
 #include <QtCharts/QChart>
-#include <QtCharts/QBarSeries>
-#include <QtCharts/QBarSet>
-#include <QtCharts/QBarCategoryAxis>
 #include <QtCharts/QValueAxis>
 #include <QtCharts/QLineSeries>
-
-// REMOVE THIS (it causes your error)
-// using namespace QtCharts;
+#include <QtCharts/QSplineSeries> // Added for Spline Chart
+#include <QtCharts/QAreaSeries>   // Added for Area Chart
 
 static constexpr int ACTIONS_COL = 7;
 
+// ------------------------------------------------------------
+// ✅ FIX: force Qt to paint styled backgrounds & re-apply QSS
+// ------------------------------------------------------------
+static void enableStyledBgRecursive(QWidget *root)
+{
+    if (!root) return;
 
+    // Make QSS backgrounds work on QWidget/QFrame
+    root->setAttribute(Qt::WA_StyledBackground, true);
+
+    const auto childs = root->findChildren<QWidget*>(QString(), Qt::FindDirectChildrenOnly);
+    for (QWidget *c : childs)
+        enableStyledBgRecursive(c);
+}
+
+static void repolishRecursive(QWidget *root)
+{
+    if (!root) return;
+
+    root->style()->unpolish(root);
+    root->style()->polish(root);
+    root->update();
+
+    const auto childs = root->findChildren<QWidget*>(QString(), Qt::FindDirectChildrenOnly);
+    for (QWidget *c : childs)
+        repolishRecursive(c);
+}
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    // 1) Connect stats button safely (no crash even if name changes)
-    if (auto *btn = findChild<QPushButton*>("btnOpenStats")) {
-        connect(btn, &QPushButton::clicked, this, &MainWindow::openStatsPopup);
-    }
+    ui->leftSidebar->setAttribute(Qt::WA_StyledBackground, true);
+    ui->rightSidebar->setAttribute(Qt::WA_StyledBackground, true);
 
-    // 2) Build charts once
-    buildStatsCharts();
+    // ✅ MUST be right after setupUi
+    applyStyleFix();
 
-    // ---- Popup overlay initial state ----
-    if (ui->overlayDim) {
-        ui->overlayDim->hide();
-        ui->overlayDim->raise();
-    }
+    // ---------- Navigation (StackedWidget) ----------
+    goAffichage();
 
-    // Close popup button
-    connect(ui->btnClosePopup, &QPushButton::clicked, this, &MainWindow::closePopup);
-
-    // Open Ajout popup:
-    // Use your existing "+ Ajouter" button on dashboard
-    // (objectName from your UI: btnAddProduct)
     if (ui->btnAddProduct)
-        connect(ui->btnAddProduct, &QPushButton::clicked, this, &MainWindow::openAjoutPopup);
+        connect(ui->btnAddProduct, &QPushButton::clicked, this, &MainWindow::goAjout);
 
-    // ---- Table setup + example row ----
+    if (auto *btnStats = findChild<QPushButton*>("btnOpenStats"))
+        connect(btnStats, &QPushButton::clicked, this, &MainWindow::goStatistiques);
+
+    if (auto *b = findChild<QPushButton*>("btnCancel_Add"))
+        connect(b, &QPushButton::clicked, this, &MainWindow::goAffichage);
+    if (auto *b = findChild<QPushButton*>("btnCancel_Mod"))
+        connect(b, &QPushButton::clicked, this, &MainWindow::goAffichage);
+    if (auto *b = findChild<QPushButton*>("btnRetourStats"))
+        connect(b, &QPushButton::clicked, this, &MainWindow::goAffichage);
+    if (auto *b = findChild<QPushButton*>("btnReturnStats"))
+        connect(b, &QPushButton::clicked, this, &MainWindow::goAffichage);
+
+    // ---------- Table ----------
     if (ui->tableProduits) {
         QTableWidget *t = ui->tableProduits;
 
@@ -73,190 +97,70 @@ MainWindow::MainWindow(QWidget *parent)
 
         addExampleRow();
 
-        // Add action buttons after layout is ready
         QTimer::singleShot(0, this, [this]() {
             refreshActionButtons();
         });
     }
+
+    // ---------- Charts ----------
+    buildStatsCharts();
 }
-void MainWindow::openStatsPopup()
-{
-    if (!ui || !ui->overlayDim || !ui->popupStack) return;
-
-    QWidget *statsPage = nullptr;
-    for (int i = 0; i < ui->popupStack->count(); ++i) {
-        QWidget *w = ui->popupStack->widget(i);
-        if (w && w->objectName() == "statsPopup") {
-            statsPage = w;
-            break;
-        }
-    }
-    if (!statsPage) return;
-
-    ui->popupStack->setCurrentWidget(statsPage);
-
-    ui->overlayDim->setGeometry(centralWidget()->rect());
-    ui->overlayDim->show();
-    ui->overlayDim->raise();
-}
-
-void MainWindow::buildStatsCharts()
-{
-    // These are the REAL objectNames inside your .ui
-    QFrame *chart1Host = findChild<QFrame*>("graphFrame1Plot");
-    QFrame *chart2Host = findChild<QFrame*>("graphFrame2Plot");
-    if (!chart1Host || !chart2Host) return;
-
-    auto clearAndLayout = [](QWidget *w) {
-        if (!w) return;
-
-        // Remove old layout + placeholder label
-        if (w->layout()) {
-            QLayoutItem *child;
-            while ((child = w->layout()->takeAt(0)) != nullptr) {
-                if (child->widget()) child->widget()->deleteLater();
-                delete child;
-            }
-            delete w->layout();
-        }
-
-        auto *lay = new QVBoxLayout(w);
-        lay->setContentsMargins(0,0,0,0);
-        lay->setSpacing(0);
-    };
-
-    clearAndLayout(chart1Host);
-    clearAndLayout(chart2Host);
-
-    // Give them a visible height (your UI had min height = 0)
-    chart1Host->setMinimumHeight(260);
-    chart2Host->setMinimumHeight(260);
-
-    // -----------------------------
-    // Chart 1: PIE (Répartition)
-    // -----------------------------
-    auto *pieSeries = new QPieSeries();
-    pieSeries->append("Produits", 45);
-    pieSeries->append("Stock", 30);
-    pieSeries->append("Maintenance", 15);
-    pieSeries->append("Commandes", 10);
-
-    if (!pieSeries->slices().isEmpty()) {
-        auto *slice = pieSeries->slices().at(0);
-        slice->setExploded(true);
-        slice->setLabelVisible(true);
-    }
-    for (auto *s : pieSeries->slices())
-        s->setLabelVisible(true);
-
-    auto *pieChart = new QChart();
-    pieChart->addSeries(pieSeries);
-    pieChart->setTitle("Répartition (exemple)");
-    pieChart->legend()->setAlignment(Qt::AlignRight);
-
-    auto *pieView = new QChartView(pieChart);
-    pieView->setRenderHint(QPainter::Antialiasing);
-
-    // -----------------------------
-    // Chart 2: LINE (Croissance)
-    // -----------------------------
-    auto *line = new QLineSeries();
-    line->setName("Croissance");
-    line->append(1, 12);
-    line->append(2, 18);
-    line->append(3, 22);
-    line->append(4, 30);
-    line->append(5, 38);
-    line->append(6, 44);
-
-    auto *growthChart = new QChart();
-    growthChart->addSeries(line);
-    growthChart->setTitle("Évolution / Croissance (exemple)");
-    growthChart->legend()->setAlignment(Qt::AlignBottom);
-
-    auto *axisX = new QValueAxis();
-    axisX->setRange(1, 6);
-    axisX->setTickCount(6);
-    axisX->setLabelFormat("%d");
-    growthChart->addAxis(axisX, Qt::AlignBottom);
-    line->attachAxis(axisX);
-
-    auto *axisY = new QValueAxis();
-    axisY->setRange(0, 50);
-    growthChart->addAxis(axisY, Qt::AlignLeft);
-    line->attachAxis(axisY);
-
-    auto *growthView = new QChartView(growthChart);
-    growthView->setRenderHint(QPainter::Antialiasing);
-
-    chart1Host->layout()->addWidget(pieView);
-    chart2Host->layout()->addWidget(growthView);
-}
-
 
 MainWindow::~MainWindow()
 {
     delete ui;
 }
 
-void MainWindow::resizeEvent(QResizeEvent *e)
+// ✅ style fix implementation
+void MainWindow::applyStyleFix()
 {
-    QMainWindow::resizeEvent(e);
+    // 1) Ensure backgrounds in QSS actually paint
+    enableStyledBgRecursive(ui->centralwidget);
 
-    // Keep overlay covering the whole central area
-    if (ui && ui->overlayDim && centralWidget()) {
-        ui->overlayDim->setGeometry(centralWidget()->rect());
-        ui->overlayDim->raise();
-    }
+    // 2) If your stylesheet is set on centralwidget, re-apply it to MainWindow (so it cascades everywhere)
+    //    (If you already set it on MainWindow in Designer, this won’t hurt.)
+    const QString qssCentral = ui->centralwidget ? ui->centralwidget->styleSheet() : QString();
+    if (!qssCentral.isEmpty())
+        this->setStyleSheet(qssCentral);
+
+    // 3) Force re-polish so the new pages in stacked widget pick up style
+    repolishRecursive(ui->centralwidget);
 }
 
-void MainWindow::showPopup(int pageIndex)
+// ---------- Stacked navigation ----------
+void MainWindow::goAffichage()
 {
-    if (!ui || !ui->overlayDim || !ui->popupStack) return;
-
-    ui->popupStack->setCurrentIndex(pageIndex); // 0 Ajout, 1 Modifier
-    ui->overlayDim->setGeometry(centralWidget()->rect());
-    ui->overlayDim->show();
-    ui->overlayDim->raise();
+    if (!ui || !ui->stackedWidget) return;
+    if (ui->affichage) ui->stackedWidget->setCurrentWidget(ui->affichage);
 }
 
-void MainWindow::closePopup()
+void MainWindow::goAjout()
 {
-    if (!ui || !ui->overlayDim) return;
-    ui->overlayDim->hide();
-}
-static void forceSlotBtnStyle(QWidget *root)
-{
-    if (!root) return;
+    if (!ui || !ui->stackedWidget) return;
+    if (ui->ajout) ui->stackedWidget->setCurrentWidget(ui->ajout);
 
-    const auto buttons = root->findChildren<QPushButton*>();
-    for (auto *b : buttons)
-    {
-        // Only target the depot-slot buttons (A-01, B-01... etc)
-        // They all have objectName starting with "btn_" in your UI.
-        if (!b->objectName().startsWith("btn_")) continue;
-
-        b->setProperty("class", "slotBtn");
-
-        // Force Qt to re-apply stylesheet rules
-        b->style()->unpolish(b);
-        b->style()->polish(b);
-        b->update();
-    }
-}
-void MainWindow::openAjoutPopup()
-{
-    showPopup(0);
-    forceSlotBtnStyle(ui->ajoutPopup);
-    // Ajout
+    // Ensure style applies when switching pages
+    applyStyleFix();
 }
 
-void MainWindow::openModifierPopup()
+void MainWindow::goModification()
 {
-    showPopup(1); // Modifier
+    if (!ui || !ui->stackedWidget) return;
+    if (ui->modification) ui->stackedWidget->setCurrentWidget(ui->modification);
+
+    applyStyleFix();
 }
 
+void MainWindow::goStatistiques()
+{
+    if (!ui || !ui->stackedWidget) return;
+    if (ui->statistiques) ui->stackedWidget->setCurrentWidget(ui->statistiques);
 
+    buildStatsCharts();
+    applyStyleFix();
+}
+
+// ---------- Table content ----------
 void MainWindow::addExampleRow()
 {
     QTableWidget *t = ui->tableProduits;
@@ -265,8 +169,8 @@ void MainWindow::addExampleRow()
     int row = t->rowCount();
     t->insertRow(row);
 
-    // Use table palette color so text never becomes white-on-white
-QColor textColor = Qt::black;
+    QColor textColor = Qt::black;
+
     auto setCell = [&](int col, const QString &txt)
     {
         auto *it = new QTableWidgetItem(txt);
@@ -290,7 +194,6 @@ void MainWindow::installActionButtonsForRow(int row)
     if (row < 0 || row >= t->rowCount()) return;
     if (t->columnCount() <= ACTIONS_COL) return;
 
-    // If already exists, just update row properties
     if (QWidget *existing = t->cellWidget(row, ACTIONS_COL)) {
         const auto buttons = existing->findChildren<QPushButton*>();
         for (auto *b : buttons) b->setProperty("row", row);
@@ -314,10 +217,9 @@ void MainWindow::installActionButtonsForRow(int row)
     btnDel->setFocusPolicy(Qt::NoFocus);
     btnEdit->setCursor(Qt::PointingHandCursor);
     btnDel->setCursor(Qt::PointingHandCursor);
+
     btnEdit->setToolTip("Modifier");
     btnDel->setToolTip("Supprimer");
-    btnEdit->setStyleSheet("padding:0; margin:0;");
-    btnDel->setStyleSheet("padding:0; margin:0;");
 
     btnEdit->setProperty("row", row);
     btnDel->setProperty("row", row);
@@ -347,10 +249,7 @@ void MainWindow::handleEditClicked()
     int row = btn->property("row").toInt();
     if (row < 0 || row >= ui->tableProduits->rowCount()) return;
 
-    // Open Modifier popup
-    openModifierPopup();
-
-    // (Optional later) You can also pre-fill the modifier fields from the row here.
+    goModification();
 }
 
 void MainWindow::handleDeleteClicked()
@@ -362,7 +261,128 @@ void MainWindow::handleDeleteClicked()
     if (row < 0 || row >= ui->tableProduits->rowCount()) return;
 
     ui->tableProduits->removeRow(row);
-
-    // Update buttons properties after row shift
     refreshActionButtons();
+}
+
+// ---------- Stats charts ----------
+void MainWindow::buildStatsCharts()
+{
+    QFrame *chart1Host = findChild<QFrame*>("graphFrame1Plot");
+    QFrame *chart2Host = findChild<QFrame*>("graphFrame2Plot");
+    if (!chart1Host || !chart2Host) return;
+
+    auto clearAndLayout = [](QWidget *w) {
+        if (!w) return;
+        if (w->layout()) {
+            QLayoutItem *child;
+            while ((child = w->layout()->takeAt(0)) != nullptr) {
+                if (child->widget()) child->widget()->deleteLater();
+                delete child;
+            }
+            delete w->layout();
+        }
+        auto *lay = new QVBoxLayout(w);
+        lay->setContentsMargins(0,0,0,0);
+        lay->setSpacing(0);
+    };
+
+    clearAndLayout(chart1Host);
+    clearAndLayout(chart2Host);
+
+    chart1Host->setMinimumHeight(260);
+    chart2Host->setMinimumHeight(260);
+
+    // --- 1. DONUT CHART (Creative Replacement for Pie) ---
+    auto *donutSeries = new QPieSeries();
+    donutSeries->setHoleSize(0.35); // Key feature for Donut chart
+    donutSeries->append("Produits", 45);
+    donutSeries->append("Stock", 30);
+    donutSeries->append("Maintenance", 15);
+    donutSeries->append("Commandes", 10);
+
+    // Style the slices
+    for (auto *slice : donutSeries->slices()) {
+        slice->setLabelVisible(true);
+        slice->setLabelColor(Qt::white);
+        slice->setLabelPosition(QPieSlice::LabelInsideHorizontal);
+        slice->setBorderWidth(2);
+        slice->setBorderColor(Qt::white);
+    }
+    // Highlight one slice
+    if (!donutSeries->slices().isEmpty()) {
+        auto *s = donutSeries->slices().at(0);
+        s->setExploded(true);
+        s->setLabelVisible(true);
+        s->setLabelPosition(QPieSlice::LabelOutside);
+        s->setLabelColor(Qt::black); // Dark text for outside label
+    }
+
+    auto *donutChart = new QChart();
+    donutChart->addSeries(donutSeries);
+    donutChart->setTitle("Répartition Globale (Donut)");
+    donutChart->setTheme(QChart::ChartThemeBlueCerulean); // Modern theme
+    donutChart->setAnimationOptions(QChart::AllAnimations); // Animate!
+    donutChart->legend()->setAlignment(Qt::AlignRight);
+    donutChart->legend()->setFont(QFont("Segoe UI", 9));
+    donutChart->setTitleFont(QFont("Segoe UI", 12, QFont::Bold));
+
+    auto *donutView = new QChartView(donutChart);
+    donutView->setRenderHint(QPainter::Antialiasing);
+
+    // --- 2. SPLINE AREA CHART (Creative Replacement for Line) ---
+    // Create a smooth spline series
+    auto *splineSeries = new QSplineSeries();
+    splineSeries->setName("Croissance");
+    splineSeries->append(1, 10);
+    splineSeries->append(2, 22);
+    splineSeries->append(3, 18); // slight dip
+    splineSeries->append(4, 32);
+    splineSeries->append(5, 28);
+    splineSeries->append(6, 45);
+    
+    // Create a gradient area series under the spline
+    auto *areaSeries = new QAreaSeries(splineSeries);
+    areaSeries->setName("Zone de Croissance");
+    
+    // Gradient fill
+    QLinearGradient gradient(QPointF(0, 0), QPointF(0, 1));
+    gradient.setColorAt(0.0, QColor(0x3498db));
+    gradient.setColorAt(1.0, QColor(0xecf0f1));
+    areaSeries->setBrush(gradient);
+    
+    // Pen style for the border line
+    QPen pen(0x2980b9);
+    pen.setWidth(3);
+    areaSeries->setPen(pen);
+
+    auto *areaChart = new QChart();
+    areaChart->addSeries(areaSeries);
+    areaChart->setTitle("Évolution Dynamique");
+    areaChart->setTheme(QChart::ChartThemeLight); // Clean theme
+    areaChart->setAnimationOptions(QChart::SeriesAnimations);
+    areaChart->legend()->setAlignment(Qt::AlignBottom);
+    areaChart->setTitleFont(QFont("Segoe UI", 12, QFont::Bold));
+
+    // Axes
+    auto *axisX = new QValueAxis();
+    axisX->setRange(1, 6);
+    axisX->setLabelFormat("%d");
+    axisX->setTickCount(6);
+    areaChart->addAxis(axisX, Qt::AlignBottom);
+    areaSeries->attachAxis(axisX);
+
+    auto *axisY = new QValueAxis();
+    axisY->setRange(0, 50);
+    areaChart->addAxis(axisY, Qt::AlignLeft);
+    areaSeries->attachAxis(axisY);
+
+    auto *areaView = new QChartView(areaChart);
+    areaView->setRenderHint(QPainter::Antialiasing);
+
+    // Add checks for layouts (crash prevention)
+    if (!chart1Host->layout()) new QVBoxLayout(chart1Host);
+    if (!chart2Host->layout()) new QVBoxLayout(chart2Host);
+
+    chart1Host->layout()->addWidget(donutView);
+    chart2Host->layout()->addWidget(areaView);
 }
