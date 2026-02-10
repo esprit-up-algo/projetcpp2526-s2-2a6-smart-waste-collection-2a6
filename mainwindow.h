@@ -2,7 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QButtonGroup> // AJOUTÉ
+#include <QButtonGroup>
 
 #include <QtCharts>
 #include <QChartView>
@@ -16,6 +16,10 @@ QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
 
+class QStackedWidget;
+class QTableWidget;
+class QWidget;
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -25,26 +29,50 @@ public:
     ~MainWindow();
 
 private slots:
+    // Employe
     void on_btnNouveau_clicked();
     void on_btnAnnuler_Ajout_clicked();
     void on_btnModifier_clicked();
     void on_btnAnalyser_clicked();
     void on_btnSimulerBadge_clicked();
-
-    // On garde le bouton supprimer car il est utile
     void on_btnSupprimer_clicked();
     void on_cbProjetStats_currentIndexChanged(const QString &arg1);
     void on_btnFichePaie_clicked();
 
+    // Produit
+    void goAffichage();
+    void goAjout();
+    void goModification();
+    void goStatistiques();
+
+    void handleEditClicked();
+    void handleDeleteClicked();
+
 private:
+    // Employe
     void setupStatistics();
-    Ui::MainWindow *ui;
-    //void setupCharts(); // Seems unused or removed in previous steps? but I will keep it consistent with the file content if it was there.
-    // Wait, the file content shows setupCharts() in line 41. I should keep it.
-    // Actually, to be safe, I will just target the specific lines I want to change.
-    QButtonGroup *sidebarGroup; // AJOUTÉ
-    void setupCharts(); 
     void updateTaskChart(const QString &projectName);
+
+    // Produit
+    void setupProduitModule();
+    void applyStyleFix();
+    void refreshActionButtons();
+    void buildStatsCharts();
+    void addExampleRow();
+    void installActionButtonsForRow(int row);
+    void ensureProduitModuleVisible();
+    QString productStyleSheet() const;
+
+    // Helpers for merged UI
+    QStackedWidget *mainStacked() const;
+    QWidget *produitRoot() const;
+    QWidget *produitCentral() const;
+    QStackedWidget *produitStacked() const;
+    QWidget *produitPage(const char *objectName) const;
+    QTableWidget *produitTable() const;
+
+    Ui::MainWindow *ui;
+    QButtonGroup *sidebarGroup;
 };
 
 #endif // MAINWINDOW_H

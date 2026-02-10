@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <ui version="4.0">
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">
@@ -17,7 +17,7 @@
    <string notr="true">
 QMainWindow, QWidget {
     background-color: #f4f6f9; 
-    font-family: &quot;Segoe UI&quot;, sans-serif;
+    font-family: "Segoe UI", sans-serif;
 }
 
 QLabel {
@@ -368,7 +368,7 @@ QPushButton#btnGoMission:pressed, QPushButton#btnGoPointage:pressed, QPushButton
 QPushButton#btnAnnulerMission, 
 QPushButton#btnAnnulerPointage, 
 QPushButton#btnAnnulerStats {
-    background-color: #6c757d;  /* Gris foncé standard pour &quot;Annuler/Retour&quot; */
+    background-color: #6c757d;  /* Gris foncé standard pour "Annuler/Retour" */
     color: white;               /* Texte blanc */
     border: none;
     border-radius: 5px;
@@ -388,7 +388,7 @@ QPushButton#btnAnnulerStats:hover {
 /* ======================================================= */
 /* 1. CORRECTION DES BOUTONS DE RETOUR (Pages internes)    */
 /* ======================================================= */
-/* Cela rendra les boutons &quot;Retour&quot; bien visibles en gris foncé */
+/* Cela rendra les boutons "Retour" bien visibles en gris foncé */
 QPushButton#btnAnnulerMission, 
 QPushButton#btnAnnulerPointage, 
 QPushButton#btnAnnulerStats {
@@ -412,7 +412,7 @@ QPushButton#btnAnnulerStats:hover {
 /* ======================================================= */
 /* 2. CORRECTION DE LA BOITE DE DIALOGUE (Supprimer)       */
 /* ======================================================= */
-/* Cela corrige les boutons &quot;Yes/No&quot; illisibles */
+/* Cela corrige les boutons "Yes/No" illisibles */
 QMessageBox {
     background-color: white;
 }
@@ -506,7 +506,7 @@ QPushButton#btnGoMission:hover, QPushButton#btnGoPointage:hover, QPushButton#btn
           </size>
          </property>
          <property name="text">
-          <string/>
+          <string />
          </property>
          <property name="pixmap">
           <pixmap resource="logo.qrc">:/Gemini_Generated_Image_8k5i7p8k5i7p8k5i-removebg-preview (2).png</pixmap>
@@ -1281,7 +1281,7 @@ QPushButton#btnGoMission:hover, QPushButton#btnGoPointage:hover, QPushButton#btn
                    </widget>
                   </item>
                   <item row="2" column="1">
-                   <widget class="QLineEdit" name="txtNom"/>
+                   <widget class="QLineEdit" name="txtNom" />
                   </item>
                   <item row="3" column="0">
                    <widget class="QLabel" name="lblSpecialite">
@@ -1598,7 +1598,7 @@ QPushButton#btnGoMission:hover, QPushButton#btnGoPointage:hover, QPushButton#btn
                    </widget>
                   </item>
                   <item row="0" column="1">
-                   <widget class="QLineEdit" name="txtNom_Ajout"/>
+                   <widget class="QLineEdit" name="txtNom_Ajout" />
                   </item>
                   <item row="2" column="0">
                    <widget class="QLabel" name="label_8">
@@ -2039,7 +2039,2031 @@ QPushButton#btnGoMission:hover, QPushButton#btnGoPointage:hover, QPushButton#btn
            </item>
           </layout>
          </widget>
-        </widget>
+        <widget class="QWidget" name="pageProduit"><layout class="QVBoxLayout" name="verticalLayout_ProduitPage"><property name="spacing"><number>0</number></property><property name="leftMargin"><number>0</number></property><property name="topMargin"><number>0</number></property><property name="rightMargin"><number>0</number></property><property name="bottomMargin"><number>0</number></property><item><widget class="QWidget" name="PModule2">
+              <attribute name="title">Module2</attribute>
+              <layout class="QHBoxLayout" name="prod_rootLayout">
+                <property name="spacing">
+                  <number>0</number>
+                </property>
+                <property name="leftMargin">
+                  <number>0</number>
+                </property>
+                <property name="topMargin">
+                  <number>0</number>
+                </property>
+                <property name="rightMargin">
+                  <number>0</number>
+                </property>
+                <property name="bottomMargin">
+                  <number>0</number>
+                </property>
+                <item>
+                  <widget class="QFrame" name="prod_leftSidebar">
+                    <property name="frameShape">
+                      <enum>QFrame::Shape::NoFrame</enum>
+                    </property>
+                    <property name="frameShadow">
+                      <enum>QFrame::Shadow::Plain</enum>
+                    </property>
+                    <property name="sizePolicy"><sizepolicy hsizetype="Fixed" vsizetype="Expanding"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property><property name="minimumSize"><size><width>250</width><height>0</height></size></property><property name="maximumSize"><size><width>250</width><height>16777215</height></size></property><layout class="QVBoxLayout" name="prod_verticalLayout_1">
+                      <property name="spacing">
+                        <number>5</number>
+                      </property>
+                      <property name="bottomMargin">
+                        <number>20</number>
+                      </property>
+                      <item>
+                        <widget class="QLabel" name="prod_label_1">
+                          <property name="text">
+                            <string />
+                          </property>
+                          <property name="pixmap">
+                            <pixmap resource="logo.qrc">:/WASTEGUARD (1).png</pixmap>
+                          </property>
+                          <property name="alignment">
+                            <set>Qt::AlignmentFlag::AlignCenter</set>
+                          </property>
+                        </widget>
+                      </item>
+                      <item>
+                        <spacer>
+                          <property name="orientation">
+                            <enum>Qt::Orientation::Vertical</enum>
+                          </property>
+                          <property name="sizeType">
+                            <enum>QSizePolicy::Policy::Fixed</enum>
+                          </property>
+                          <property name="sizeHint" stdset="0">
+                            <size>
+                              <width>20</width>
+                              <height>20</height>
+                            </size>
+                          </property>
+                        </spacer>
+                      </item>
+                      <item>
+                        <widget class="QPushButton" name="prod_btnhome_1">
+                          <property name="text">
+                            <string>  Accueil</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item>
+                        <widget class="QPushButton" name="prod_btnstock_1">
+                          <property name="text">
+                            <string>  Stock</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item>
+                        <widget class="QPushButton" name="prod_btnproduit_1">
+                          <property name="text">
+                            <string>  Produits</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item>
+                        <widget class="QPushButton" name="prod_btnclient_1">
+                          <property name="text">
+                            <string>  Clients</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item>
+                        <widget class="QPushButton" name="prod_btnemploye_1">
+                          <property name="text">
+                            <string>  Employés</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item>
+                        <widget class="QPushButton" name="prod_btnmaintenance_1">
+                          <property name="text">
+                            <string>  Maintenance</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item>
+                        <widget class="QPushButton" name="prod_btncmd_1">
+                          <property name="text">
+                            <string>  Commandes</string>
+                          </property>
+                        </widget>
+                      </item>
+                      <item>
+                        <spacer>
+                          <property name="orientation">
+                            <enum>Qt::Orientation::Vertical</enum>
+                          </property>
+                          <property name="sizeHint" stdset="0">
+                            <size>
+                              <width>0</width>
+                              <height>0</height>
+                            </size>
+                          </property>
+                        </spacer>
+                      </item>
+                    </layout>
+                  </widget>
+                </item>
+                <item>
+                  <layout class="QVBoxLayout" name="prod_mainAreaLayout">
+                    <item>
+                      <layout class="QHBoxLayout" name="prod_dashboard_hLayout">
+                        <property name="spacing">
+                          <number>0</number>
+                        </property>
+                        <property name="leftMargin">
+                          <number>0</number>
+                        </property>
+                        <property name="topMargin">
+                          <number>0</number>
+                        </property>
+                        <property name="rightMargin">
+                          <number>0</number>
+                        </property>
+                        <property name="bottomMargin">
+                          <number>0</number>
+                        </property>
+                        <item>
+                          <layout class="QVBoxLayout" name="prod_dashboardRightLayout">
+                            <property name="spacing">
+                              <number>0</number>
+                            </property>
+                            <property name="leftMargin">
+                              <number>0</number>
+                            </property>
+                            <property name="topMargin">
+                              <number>0</number>
+                            </property>
+                            <property name="rightMargin">
+                              <number>0</number>
+                            </property>
+                            <property name="bottomMargin">
+                              <number>0</number>
+                            </property>
+                            <item>
+                              <layout class="QHBoxLayout" name="prod_contentLayout">
+                                <property name="spacing">
+                                  <number>20</number>
+                                </property>
+                                <item>
+                                  <widget class="QStackedWidget" name="prod_stackedWidget">
+                                    <property name="sizePolicy">
+                                      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                                        <horstretch>0</horstretch>
+                                        <verstretch>0</verstretch>
+                                      </sizepolicy>
+                                    </property>
+                                    <property name="currentIndex">
+                                      <number>2</number>
+                                    </property>
+                                    <widget class="QWidget" name="prod_affichage">
+                                      <property name="sizePolicy">
+                                        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                                          <horstretch>0</horstretch>
+                                          <verstretch>0</verstretch>
+                                        </sizepolicy>
+                                      </property>
+                                      <layout class="QHBoxLayout" name="prod_affichageLayout" stretch="3,1">
+                                        <property name="spacing">
+                                          <number>12</number>
+                                        </property>
+                                        <property name="leftMargin">
+                                          <number>0</number>
+                                        </property>
+                                        <property name="topMargin">
+                                          <number>0</number>
+                                        </property>
+                                        <property name="rightMargin">
+                                          <number>0</number>
+                                        </property>
+                                        <property name="bottomMargin">
+                                          <number>0</number>
+                                        </property>
+                                        <item>
+                                          <layout class="QVBoxLayout" name="prod_tableLayout">
+                                            <item><widget class="QWidget" name="prod_topBar"><property name="minimumSize"><size><width>0</width><height>50</height></size></property><layout class="QHBoxLayout" name="prod_topBarLayout"><property name="leftMargin"><number>0</number></property><property name="topMargin"><number>10</number></property><property name="rightMargin"><number>0</number></property><property name="bottomMargin"><number>10</number></property><item><widget class="QLabel" name="prod_label_Title"><property name="font"><font><family>Segoe UI</family><pointsize>18</pointsize><bold>true</bold></font></property><property name="text"><string>Tableau de Bord</string></property></widget></item><item><spacer name="prod_topSpacer"><property name="orientation"><enum>Qt::Orientation::Horizontal</enum></property><property name="sizeType"><enum>QSizePolicy::Policy::Expanding</enum></property><property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property></spacer></item><item><widget class="QPushButton" name="prod_btnAddProduct"><property name="minimumSize"><size><width>0</width><height>40</height></size></property><property name="text"><string>+ Ajouter</string></property></widget></item><item><spacer name="prod_topSpacer_User"><property name="orientation"><enum>Qt::Orientation::Horizontal</enum></property><property name="sizeType"><enum>QSizePolicy::Policy::Fixed</enum></property><property name="sizeHint" stdset="0"><size><width>20</width><height>20</height></size></property></spacer></item><item><widget class="QFrame" name="prod_frameUser"><property name="frameShape"><enum>QFrame::Shape::NoFrame</enum></property><layout class="QVBoxLayout" name="prod_verticalLayout_User"><property name="spacing"><number>2</number></property><property name="leftMargin"><number>0</number></property><property name="topMargin"><number>0</number></property><property name="rightMargin"><number>5</number></property><property name="bottomMargin"><number>0</number></property><item><widget class="QLabel" name="prod_lblUserName"><property name="text"><string>Admin System</string></property><property name="alignment"><set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set></property></widget></item><item><widget class="QLabel" name="prod_lblUserRole"><property name="text"><string>Chef d'Atelier</string></property><property name="alignment"><set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set></property></widget></item></layout></widget></item></layout></widget></item><item><layout class="QHBoxLayout" name="prod_searchRow"><item><widget class="QLineEdit" name="prod_searchInput">
+                                                    <property name="minimumSize"><size><width>0</width><height>40</height></size></property><property name="placeholderText">
+                                                      <string>Rechercher...</string>
+                                                    </property>
+                                                  </widget>
+                                                </item><item><widget class="QComboBox" name="prod_cbSort">
+                                                    <property name="minimumSize"><size><width>180</width><height>40</height></size></property><item>
+                                                      <property name="text">
+                                                        <string>Référence</string>
+                                                      </property>
+                                                    </item>
+                                                    <item>
+                                                      <property name="text">
+                                                        <string>Prix (Croissant)</string>
+                                                      </property>
+                                                    </item>
+                                                    <item>
+                                                      <property name="text">
+                                                        <string>Prix (Décroissant)</string>
+                                                      </property>
+                                                    </item>
+                                                    <item>
+                                                      <property name="text">
+                                                        <string>Quantité</string>
+                                                      </property>
+                                                    </item>
+                                                  </widget>
+                                                </item></layout></item><item><widget class="QTableWidget" name="prod_tableProduits">
+                                                <property name="sizePolicy">
+                                                  <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                                                    <horstretch>0</horstretch>
+                                                    <verstretch>0</verstretch>
+                                                  </sizepolicy>
+                                                </property>
+                                                <property name="rowCount">
+                                                  <number>0</number>
+                                                </property>
+                                                <property name="columnCount">
+                                                  <number>8</number>
+                                                </property>
+                                                <attribute name="verticalHeaderVisible">
+                                                  <bool>false</bool>
+                                                </attribute>
+                                                <column>
+                                                  <property name="text">
+                                                    <string>Référence</string>
+                                                  </property>
+                                                </column>
+                                                <column>
+                                                  <property name="text">
+                                                    <string>Modèle</string>
+                                                  </property>
+                                                </column>
+                                                <column>
+                                                  <property name="text">
+                                                    <string>Type</string>
+                                                  </property>
+                                                </column>
+                                                <column>
+                                                  <property name="text">
+                                                    <string>Capacité</string>
+                                                  </property>
+                                                </column>
+                                                <column>
+                                                  <property name="text">
+                                                    <string>Prix (TND)</string>
+                                                  </property>
+                                                </column>
+                                                <column>
+                                                  <property name="text">
+                                                    <string>Stock</string>
+                                                  </property>
+                                                </column>
+                                                <column>
+                                                  <property name="text">
+                                                    <string>État</string>
+                                                  </property>
+                                                </column>
+                                                <column>
+                                                  <property name="text">
+                                                    <string>Actions</string>
+                                                  </property>
+                                                </column>
+                                              </widget>
+                                            </item></layout>
+                                        </item>
+                                        <item>
+                                          <widget class="QFrame" name="prod_rightSidebar">
+                                            <property name="maximumSize"><size><width>16777215</width><height>16777215</height></size></property><property name="minimumSize"><size><width>0</width><height>0</height></size></property><property name="sizePolicy"><sizepolicy hsizetype="Expanding" vsizetype="Expanding"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property><property name="frameShape">
+                                              <enum>QFrame::Shape::StyledPanel</enum>
+                                            </property>
+                                            <layout class="QVBoxLayout" name="prod_rightLayout">
+                                              <item>
+                                                <widget class="QLabel" name="prod_lblFunc">
+                                                  <property name="text">
+                                                    <string>INFOS GLOBALES</string>
+                                                  </property>
+                                                </widget>
+                                              </item>
+                                              <item>
+                                                <widget class="QFrame" name="prod_stat1">
+                                                  <property name="class" stdset="0">
+                                                    <string>statCard</string>
+                                                  </property>
+                                                  <layout class="QVBoxLayout">
+                                                    <item>
+                                                      <widget class="QLabel" name="prod_st_val1">
+                                                        <property name="text">
+                                                          <string>1,245</string>
+                                                        </property>
+                                                        <property name="class" stdset="0">
+                                                          <string>statValue</string>
+                                                        </property>
+                                                      </widget>
+                                                    </item>
+                                                    <item>
+                                                      <widget class="QLabel" name="prod_st_lbl1">
+                                                        <property name="text">
+                                                          <string>Total Produits</string>
+                                                        </property>
+                                                        <property name="class" stdset="0">
+                                                          <string>statLabel</string>
+                                                        </property>
+                                                      </widget>
+                                                    </item>
+                                                  </layout>
+                                                </widget>
+                                              </item>
+                                              <item>
+                                                <widget class="QFrame" name="prod_stat2">
+                                                  <property name="class" stdset="0">
+                                                    <string>statCard</string>
+                                                  </property>
+                                                  <layout class="QVBoxLayout">
+                                                    <item>
+                                                      <widget class="QLabel" name="prod_st_val2">
+                                                        <property name="text">
+                                                          <string>85,400 TND</string>
+                                                        </property>
+                                                        <property name="class" stdset="0">
+                                                          <string>statValue</string>
+                                                        </property>
+                                                      </widget>
+                                                    </item>
+                                                    <item>
+                                                      <widget class="QLabel" name="prod_st_lbl2">
+                                                        <property name="text">
+                                                          <string>Valeur Stock</string>
+                                                        </property>
+                                                        <property name="class" stdset="0">
+                                                          <string>statLabel</string>
+                                                        </property>
+                                                      </widget>
+                                                    </item>
+                                                  </layout>
+                                                </widget>
+                                              </item>
+                                              <item>
+                                                <widget class="QFrame" name="prod_stat3">
+                                                  <property name="class" stdset="0">
+                                                    <string>alertCard</string>
+                                                  </property>
+                                                  <layout class="QVBoxLayout">
+                                                    <item>
+                                                      <widget class="QLabel" name="prod_st_val3">
+                                                        <property name="text">
+                                                          <string>⚠ 5</string>
+                                                        </property>
+                                                        <property name="class" stdset="0">
+                                                          <string>alertValue</string>
+                                                        </property>
+                                                      </widget>
+                                                    </item>
+                                                    <item>
+                                                      <widget class="QLabel" name="prod_st_lbl3">
+                                                        <property name="text">
+                                                          <string>Rupture de Stock</string>
+                                                        </property>
+                                                        <property name="class" stdset="0">
+                                                          <string>statLabel</string>
+                                                        </property>
+                                                      </widget>
+                                                    </item>
+                                                  </layout>
+                                                </widget>
+                                              </item>
+                                              <item>
+                                                <widget class="QFrame" name="prod_statsPreview">
+                                                  <property name="class" stdset="0">
+                                                    <string>statCard</string>
+                                                  </property>
+                                                  <layout class="QVBoxLayout" name="prod_statsPreviewLayout">
+                                                    <item>
+                                                      <widget class="QLabel" name="prod_lblStatsTitle">
+                                                        <property name="text">
+                                                          <string>STATISTIQUES</string>
+                                                        </property>
+                                                      </widget>
+                                                    </item>
+                                                    <item>
+                                                      <widget class="QFrame" name="prod_miniStatsFrame">
+                                                        <property name="minimumSize">
+                                                          <size>
+                                                            <width>0</width>
+                                                            <height>70</height>
+                                                          </size>
+                                                        </property>
+                                                        <property name="frameShape">
+                                                          <enum>QFrame::Shape::StyledPanel</enum>
+                                                        </property>
+                                                        <property name="frameShadow">
+                                                          <enum>QFrame::Shadow::Sunken</enum>
+                                                        </property>
+                                                        <layout class="QVBoxLayout" name="prod_miniStatsLayout">
+                                                          <property name="spacing">
+                                                            <number>6</number>
+                                                          </property>
+                                                          <property name="leftMargin">
+                                                            <number>8</number>
+                                                          </property>
+                                                          <property name="topMargin">
+                                                            <number>8</number>
+                                                          </property>
+                                                          <property name="rightMargin">
+                                                            <number>8</number>
+                                                          </property>
+                                                          <property name="bottomMargin">
+                                                            <number>8</number>
+                                                          </property>
+                                                          <item>
+                                                            <layout class="QHBoxLayout" name="prod_rowMiniLayout1">
+                                                              <property name="spacing">
+                                                                <number>8</number>
+                                                              </property>
+                                                              <property name="leftMargin">
+                                                                <number>0</number>
+                                                              </property>
+                                                              <property name="topMargin">
+                                                                <number>0</number>
+                                                              </property>
+                                                              <property name="rightMargin">
+                                                                <number>0</number>
+                                                              </property>
+                                                              <property name="bottomMargin">
+                                                                <number>0</number>
+                                                              </property>
+                                                              <item>
+                                                                <widget class="QLabel" name="prod_lblMini1">
+                                                                  <property name="styleSheet">
+                                                                    <string>color: white;</string>
+                                                                  </property>
+                                                                  <property name="text">
+                                                                    <string>Produits</string>
+                                                                  </property>
+                                                                </widget>
+                                                              </item>
+                                                              <item>
+                                                                <widget class="QProgressBar" name="prod_pbTrend">
+                                                                  <property name="value">
+                                                                    <number>68</number>
+                                                                  </property>
+                                                                  <property name="textVisible">
+                                                                    <bool>false</bool>
+                                                                  </property>
+                                                                </widget>
+                                                              </item>
+                                                            </layout>
+                                                          </item>
+                                                          <item>
+                                                            <layout class="QHBoxLayout" name="prod_rowMiniLayout2">
+                                                              <property name="spacing">
+                                                                <number>8</number>
+                                                              </property>
+                                                              <property name="leftMargin">
+                                                                <number>0</number>
+                                                              </property>
+                                                              <property name="topMargin">
+                                                                <number>0</number>
+                                                              </property>
+                                                              <property name="rightMargin">
+                                                                <number>0</number>
+                                                              </property>
+                                                              <property name="bottomMargin">
+                                                                <number>0</number>
+                                                              </property>
+                                                              <item>
+                                                                <widget class="QLabel" name="prod_lblMini2">
+                                                                  <property name="styleSheet">
+                                                                    <string>color: white;</string>
+                                                                  </property>
+                                                                  <property name="text">
+                                                                    <string>Stock</string>
+                                                                  </property>
+                                                                </widget>
+                                                              </item>
+                                                              <item>
+                                                                <widget class="QProgressBar" name="prod_pbStock">
+                                                                  <property name="value">
+                                                                    <number>42</number>
+                                                                  </property>
+                                                                  <property name="textVisible">
+                                                                    <bool>false</bool>
+                                                                  </property>
+                                                                </widget>
+                                                              </item>
+                                                            </layout>
+                                                          </item>
+                                                        </layout>
+                                                      </widget>
+                                                    </item>
+                                                    <item>
+                                                      <widget class="QPushButton" name="prod_btnOpenStats">
+                                                        <property name="styleSheet">
+                                                          <string>color: #000000; background: transparent; border: none;</string>
+                                                        </property>
+                                                        <property name="text">
+                                                          <string>Voir détails  ⟶</string>
+                                                        </property>
+                                                        <property name="flat">
+                                                          <bool>true</bool>
+                                                        </property>
+                                                      </widget>
+                                                    </item>
+                                                  </layout>
+                                                </widget>
+                                              </item>
+                                              <item>
+                                                <widget class="QPushButton" name="prod_btnMap3D">
+                                                  <property name="cursor">
+                                                    <cursorShape>PointingHandCursor</cursorShape>
+                                                  </property>
+                                                  <property name="styleSheet">
+                                                    <string>
+                        QPushButton {
+                         background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 #8E2DE2, stop:1 #4A00E0);
+                         color: white;
+                         border-radius: 8px;
+                         padding: 10px;
+                         font-weight: bold;
+                         font-size: 13px;
+                         border: none;
+                        }
+                        QPushButton:hover {
+                         background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 #a044ff, stop:1 #6a3093);
+                        }
+                       </string>
+                                                  </property>
+                                                  <property name="text">
+                                                    <string>Visualisation Map 3D 🧊</string>
+                                                  </property>
+                                                </widget>
+                                              </item>
+                                              <item>
+                                                <widget class="QPushButton" name="prod_btnVideo3D">
+                                                  <property name="cursor">
+                                                    <cursorShape>PointingHandCursor</cursorShape>
+                                                  </property>
+                                                  <property name="styleSheet">
+                                                    <string>
+                        QPushButton {
+                         background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 #11998e, stop:1 #38ef7d);
+                         color: white;
+                         border-radius: 8px;
+                         padding: 10px;
+                         font-weight: bold;
+                         font-size: 13px;
+                         border: none;
+                        }
+                        QPushButton:hover {
+                         background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 #1fab89, stop:1 #62d2a2);
+                        }
+                       </string>
+                                                  </property>
+                                                  <property name="text">
+                                                    <string>Générer Vidéo 3D 🎥</string>
+                                                  </property>
+                                                </widget>
+                                              </item>
+                                              <item>
+                                                <spacer>
+                                                  <property name="orientation">
+                                                    <enum>Qt::Orientation::Vertical</enum>
+                                                  </property>
+                                                  <property name="sizeHint" stdset="0">
+                                                    <size>
+                                                      <width>0</width>
+                                                      <height>0</height>
+                                                    </size>
+                                                  </property>
+                                                </spacer>
+                                              </item>
+                                              <item>
+                                                <widget class="QLabel" name="prod_lblExport">
+                                                  <property name="text">
+                                                    <string>EXPORTER</string>
+                                                  </property>
+                                                </widget>
+                                              </item>
+                                              <item>
+                                                <widget class="QPushButton" name="prod_btnPdf">
+                                                  <property name="text">
+                                                    <string>Rapport PDF</string>
+                                                  </property>
+                                                </widget>
+                                              </item>
+                                              <item>
+                                                <widget class="QPushButton" name="prod_btnCsv">
+                                                  <property name="text">
+                                                    <string>Export CSV</string>
+                                                  </property>
+                                                </widget>
+                                              </item>
+                                              <item>
+                                                <spacer>
+                                                  <property name="orientation">
+                                                    <enum>Qt::Orientation::Vertical</enum>
+                                                  </property>
+                                                  <property name="sizeHint" stdset="0">
+                                                    <size>
+                                                      <width>0</width>
+                                                      <height>0</height>
+                                                    </size>
+                                                  </property>
+                                                </spacer>
+                                              </item>
+                                            </layout>
+                                          </widget>
+                                        </item>
+                                      </layout>
+                                    </widget>
+                                    <widget class="QWidget" name="prod_ajout">
+                                      <property name="autoFillBackground">
+                                        <bool>false</bool>
+                                      </property>
+                                      <layout class="QHBoxLayout" name="prod_ajout_hLayout">
+                                        <property name="spacing">
+                                          <number>0</number>
+                                        </property>
+                                        <property name="leftMargin">
+                                          <number>0</number>
+                                        </property>
+                                        <property name="topMargin">
+                                          <number>0</number>
+                                        </property>
+                                        <property name="rightMargin">
+                                          <number>0</number>
+                                        </property>
+                                        <property name="bottomMargin">
+                                          <number>0</number>
+                                        </property>
+                                        <item>
+                                          <layout class="QVBoxLayout" name="prod_addRightLayout">
+                                            <property name="spacing">
+                                              <number>0</number>
+                                            </property>
+                                            <property name="leftMargin">
+                                              <number>0</number>
+                                            </property>
+                                            <property name="topMargin">
+                                              <number>0</number>
+                                            </property>
+                                            <property name="rightMargin">
+                                              <number>0</number>
+                                            </property>
+                                            <property name="bottomMargin">
+                                              <number>0</number>
+                                            </property>
+                                            <item>
+                                              <layout class="QHBoxLayout" name="prod_hl_add_split">
+                                                <property name="spacing">
+                                                  <number>20</number>
+                                                </property>
+                                                <item>
+                                                  <layout class="QVBoxLayout" name="prod_vl_img_add">
+                                                    <item>
+                                                      <widget class="QLabel" name="prod_lblImgPreview_Add">
+                                                        <property name="minimumSize">
+                                                          <size>
+                                                            <width>0</width>
+                                                            <height>250</height>
+                                                          </size>
+                                                        </property>
+                                                        <property name="text">
+                                                          <string>Glisser Image Ici</string>
+                                                        </property>
+                                                        <property name="alignment">
+                                                          <set>Qt::AlignmentFlag::AlignCenter</set>
+                                                        </property>
+                                                      </widget>
+                                                    </item>
+                                                    <item>
+                                                      <widget class="QPushButton" name="prod_btnUpload_Add">
+                                                        <property name="text">
+                                                          <string>📤 Importer Image</string>
+                                                        </property>
+                                                      </widget>
+                                                    </item>
+                                                    <item>
+                                                      <spacer>
+                                                        <property name="orientation">
+                                                          <enum>Qt::Orientation::Vertical</enum>
+                                                        </property>
+                                                        <property name="sizeHint" stdset="0">
+                                                          <size>
+                                                            <width>0</width>
+                                                            <height>0</height>
+                                                          </size>
+                                                        </property>
+                                                      </spacer>
+                                                    </item>
+                                                  </layout>
+                                                </item>
+                                                <item>
+                                                  <widget class="QFrame" name="prod_cardAdd">
+                                                    <property name="frameShape">
+                                                      <enum>QFrame::Shape::StyledPanel</enum>
+                                                    </property>
+                                                    <layout class="QVBoxLayout" name="prod_verticalLayout_Add">
+                                                      <property name="spacing">
+                                                        <number>10</number>
+                                                      </property>
+                                                      <property name="leftMargin">
+                                                        <number>30</number>
+                                                      </property>
+                                                      <property name="topMargin">
+                                                        <number>20</number>
+                                                      </property>
+                                                      <property name="rightMargin">
+                                                        <number>30</number>
+                                                      </property>
+                                                      <property name="bottomMargin">
+                                                        <number>20</number>
+                                                      </property>
+                                                      <item>
+                                                        <widget class="QLabel" name="prod_lblTitleAdd">
+                                                          <property name="text">
+                                                            <string>Nouveau Stock</string>
+                                                          </property>
+                                                        </widget>
+                                                      </item>
+                                                      <item>
+                                                        <layout class="QGridLayout" name="prod_gl_inputs">
+                                                          <item row="0" column="0">
+                                                            <widget class="QLabel" name="prod_l1">
+                                                              <property name="text">
+                                                                <string>Référence</string>
+                                                              </property>
+                                                            </widget>
+                                                          </item>
+                                                          <item row="0" column="1">
+                                                            <widget class="QLineEdit" name="prod_ln_ref_add">
+                                                              <property name="placeholderText">
+                                                                <string>REF-2024</string>
+                                                              </property>
+                                                            </widget>
+                                                          </item>
+                                                          <item row="0" column="2">
+                                                            <widget class="QLabel" name="prod_l2">
+                                                              <property name="text">
+                                                                <string>Modèle</string>
+                                                              </property>
+                                                            </widget>
+                                                          </item>
+                                                          <item row="0" column="3">
+                                                            <widget class="QComboBox" name="prod_cb_model_add">
+                                                              <item>
+                                                                <property name="text">
+                                                                  <string>ProBin 240L</string>
+                                                                </property>
+                                                              </item>
+                                                            </widget>
+                                                          </item>
+                                                          <item row="1" column="0">
+                                                            <widget class="QLabel" name="prod_l_px">
+                                                              <property name="text">
+                                                                <string>Prix (TND)</string>
+                                                              </property>
+                                                            </widget>
+                                                          </item>
+                                                          <item row="1" column="1">
+                                                            <widget class="QDoubleSpinBox" name="prod_dsb_price_add">
+                                                              <property name="maximum">
+                                                                <double>99999.000000000000000</double>
+                                                              </property>
+                                                            </widget>
+                                                          </item>
+                                                          <item row="1" column="2">
+                                                            <widget class="QLabel" name="prod_l_qty">
+                                                              <property name="text">
+                                                                <string>Quantité</string>
+                                                              </property>
+                                                            </widget>
+                                                          </item>
+                                                          <item row="1" column="3">
+                                                            <widget class="QSpinBox" name="prod_sb_qty_add" />
+                                                          </item>
+                                                          <item row="2" column="0">
+                                                            <widget class="QLabel" name="prod_l_stat">
+                                                              <property name="text">
+                                                                <string>Statut</string>
+                                                              </property>
+                                                            </widget>
+                                                          </item>
+                                                          <item row="2" column="1">
+                                                            <widget class="QComboBox" name="prod_cb_status_add">
+                                                              <item>
+                                                                <property name="text">
+                                                                  <string>En Stock</string>
+                                                                </property>
+                                                              </item>
+                                                            </widget>
+                                                          </item>
+                                                        </layout>
+                                                      </item>
+                                                      <item>
+                                                        <layout class="QHBoxLayout" name="prod_hl_sliders">
+                                                          <item>
+                                                            <layout class="QVBoxLayout" name="prod_vl_bat">
+                                                              <item>
+                                                                <layout class="QHBoxLayout" name="prod_horizontalLayout">
+                                                                  <item>
+                                                                    <widget class="QLabel" name="prod_l_bat">
+                                                                      <property name="text">
+                                                                        <string>Batterie (mAh)</string>
+                                                                      </property>
+                                                                    </widget>
+                                                                  </item>
+                                                                  <item>
+                                                                    <widget class="QLabel" name="prod_label">
+                                                                      <property name="text">
+                                                                        <string>10000 mah</string>
+                                                                      </property>
+                                                                    </widget>
+                                                                  </item>
+                                                                </layout>
+                                                              </item>
+                                                              <item>
+                                                                <widget class="QSlider" name="prod_slider_bat_add">
+                                                                  <property name="minimum">
+                                                                    <number>2000</number>
+                                                                  </property>
+                                                                  <property name="maximum">
+                                                                    <number>20000</number>
+                                                                  </property>
+                                                                  <property name="orientation">
+                                                                    <enum>Qt::Orientation::Horizontal</enum>
+                                                                  </property>
+                                                                </widget>
+                                                              </item>
+                                                            </layout>
+                                                          </item>
+                                                          <item>
+                                                            <layout class="QVBoxLayout" name="prod_vl_cap">
+                                                              <item>
+                                                                <layout class="QHBoxLayout" name="prod_horizontalLayout_4">
+                                                                  <item>
+                                                                    <widget class="QLabel" name="prod_l_cap">
+                                                                      <property name="text">
+                                                                        <string>Capacité</string>
+                                                                      </property>
+                                                                    </widget>
+                                                                  </item>
+                                                                  <item>
+                                                                    <widget class="QLabel" name="prod_label_4">
+                                                                      <property name="text">
+                                                                        <string>750 L</string>
+                                                                      </property>
+                                                                    </widget>
+                                                                  </item>
+                                                                </layout>
+                                                              </item>
+                                                              <item>
+                                                                <widget class="QSlider" name="prod_slider_cap_add">
+                                                                  <property name="minimum">
+                                                                    <number>50</number>
+                                                                  </property>
+                                                                  <property name="maximum">
+                                                                    <number>1000</number>
+                                                                  </property>
+                                                                  <property name="orientation">
+                                                                    <enum>Qt::Orientation::Horizontal</enum>
+                                                                  </property>
+                                                                </widget>
+                                                              </item>
+                                                            </layout>
+                                                          </item>
+                                                        </layout>
+                                                      </item>
+                                                      <item>
+                                                        <widget class="QGroupBox" name="prod_gb_characteristics">
+                                                          <property name="styleSheet">
+                                                            <string>
+                            QGroupBox {
+                             font-weight: bold;
+                             border: 1px solid #bdc3c7;
+                             border-radius: 6px;
+                             margin-top: 10px;
+                             padding-top: 10px;
+                            }
+                            QGroupBox::title {
+                             subcontrol-origin: margin;
+                             left: 10px;
+                             padding: 0 5px;
+                             color: black;
+                            }
+                           </string>
+                                                          </property>
+                                                          <property name="title">
+                                                            <string>Caractéristiques Techniques</string>
+                                                          </property>
+                                                          <layout class="QVBoxLayout" name="prod_vl_characteristics">
+                                                            <item>
+                                                              <widget class="QListWidget" name="prod_lstCharacteristics">
+                                                                <property name="styleSheet">
+                                                                  <string>
+                               QListWidget {
+                                 border: 2px solid #bdc3c7;
+                                 background-color: white;
+                                 border-radius: 6px;
+                                 padding: 8px;
+                                 font-size: 13px;
+                                }
+                                QListWidget::item {
+                                 padding: 10px;
+                                 margin: 2px;
+                                 border: 1px solid #e0e0e0;
+                                 border-radius: 5px;
+                                 background-color: #f8f9fa;
+                                 color: #2c3e50;
+                                }
+                                QListWidget::item:selected {
+                                 background-color: #3498db;
+                                 color: white;
+                                 border: 2px solid #2980b9;
+                                 font-weight: bold;
+                                }
+                                QListWidget::item:hover:!selected {
+                                 background-color: #e3f2fd;
+                                 border: 1px solid #90caf9;
+                                }
+                              </string>
+                                                                </property>
+                                                                <property name="alternatingRowColors">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="selectionMode">
+                                                                  <enum>QAbstractItemView::SelectionMode::MultiSelection</enum>
+                                                                </property>
+                                                                <item>
+                                                                  <property name="text">
+                                                                    <string>📍 GPS Tracking</string>
+                                                                  </property>
+                                                                </item>
+                                                                <item>
+                                                                  <property name="text">
+                                                                    <string>📡 Capteur Ultrason</string>
+                                                                  </property>
+                                                                </item>
+                                                                <item>
+                                                                  <property name="text">
+                                                                    <string>☀️ Compacteur Solaire</string>
+                                                                  </property>
+                                                                </item>
+                                                                <item>
+                                                                  <property name="text">
+                                                                    <string>🔥 Détecteur de Flamme</string>
+                                                                  </property>
+                                                                </item>
+                                                                <item>
+                                                                  <property name="text">
+                                                                    <string>🔒 Verrouillage Auto</string>
+                                                                  </property>
+                                                                </item>
+                                                                <item>
+                                                                  <property name="text">
+                                                                    <string>☁️ Intégration IoT</string>
+                                                                  </property>
+                                                                </item>
+                                                                <item>
+                                                                  <property name="text">
+                                                                    <string>🌬️ Anti-Odeur</string>
+                                                                  </property>
+                                                                </item>
+                                                              </widget>
+                                                            </item>
+                                                          </layout>
+                                                        </widget>
+                                                      </item>
+                                                      <item>
+                                                        <widget class="QLabel" name="prod_l5">
+                                                          <property name="text">
+                                                            <string>Plan du Dépôt (Sélectionnez un emplacement)</string>
+                                                          </property>
+                                                        </widget>
+                                                      </item>
+                                                      <item>
+                                                        <widget class="QFrame" name="prod_mapFrame">
+                                                          <property name="frameShape">
+                                                            <enum>QFrame::Shape::StyledPanel</enum>
+                                                          </property>
+                                                          <layout class="QGridLayout" name="prod_gl_map_add">
+                                                            <item row="0" column="0" colspan="3">
+                                                              <widget class="QLabel" name="prod_zoneA">
+                                                                <property name="text">
+                                                                  <string>ZONE A</string>
+                                                                </property>
+                                                                <property name="alignment">
+                                                                  <set>Qt::AlignmentFlag::AlignCenter</set>
+                                                                </property>
+                                                                <property name="class" stdset="0">
+                                                                  <string>zoneLabel</string>
+                                                                </property>
+                                                              </widget>
+                                                            </item>
+                                                            <item row="1" column="0">
+                                                              <widget class="QPushButton" name="prod_btn_a1">
+                                                                <property name="text">
+                                                                  <string>A-01</string>
+                                                                </property>
+                                                                <property name="checkable">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="autoExclusive">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="class" stdset="0">
+                                                                  <string>slotBtn</string>
+                                                                </property>
+                                                              </widget>
+                                                            </item>
+                                                            <item row="1" column="1">
+                                                              <widget class="QPushButton" name="prod_btn_a2">
+                                                                <property name="enabled">
+                                                                  <bool>false</bool>
+                                                                </property>
+                                                                <property name="text">
+                                                                  <string>A-02</string>
+                                                                </property>
+                                                                <property name="class" stdset="0">
+                                                                  <string>slotBtn</string>
+                                                                </property>
+                                                              </widget>
+                                                            </item>
+                                                            <item row="1" column="2">
+                                                              <widget class="QPushButton" name="prod_btn_a3">
+                                                                <property name="text">
+                                                                  <string>A-03</string>
+                                                                </property>
+                                                                <property name="checkable">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="autoExclusive">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="class" stdset="0">
+                                                                  <string>slotBtn</string>
+                                                                </property>
+                                                              </widget>
+                                                            </item>
+                                                            <item row="2" column="0" colspan="3">
+                                                              <widget class="QLabel" name="prod_zoneB">
+                                                                <property name="text">
+                                                                  <string>ZONE B</string>
+                                                                </property>
+                                                                <property name="alignment">
+                                                                  <set>Qt::AlignmentFlag::AlignCenter</set>
+                                                                </property>
+                                                                <property name="class" stdset="0">
+                                                                  <string>zoneLabel</string>
+                                                                </property>
+                                                              </widget>
+                                                            </item>
+                                                            <item row="3" column="0">
+                                                              <widget class="QPushButton" name="prod_btn_b1">
+                                                                <property name="text">
+                                                                  <string>B-01</string>
+                                                                </property>
+                                                                <property name="checkable">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="autoExclusive">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="class" stdset="0">
+                                                                  <string>slotBtn</string>
+                                                                </property>
+                                                              </widget>
+                                                            </item>
+                                                            <item row="3" column="1">
+                                                              <widget class="QPushButton" name="prod_btn_b2">
+                                                                <property name="text">
+                                                                  <string>B-02</string>
+                                                                </property>
+                                                                <property name="checkable">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="autoExclusive">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="class" stdset="0">
+                                                                  <string>slotBtn</string>
+                                                                </property>
+                                                              </widget>
+                                                            </item>
+                                                            <item row="3" column="2">
+                                                              <widget class="QPushButton" name="prod_btn_b3">
+                                                                <property name="text">
+                                                                  <string>B-03</string>
+                                                                </property>
+                                                                <property name="checkable">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="autoExclusive">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="class" stdset="0">
+                                                                  <string>slotBtn</string>
+                                                                </property>
+                                                              </widget>
+                                                            </item>
+                                                            <item row="4" column="0" colspan="3">
+                                                              <widget class="QLabel" name="prod_zoneC">
+                                                                <property name="text">
+                                                                  <string>ZONE C</string>
+                                                                </property>
+                                                                <property name="alignment">
+                                                                  <set>Qt::AlignmentFlag::AlignCenter</set>
+                                                                </property>
+                                                                <property name="class" stdset="0">
+                                                                  <string>zoneLabel</string>
+                                                                </property>
+                                                              </widget>
+                                                            </item>
+                                                            <item row="5" column="1">
+                                                              <widget class="QPushButton" name="prod_btn_c2">
+                                                                <property name="text">
+                                                                  <string>C-02</string>
+                                                                </property>
+                                                                <property name="checkable">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="autoExclusive">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="class" stdset="0">
+                                                                  <string>slotBtn</string>
+                                                                </property>
+                                                              </widget>
+                                                            </item>
+                                                            <item row="5" column="2">
+                                                              <widget class="QPushButton" name="prod_btn_c3">
+                                                                <property name="text">
+                                                                  <string>C-03</string>
+                                                                </property>
+                                                                <property name="checkable">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="autoExclusive">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="class" stdset="0">
+                                                                  <string>slotBtn</string>
+                                                                </property>
+                                                              </widget>
+                                                            </item>
+                                                            <item row="5" column="0">
+                                                              <widget class="QPushButton" name="prod_btn_a2_2">
+                                                                <property name="enabled">
+                                                                  <bool>false</bool>
+                                                                </property>
+                                                                <property name="text">
+                                                                  <string>C-01</string>
+                                                                </property>
+                                                                <property name="class" stdset="0">
+                                                                  <string>slotBtn</string>
+                                                                </property>
+                                                              </widget>
+                                                            </item>
+                                                          </layout>
+                                                        </widget>
+                                                      </item>
+                                                      <item>
+                                                        <layout class="QHBoxLayout" name="prod_btns_add">
+                                                          <item>
+                                                            <widget class="QPushButton" name="prod_btnSave_Add">
+                                                              <property name="text">
+                                                                <string>Ajouter</string>
+                                                              </property>
+                                                            </widget>
+                                                          </item>
+                                                          <item>
+                                                            <widget class="QPushButton" name="prod_btnCancel_Add">
+                                                              <property name="text">
+                                                                <string>Annuler</string>
+                                                              </property>
+                                                            </widget>
+                                                          </item>
+                                                        </layout>
+                                                      </item>
+                                                    </layout>
+                                                  </widget>
+                                                </item>
+                                              </layout>
+                                            </item>
+                                          </layout>
+                                        </item>
+                                      </layout>
+                                    </widget>
+                                    <widget class="QWidget" name="prod_modification">
+                                      <property name="autoFillBackground">
+                                        <bool>false</bool>
+                                      </property>
+                                      <layout class="QHBoxLayout" name="prod_modifier_hLayout">
+                                        <property name="spacing">
+                                          <number>0</number>
+                                        </property>
+                                        <property name="leftMargin">
+                                          <number>0</number>
+                                        </property>
+                                        <property name="topMargin">
+                                          <number>0</number>
+                                        </property>
+                                        <property name="rightMargin">
+                                          <number>0</number>
+                                        </property>
+                                        <property name="bottomMargin">
+                                          <number>0</number>
+                                        </property>
+                                        <item>
+                                          <layout class="QVBoxLayout" name="prod_modRightLayout">
+                                            <property name="spacing">
+                                              <number>0</number>
+                                            </property>
+                                            <property name="leftMargin">
+                                              <number>0</number>
+                                            </property>
+                                            <property name="topMargin">
+                                              <number>0</number>
+                                            </property>
+                                            <property name="rightMargin">
+                                              <number>0</number>
+                                            </property>
+                                            <property name="bottomMargin">
+                                              <number>0</number>
+                                            </property>
+                                            <item>
+                                              <layout class="QHBoxLayout" name="prod_hl_mod_split">
+                                                <property name="spacing">
+                                                  <number>20</number>
+                                                </property>
+                                                <item>
+                                                  <widget class="QLabel" name="prod_imgBin">
+                                                    <property name="maximumSize">
+                                                      <size>
+                                                        <width>16777215</width>
+                                                        <height>250</height>
+                                                      </size>
+                                                    </property>
+                                                    <property name="text">
+                                                      <string>[ Image Actuelle ]</string>
+                                                    </property>
+                                                    <property name="alignment">
+                                                      <set>Qt::AlignmentFlag::AlignCenter</set>
+                                                    </property>
+                                                  </widget>
+                                                </item>
+                                                <item>
+                                                  <widget class="QFrame" name="prod_cardMod">
+                                                    <property name="frameShape">
+                                                      <enum>QFrame::Shape::StyledPanel</enum>
+                                                    </property>
+                                                    <layout class="QVBoxLayout" name="prod_verticalLayout_Mod">
+                                                      <property name="spacing">
+                                                        <number>10</number>
+                                                      </property>
+                                                      <property name="leftMargin">
+                                                        <number>30</number>
+                                                      </property>
+                                                      <property name="topMargin">
+                                                        <number>20</number>
+                                                      </property>
+                                                      <property name="rightMargin">
+                                                        <number>30</number>
+                                                      </property>
+                                                      <property name="bottomMargin">
+                                                        <number>20</number>
+                                                      </property>
+                                                      <item>
+                                                        <widget class="QLabel" name="prod_lblTitleMod">
+                                                          <property name="text">
+                                                            <string>Modifier Stock</string>
+                                                          </property>
+                                                        </widget>
+                                                      </item>
+                                                      <item>
+                                                        <layout class="QGridLayout" name="prod_gl_inputs_mod">
+                                                          <item row="1" column="3">
+                                                            <widget class="QSpinBox" name="prod_sb_qty_mod">
+                                                              <property name="value">
+                                                                <number>45</number>
+                                                              </property>
+                                                            </widget>
+                                                          </item>
+                                                          <item row="2" column="0">
+                                                            <widget class="QLabel" name="prod_l_stat_m">
+                                                              <property name="text">
+                                                                <string>Statut</string>
+                                                              </property>
+                                                            </widget>
+                                                          </item>
+                                                          <item row="1" column="2">
+                                                            <widget class="QLabel" name="prod_l_qty_m">
+                                                              <property name="text">
+                                                                <string>Quantité</string>
+                                                              </property>
+                                                            </widget>
+                                                          </item>
+                                                          <item row="0" column="3">
+                                                            <widget class="QComboBox" name="prod_cb_model_mod">
+                                                              <item>
+                                                                <property name="text">
+                                                                  <string>ProBin 240L</string>
+                                                                </property>
+                                                              </item>
+                                                            </widget>
+                                                          </item>
+                                                          <item row="2" column="1">
+                                                            <widget class="QComboBox" name="prod_cb_status_mod">
+                                                              <item>
+                                                                <property name="text">
+                                                                  <string>En Stock</string>
+                                                                </property>
+                                                              </item>
+                                                            </widget>
+                                                          </item>
+                                                          <item row="1" column="1">
+                                                            <widget class="QDoubleSpinBox" name="prod_dsb_price_mod">
+                                                              <property name="value">
+                                                                <double>0.000000000000000</double>
+                                                              </property>
+                                                            </widget>
+                                                          </item>
+                                                          <item row="0" column="1">
+                                                            <widget class="QLineEdit" name="prod_ln_ref_mod">
+                                                              <property name="text">
+                                                                <string>REF-2023</string>
+                                                              </property>
+                                                              <property name="readOnly">
+                                                                <bool>true</bool>
+                                                              </property>
+                                                            </widget>
+                                                          </item>
+                                                          <item row="0" column="2">
+                                                            <widget class="QLabel" name="prod_l2_m">
+                                                              <property name="text">
+                                                                <string>Modèle</string>
+                                                              </property>
+                                                            </widget>
+                                                          </item>
+                                                          <item row="1" column="0">
+                                                            <widget class="QLabel" name="prod_l_px_m">
+                                                              <property name="text">
+                                                                <string>Prix (TND)</string>
+                                                              </property>
+                                                            </widget>
+                                                          </item>
+                                                          <item row="0" column="0">
+                                                            <widget class="QLabel" name="prod_l1_m">
+                                                              <property name="text">
+                                                                <string>Référence</string>
+                                                              </property>
+                                                            </widget>
+                                                          </item>
+                                                        </layout>
+                                                      </item>
+                                                      <item>
+                                                        <layout class="QHBoxLayout" name="prod_hl_sliders_mod">
+                                                          <item>
+                                                            <layout class="QVBoxLayout" name="prod_vl_bat_mod">
+                                                              <item>
+                                                                <widget class="QLabel" name="prod_l_bat_m">
+                                                                  <property name="text">
+                                                                    <string>Batterie</string>
+                                                                  </property>
+                                                                </widget>
+                                                              </item>
+                                                              <item>
+                                                                <widget class="QSlider" name="prod_slider_bat_mod">
+                                                                  <property name="maximum">
+                                                                    <number>20000</number>
+                                                                  </property>
+                                                                  <property name="value">
+                                                                    <number>12000</number>
+                                                                  </property>
+                                                                  <property name="orientation">
+                                                                    <enum>Qt::Orientation::Horizontal</enum>
+                                                                  </property>
+                                                                </widget>
+                                                              </item>
+                                                            </layout>
+                                                          </item>
+                                                          <item>
+                                                            <layout class="QVBoxLayout" name="prod_vl_cap_mod">
+                                                              <item>
+                                                                <widget class="QLabel" name="prod_l_cap_m">
+                                                                  <property name="text">
+                                                                    <string>Capacité</string>
+                                                                  </property>
+                                                                </widget>
+                                                              </item>
+                                                              <item>
+                                                                <widget class="QSlider" name="prod_slider_cap_mod">
+                                                                  <property name="maximum">
+                                                                    <number>1000</number>
+                                                                  </property>
+                                                                  <property name="orientation">
+                                                                    <enum>Qt::Orientation::Horizontal</enum>
+                                                                  </property>
+                                                                </widget>
+                                                              </item>
+                                                            </layout>
+                                                          </item>
+                                                        </layout>
+                                                      </item>
+                                                      <item>
+                                                        <widget class="QGroupBox" name="prod_gb_characteristics_mod">
+                                                          <property name="styleSheet">
+                                                            <string>
+                            QGroupBox {
+                             font-weight: bold;
+                             border: 1px solid #bdc3c7;
+                             border-radius: 6px;
+                             margin-top: 10px;
+                             padding-top: 10px;
+                            }
+                            QGroupBox::title {
+                             subcontrol-origin: margin;
+                             left: 10px;
+                             padding: 0 5px;
+                             color: black;
+                             color: black;
+                            }
+                           </string>
+                                                          </property>
+                                                          <property name="title">
+                                                            <string>Caractéristiques Techniques</string>
+                                                          </property>
+                                                          <layout class="QVBoxLayout" name="prod_vl_characteristics_mod">
+                                                            <item>
+                                                              <widget class="QListWidget" name="prod_lstCharacteristics_mod">
+                                                                <property name="styleSheet">
+                                                                  <string>QListWidget {
+                                 border: 2px solid #bdc3c7;
+                                 background-color: white;
+                                 border-radius: 6px;
+                                 padding: 8px;
+                                 font-size: 13px;
+                                }
+                                QListWidget::item {
+                                 padding: 10px;
+                                 margin: 2px;
+                                 border: 1px solid #e0e0e0;
+                                 border-radius: 5px;
+                                 background-color: #f8f9fa;
+                                 color: #2c3e50;
+                                }
+                                QListWidget::item:selected {
+                                 background-color: #3498db;
+                                 color: white;
+                                 border: 2px solid #2980b9;
+                                 font-weight: bold;
+                                }
+                                QListWidget::item:hover:!selected {
+                                 background-color: #e3f2fd;
+                                 border: 1px solid #90caf9;
+                                }
+                               </string>
+                                                                </property>
+                                                                <property name="alternatingRowColors">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="selectionMode">
+                                                                  <enum>QAbstractItemView::SelectionMode::MultiSelection</enum>
+                                                                </property>
+                                                                <item>
+                                                                  <property name="text">
+                                                                    <string>📍 GPS Tracking</string>
+                                                                  </property>
+                                                                </item>
+                                                                <item>
+                                                                  <property name="text">
+                                                                    <string>📡 Capteur Ultrason</string>
+                                                                  </property>
+                                                                </item>
+                                                                <item>
+                                                                  <property name="text">
+                                                                    <string>☀️ Compacteur Solaire</string>
+                                                                  </property>
+                                                                </item>
+                                                                <item>
+                                                                  <property name="text">
+                                                                    <string>🔥 Détecteur de Flamme</string>
+                                                                  </property>
+                                                                </item>
+                                                                <item>
+                                                                  <property name="text">
+                                                                    <string>🔒 Verrouillage Auto</string>
+                                                                  </property>
+                                                                </item>
+                                                                <item>
+                                                                  <property name="text">
+                                                                    <string>☁️ Intégration IoT</string>
+                                                                  </property>
+                                                                </item>
+                                                                <item>
+                                                                  <property name="text">
+                                                                    <string>🌬️ Anti-Odeur</string>
+                                                                  </property>
+                                                                </item>
+                                                              </widget>
+                                                            </item>
+                                                          </layout>
+                                                        </widget>
+                                                      </item>
+                                                      <item>
+                                                        <widget class="QLabel" name="prod_l5_m">
+                                                          <property name="text">
+                                                            <string>Changer Emplacement</string>
+                                                          </property>
+                                                        </widget>
+                                                      </item>
+                                                      <item>
+                                                        <widget class="QFrame" name="prod_depotMapFrame_mod">
+                                                          <property name="frameShape">
+                                                            <enum>QFrame::Shape::StyledPanel</enum>
+                                                          </property>
+                                                          <layout class="QGridLayout" name="prod_gl_map_mod">
+                                                            <item row="0" column="0" colspan="3">
+                                                              <widget class="QLabel" name="prod_zoneAm">
+                                                                <property name="text">
+                                                                  <string>ZONE A</string>
+                                                                </property>
+                                                                <property name="alignment">
+                                                                  <set>Qt::AlignmentFlag::AlignCenter</set>
+                                                                </property>
+                                                                <property name="class" stdset="0">
+                                                                  <string>zoneLabel</string>
+                                                                </property>
+                                                              </widget>
+                                                            </item>
+                                                            <item row="1" column="0">
+                                                              <widget class="QPushButton" name="prod_btn_a1_m">
+                                                                <property name="text">
+                                                                  <string>A-01</string>
+                                                                </property>
+                                                                <property name="checkable">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="checked">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="autoExclusive">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="class" stdset="0">
+                                                                  <string>slotBtn</string>
+                                                                </property>
+                                                              </widget>
+                                                            </item>
+                                                            <item row="1" column="2">
+                                                              <widget class="QPushButton" name="prod_btn_a3_m">
+                                                                <property name="text">
+                                                                  <string>A-03</string>
+                                                                </property>
+                                                                <property name="checkable">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="autoExclusive">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="class" stdset="0">
+                                                                  <string>slotBtn</string>
+                                                                </property>
+                                                              </widget>
+                                                            </item>
+                                                            <item row="2" column="0" colspan="3">
+                                                              <widget class="QLabel" name="prod_zoneBm">
+                                                                <property name="text">
+                                                                  <string>ZONE B</string>
+                                                                </property>
+                                                                <property name="alignment">
+                                                                  <set>Qt::AlignmentFlag::AlignCenter</set>
+                                                                </property>
+                                                                <property name="class" stdset="0">
+                                                                  <string>zoneLabel</string>
+                                                                </property>
+                                                              </widget>
+                                                            </item>
+                                                            <item row="3" column="0">
+                                                              <widget class="QPushButton" name="prod_btn_b1_m">
+                                                                <property name="text">
+                                                                  <string>B-01</string>
+                                                                </property>
+                                                                <property name="checkable">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="autoExclusive">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="class" stdset="0">
+                                                                  <string>slotBtn</string>
+                                                                </property>
+                                                              </widget>
+                                                            </item>
+                                                            <item row="3" column="1">
+                                                              <widget class="QPushButton" name="prod_btn_b2_m">
+                                                                <property name="text">
+                                                                  <string>B-02</string>
+                                                                </property>
+                                                                <property name="checkable">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="autoExclusive">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="class" stdset="0">
+                                                                  <string>slotBtn</string>
+                                                                </property>
+                                                              </widget>
+                                                            </item>
+                                                            <item row="3" column="2">
+                                                              <widget class="QPushButton" name="prod_btn_b3_m">
+                                                                <property name="text">
+                                                                  <string>B-03</string>
+                                                                </property>
+                                                                <property name="checkable">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="autoExclusive">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="class" stdset="0">
+                                                                  <string>slotBtn</string>
+                                                                </property>
+                                                              </widget>
+                                                            </item>
+                                                            <item row="4" column="0" colspan="3">
+                                                              <widget class="QLabel" name="prod_zoneCm">
+                                                                <property name="text">
+                                                                  <string>ZONE C</string>
+                                                                </property>
+                                                                <property name="alignment">
+                                                                  <set>Qt::AlignmentFlag::AlignCenter</set>
+                                                                </property>
+                                                                <property name="class" stdset="0">
+                                                                  <string>zoneLabel</string>
+                                                                </property>
+                                                              </widget>
+                                                            </item>
+                                                            <item row="5" column="0">
+                                                              <widget class="QPushButton" name="prod_btn_c1_m">
+                                                                <property name="text">
+                                                                  <string>C-01</string>
+                                                                </property>
+                                                                <property name="checkable">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="autoExclusive">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="class" stdset="0">
+                                                                  <string>slotBtn</string>
+                                                                </property>
+                                                              </widget>
+                                                            </item>
+                                                            <item row="5" column="1">
+                                                              <widget class="QPushButton" name="prod_btn_c2_m">
+                                                                <property name="text">
+                                                                  <string>C-02</string>
+                                                                </property>
+                                                                <property name="checkable">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="autoExclusive">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="class" stdset="0">
+                                                                  <string>slotBtn</string>
+                                                                </property>
+                                                              </widget>
+                                                            </item>
+                                                            <item row="5" column="2">
+                                                              <widget class="QPushButton" name="prod_btn_c3_m">
+                                                                <property name="text">
+                                                                  <string>C-03</string>
+                                                                </property>
+                                                                <property name="checkable">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="autoExclusive">
+                                                                  <bool>true</bool>
+                                                                </property>
+                                                                <property name="class" stdset="0">
+                                                                  <string>slotBtn</string>
+                                                                </property>
+                                                              </widget>
+                                                            </item>
+                                                            <item row="1" column="1">
+                                                              <widget class="QPushButton" name="prod_btn_a2_3">
+                                                                <property name="enabled">
+                                                                  <bool>false</bool>
+                                                                </property>
+                                                                <property name="text">
+                                                                  <string>A-02</string>
+                                                                </property>
+                                                                <property name="class" stdset="0">
+                                                                  <string>slotBtn</string>
+                                                                </property>
+                                                              </widget>
+                                                            </item>
+                                                          </layout>
+                                                        </widget>
+                                                      </item>
+                                                      <item>
+                                                        <layout class="QHBoxLayout" name="prod_btns_mod">
+                                                          <item>
+                                                            <widget class="QPushButton" name="prod_btnSave_Mod">
+                                                              <property name="text">
+                                                                <string>Sauvegarder</string>
+                                                              </property>
+                                                            </widget>
+                                                          </item>
+                                                          <item>
+                                                            <widget class="QPushButton" name="prod_btnCancel_Mod">
+                                                              <property name="text">
+                                                                <string>Annuler</string>
+                                                              </property>
+                                                            </widget>
+                                                          </item>
+                                                        </layout>
+                                                      </item>
+                                                    </layout>
+                                                  </widget>
+                                                </item>
+                                              </layout>
+                                            </item>
+                                          </layout>
+                                        </item>
+                                      </layout>
+                                    </widget>
+                                    <widget class="QWidget" name="prod_statistiques">
+                                      <layout class="QVBoxLayout" name="prod_statsPopupLayout">
+                                        <property name="spacing">
+                                          <number>14</number>
+                                        </property>
+                                        <property name="leftMargin">
+                                          <number>20</number>
+                                        </property>
+                                        <property name="topMargin">
+                                          <number>20</number>
+                                        </property>
+                                        <property name="rightMargin">
+                                          <number>20</number>
+                                        </property>
+                                        <property name="bottomMargin">
+                                          <number>20</number>
+                                        </property>
+                                        <item>
+                                          <layout class="QHBoxLayout" name="prod_statsHeaderLayout">
+                                            <item>
+                                              <widget class="QPushButton" name="prod_btnReturnStats">
+                                                <property name="cursor">
+                                                  <cursorShape>PointingHandCursor</cursorShape>
+                                                </property>
+                                                <property name="styleSheet">
+                                                  <string>
+                      background-color: #546e7a; color: white; padding: 6px 12px; border-radius: 4px; font-weight: bold;
+                     </string>
+                                                </property>
+                                                <property name="text">
+                                                  <string>← Retour</string>
+                                                </property>
+                                              </widget>
+                                            </item>
+                                            <item>
+                                              <spacer name="prod_horizontalSpacer_Stats">
+                                                <property name="orientation">
+                                                  <enum>Qt::Orientation::Horizontal</enum>
+                                                </property>
+                                                <property name="sizeHint" stdset="0">
+                                                  <size>
+                                                    <width>40</width>
+                                                    <height>20</height>
+                                                  </size>
+                                                </property>
+                                              </spacer>
+                                            </item>
+                                          </layout>
+                                        </item>
+                                        <item>
+                                          <widget class="QLabel" name="prod_lblStatsHeader">
+                                            <property name="text">
+                                              <string>Aperçu Statistique</string>
+                                            </property>
+                                          </widget>
+                                        </item>
+                                        <item>
+                                          <widget class="QLabel" name="prod_lblStatsSub">
+                                            <property name="text">
+                                              <string>(Données exemple — graphiques généraux)</string>
+                                            </property>
+                                          </widget>
+                                        </item>
+                                        <item>
+                                          <layout class="QHBoxLayout" name="prod_graphsLayout">
+                                            <property name="spacing">
+                                              <number>16</number>
+                                            </property>
+                                            <property name="leftMargin">
+                                              <number>0</number>
+                                            </property>
+                                            <property name="topMargin">
+                                              <number>0</number>
+                                            </property>
+                                            <property name="rightMargin">
+                                              <number>0</number>
+                                            </property>
+                                            <property name="bottomMargin">
+                                              <number>0</number>
+                                            </property>
+                                            <item>
+                                              <widget class="QFrame" name="prod_graphFrame1">
+                                                <property name="frameShape">
+                                                  <enum>QFrame::Shape::StyledPanel</enum>
+                                                </property>
+                                                <property name="frameShadow">
+                                                  <enum>QFrame::Shadow::Raised</enum>
+                                                </property>
+                                                <property name="class" stdset="0">
+                                                  <string>statCard</string>
+                                                </property>
+                                                <layout class="QVBoxLayout" name="prod_graphFrame1Layout">
+                                                  <property name="spacing">
+                                                    <number>8</number>
+                                                  </property>
+                                                  <property name="leftMargin">
+                                                    <number>12</number>
+                                                  </property>
+                                                  <property name="topMargin">
+                                                    <number>12</number>
+                                                  </property>
+                                                  <property name="rightMargin">
+                                                    <number>12</number>
+                                                  </property>
+                                                  <property name="bottomMargin">
+                                                    <number>12</number>
+                                                  </property>
+                                                  <item>
+                                                    <widget class="QLabel" name="prod_graphFrame1Title">
+                                                      <property name="text">
+                                                        <string>Graphique 1 — Répartition (exemple)</string>
+                                                      </property>
+                                                    </widget>
+                                                  </item>
+                                                  <item>
+                                                    <widget class="QFrame" name="prod_graphFrame1Plot">
+                                                      <property name="minimumSize">
+                                                        <size>
+                                                          <width>0</width>
+                                                          <height>0</height>
+                                                        </size>
+                                                      </property>
+                                                      <property name="frameShape">
+                                                        <enum>QFrame::Shape::StyledPanel</enum>
+                                                      </property>
+                                                      <property name="frameShadow">
+                                                        <enum>QFrame::Shadow::Sunken</enum>
+                                                      </property>
+                                                      <layout class="QVBoxLayout" name="prod_graphFrame1PlotLayout">
+                                                        <property name="leftMargin">
+                                                          <number>8</number>
+                                                        </property>
+                                                        <property name="topMargin">
+                                                          <number>8</number>
+                                                        </property>
+                                                        <property name="rightMargin">
+                                                          <number>8</number>
+                                                        </property>
+                                                        <property name="bottomMargin">
+                                                          <number>8</number>
+                                                        </property>
+                                                        <item>
+                                                          <widget class="QLabel" name="prod_graphFrame1Hint">
+                                                            <property name="text">
+                                                              <string>[Graph placeholder]</string>
+                                                            </property>
+                                                            <property name="alignment">
+                                                              <set>Qt::AlignmentFlag::AlignCenter</set>
+                                                            </property>
+                                                          </widget>
+                                                        </item>
+                                                      </layout>
+                                                    </widget>
+                                                  </item>
+                                                </layout>
+                                              </widget>
+                                            </item>
+                                            <item>
+                                              <widget class="QFrame" name="prod_graphFrame2">
+                                                <property name="frameShape">
+                                                  <enum>QFrame::Shape::StyledPanel</enum>
+                                                </property>
+                                                <property name="frameShadow">
+                                                  <enum>QFrame::Shadow::Raised</enum>
+                                                </property>
+                                                <property name="class" stdset="0">
+                                                  <string>statCard</string>
+                                                </property>
+                                                <layout class="QVBoxLayout" name="prod_graphFrame2Layout">
+                                                  <property name="spacing">
+                                                    <number>8</number>
+                                                  </property>
+                                                  <property name="leftMargin">
+                                                    <number>12</number>
+                                                  </property>
+                                                  <property name="topMargin">
+                                                    <number>12</number>
+                                                  </property>
+                                                  <property name="rightMargin">
+                                                    <number>12</number>
+                                                  </property>
+                                                  <property name="bottomMargin">
+                                                    <number>12</number>
+                                                  </property>
+                                                  <item>
+                                                    <widget class="QLabel" name="prod_graphFrame2Title">
+                                                      <property name="text">
+                                                        <string>Graphique 2 — Évolution (exemple)</string>
+                                                      </property>
+                                                    </widget>
+                                                  </item>
+                                                  <item>
+                                                    <widget class="QFrame" name="prod_graphFrame2Plot">
+                                                      <property name="minimumSize">
+                                                        <size>
+                                                          <width>0</width>
+                                                          <height>0</height>
+                                                        </size>
+                                                      </property>
+                                                      <property name="frameShape">
+                                                        <enum>QFrame::Shape::StyledPanel</enum>
+                                                      </property>
+                                                      <property name="frameShadow">
+                                                        <enum>QFrame::Shadow::Sunken</enum>
+                                                      </property>
+                                                      <layout class="QVBoxLayout" name="prod_graphFrame2PlotLayout">
+                                                        <property name="leftMargin">
+                                                          <number>8</number>
+                                                        </property>
+                                                        <property name="topMargin">
+                                                          <number>8</number>
+                                                        </property>
+                                                        <property name="rightMargin">
+                                                          <number>8</number>
+                                                        </property>
+                                                        <property name="bottomMargin">
+                                                          <number>8</number>
+                                                        </property>
+                                                        <item>
+                                                          <widget class="QLabel" name="prod_graphFrame2Hint">
+                                                            <property name="text">
+                                                              <string>[Graph placeholder]</string>
+                                                            </property>
+                                                            <property name="alignment">
+                                                              <set>Qt::AlignmentFlag::AlignCenter</set>
+                                                            </property>
+                                                          </widget>
+                                                        </item>
+                                                      </layout>
+                                                    </widget>
+                                                  </item>
+                                                </layout>
+                                              </widget>
+                                            </item>
+                                          </layout>
+                                        </item>
+                                        <item>
+                                          <widget class="QLabel" name="prod_lblStatsNote">
+                                            <property name="text">
+                                              <string>Astuce: vous pouvez remplacer ces placeholders par QtCharts plus tard.</string>
+                                            </property>
+                                          </widget>
+                                        </item>
+                                        <item>
+                                          <spacer>
+                                            <property name="orientation">
+                                              <enum>Qt::Orientation::Vertical</enum>
+                                            </property>
+                                            <property name="sizeHint" stdset="0">
+                                              <size>
+                                                <width>20</width>
+                                                <height>20</height>
+                                              </size>
+                                            </property>
+                                          </spacer>
+                                        </item>
+                                      </layout>
+                                    </widget>
+                                  </widget>
+                                </item>
+                              </layout>
+                            </item>
+                          </layout>
+                        </item>
+                      </layout>
+                    </item>
+                  </layout>
+                </item>
+              </layout>
+            </widget>
+          </item></layout></widget></widget>
        </item>
       </layout>
      </widget>
@@ -2056,7 +4080,7 @@ QPushButton#btnGoMission:hover, QPushButton#btnGoPointage:hover, QPushButton#btn
     </rect>
    </property>
   </widget>
-  <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QStatusBar" name="statusbar" />
  </widget>
  <customwidgets>
   <customwidget>
@@ -2066,7 +4090,7 @@ QPushButton#btnGoMission:hover, QPushButton#btnGoPointage:hover, QPushButton#btn
   </customwidget>
  </customwidgets>
  <resources>
-  <include location="logo.qrc"/>
+  <include location="logo.qrc" />
  </resources>
- <connections/>
+ <connections />
 </ui>
