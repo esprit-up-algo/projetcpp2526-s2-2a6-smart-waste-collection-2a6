@@ -181,8 +181,8 @@ public:
     QHBoxLayout *horizontalLayout_Stats;
     QChartView *chartViewAbsence;
     QChartView *chartViewWorkload;
-    QComboBox *cbProjetStats;
     QChartView *chartViewTasks;
+    QComboBox *cbProjetStats;
     QSpacerItem *verticalSpacer_Stats;
     QPushButton *btnAnnulerStats;
     QMenuBar *menubar;
@@ -192,7 +192,7 @@ public:
     {
         if (MainWindow->objectName().isEmpty())
             MainWindow->setObjectName("MainWindow");
-        MainWindow->resize(1100, 769);
+        MainWindow->resize(1100, 804);
         MainWindow->setStyleSheet(QString::fromUtf8("\n"
 "QMainWindow, QWidget {\n"
 "    background-color: #f4f6f9; \n"
@@ -961,8 +961,7 @@ public:
         label_Actions->setObjectName("label_Actions");
         QFont font2;
         font2.setFamilies({QString::fromUtf8("Segoe UI")});
-        font2.setPointSize(11);
-        font2.setWeight(QFont::DemiBold);
+        font2.setBold(true);
         label_Actions->setFont(font2);
 
         verticalLayout_Actions->addWidget(label_Actions);
@@ -1414,7 +1413,7 @@ public:
 
         verticalLayout_Mission->addWidget(tableResultat);
 
-        verticalSpacer_Mission = new QSpacerItem(20, 40, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
+        verticalSpacer_Mission = new QSpacerItem(20, 10, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Fixed);
 
         verticalLayout_Mission->addItem(verticalSpacer_Mission);
 
@@ -1468,7 +1467,7 @@ public:
 
         verticalLayout_Pointage->addWidget(tablePointage);
 
-        verticalSpacer_Pointage = new QSpacerItem(20, 40, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
+        verticalSpacer_Pointage = new QSpacerItem(20, 10, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Fixed);
 
         verticalLayout_Pointage->addItem(verticalSpacer_Pointage);
 
@@ -1483,19 +1482,28 @@ public:
         verticalLayout_StatsPage = new QVBoxLayout(statistiques);
         verticalLayout_StatsPage->setObjectName("verticalLayout_StatsPage");
         horizontalLayout_Stats = new QHBoxLayout();
+        horizontalLayout_Stats->setSpacing(20);
         horizontalLayout_Stats->setObjectName("horizontalLayout_Stats");
         chartViewAbsence = new QChartView(statistiques);
         chartViewAbsence->setObjectName("chartViewAbsence");
+        chartViewAbsence->setMinimumSize(QSize(0, 350));
 
         horizontalLayout_Stats->addWidget(chartViewAbsence);
 
         chartViewWorkload = new QChartView(statistiques);
         chartViewWorkload->setObjectName("chartViewWorkload");
+        chartViewWorkload->setMinimumSize(QSize(0, 350));
 
         horizontalLayout_Stats->addWidget(chartViewWorkload);
 
 
         verticalLayout_StatsPage->addLayout(horizontalLayout_Stats);
+
+        chartViewTasks = new QChartView(statistiques);
+        chartViewTasks->setObjectName("chartViewTasks");
+        chartViewTasks->setMinimumSize(QSize(0, 300));
+
+        verticalLayout_StatsPage->addWidget(chartViewTasks);
 
         cbProjetStats = new QComboBox(statistiques);
         cbProjetStats->addItem(QString());
@@ -1505,13 +1513,7 @@ public:
 
         verticalLayout_StatsPage->addWidget(cbProjetStats);
 
-        chartViewTasks = new QChartView(statistiques);
-        chartViewTasks->setObjectName("chartViewTasks");
-        chartViewTasks->setMinimumSize(QSize(0, 300));
-
-        verticalLayout_StatsPage->addWidget(chartViewTasks);
-
-        verticalSpacer_Stats = new QSpacerItem(20, 40, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
+        verticalSpacer_Stats = new QSpacerItem(20, 10, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Fixed);
 
         verticalLayout_StatsPage->addItem(verticalSpacer_Stats);
 
@@ -1630,7 +1632,7 @@ public:
         label_StatTitle->setText(QCoreApplication::translate("MainWindow", "Aper\303\247u", nullptr));
         label_10->setText(QCoreApplication::translate("MainWindow", "Total Employ\303\251s", nullptr));
         lblStatNumber->setText(QCoreApplication::translate("MainWindow", "12", nullptr));
-        label_12->setText(QCoreApplication::translate("MainWindow", "Charge de Travail de l equipe", nullptr));
+        label_12->setText(QCoreApplication::translate("MainWindow", "Charge de Travail de l'equipe", nullptr));
         lblStatWorkload->setText(QCoreApplication::translate("MainWindow", "75%", nullptr));
         label_14->setText(QCoreApplication::translate("MainWindow", "Disponibilit\303\251", nullptr));
         lblStatAvailability->setText(QCoreApplication::translate("MainWindow", "4 Dispo", nullptr));

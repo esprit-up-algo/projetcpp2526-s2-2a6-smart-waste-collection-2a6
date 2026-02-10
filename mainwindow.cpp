@@ -79,16 +79,10 @@ MainWindow::MainWindow(QWidget *parent)
         btnDelete->setCursor(Qt::PointingHandCursor);
         btnDelete->setStyleSheet("QPushButton { background-color: #e74c3c; color: white; border-radius: 4px; padding: 4px 8px; font-weight: bold; }");
 
+
         connect(btnEdit, &QPushButton::clicked, this, &MainWindow::on_btnModifier_clicked);
         connect(btnDelete, &QPushButton::clicked, this, &MainWindow::on_btnSupprimer_clicked);
-        // Connexions
-        connect(ui->btnAnalyser, &QPushButton::clicked, this, &MainWindow::on_btnAnalyser_clicked);
-        connect(ui->btnSimulerBadge, &QPushButton::clicked, this, &MainWindow::on_btnSimulerBadge_clicked);
-        connect(ui->btnNouveau, &QPushButton::clicked, this, &MainWindow::on_btnNouveau_clicked);
-        connect(ui->btnAnnuler_Ajout, &QPushButton::clicked, this, &MainWindow::on_btnAnnuler_Ajout_clicked);
 
-        // --- AJOUTEZ CETTE LIGNE ---
-       // connect(ui->btnFichePaie, &QPushButton::clicked, this, &MainWindow::on_btnFichePaie_clicked);
 
 
         QHBoxLayout* pLayout = new QHBoxLayout(pWidget);
@@ -130,15 +124,19 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->cbProjetStats, &QComboBox::currentTextChanged, this, &MainWindow::updateTaskChart);
 
     // --- SLIDERS DYNAMIQUES (SALAIRE) ---
-    /* MISSING IN UI - UNCOMMENT AFTER ADDING IN QT DESIGNER
+    // Slider Salaire - Page Ajout
     connect(ui->sliderSalaire_Ajout, &QSlider::valueChanged, [=](int value){
         ui->lblValSalaire_Ajout->setText(QString::number(value) + " DT");
     });
+    // Initialize label with current slider value
+    ui->lblValSalaire_Ajout->setText(QString::number(ui->sliderSalaire_Ajout->value()) + " DT");
 
+    // Slider Salaire - Page Modification
     connect(ui->sliderSalaire_Modif, &QSlider::valueChanged, [=](int value){
         ui->lblValSalaire_Modif->setText(QString::number(value) + " DT");
     });
-    */
+    // Initialize label with current slider value
+    ui->lblValSalaire_Modif->setText(QString::number(ui->sliderSalaire_Modif->value()) + " DT");
 
     setupStatistics();
 }
