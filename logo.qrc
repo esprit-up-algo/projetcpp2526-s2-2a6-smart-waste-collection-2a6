@@ -2,6 +2,7 @@
     <qresource prefix="/">
 <<<<<<< HEAD
         <file>Gemini_Generated_Image_8k5i7p8k5i7p8k5i-removebg-preview (2).png</file>
+<<<<<<< HEAD
 =======
         <file>login_logo.png</file>
         <file>wasteguard_logo.png</file>
@@ -10,5 +11,8 @@
         <file>WASTEGUARD (1) (1).png</file>
         <file>WASTEGUARD (1).png</file>
 >>>>>>> 2a1db57 (atelier connexion)
+=======
+        <file>login_logo.png</file>
+>>>>>>> a6aef5d (Ajout de l'interface de login et corrections)
     </qresource>
 </RCC>

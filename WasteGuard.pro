@@ -1,8 +1,12 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 QT       += core gui sql charts
 =======
 QT       += core gui widgets sql charts multimedia multimediawidgets
 >>>>>>> 2a1db57 (atelier connexion)
+=======
+QT       += core gui widgets sql charts multimedia multimediawidgets
+>>>>>>> a6aef5d (Ajout de l'interface de login et corrections)
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 

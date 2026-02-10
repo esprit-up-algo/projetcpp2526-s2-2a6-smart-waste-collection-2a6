@@ -1,9 +1,13 @@
 #include "mainwindow.h"
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 #include <QApplication>
 =======
 #include <QApplication>
+=======
+#include <QApplication>
+>>>>>>> a6aef5d (Ajout de l'interface de login et corrections)
 #include <QDialog>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -17,9 +21,12 @@
 #include <QCamera>
 #include <QMediaDevices>
 #include <QMessageBox>
+<<<<<<< HEAD
 #include <QSqlDatabase>
 #include <QSqlError>
 #include <QDebug>
+=======
+>>>>>>> a6aef5d (Ajout de l'interface de login et corrections)
 
 // Simple Login Dialog
 class LoginDialog : public QDialog
@@ -163,16 +170,32 @@ private:
     QLabel *lblStatus;
     QWidget *videoWidget;
 };
+<<<<<<< HEAD
 >>>>>>> 2a1db57 (atelier connexion)
+=======
+>>>>>>> a6aef5d (Ajout de l'interface de login et corrections)
 
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+    
+    // Show login dialog first
+    LoginDialog login;
+    if (login.exec() != QDialog::Accepted) {
+        return 0; // User cancelled
+    }
+    
+    // Login successful, show main window
+>>>>>>> a6aef5d (Ajout de l'interface de login et corrections)
     MainWindow w;
-    w.show();
+    w.showMaximized();
+    
     return a.exec();
 }
+<<<<<<< HEAD
 =======
     
     // Show login dialog first
@@ -205,3 +228,7 @@ int main(int argc, char *argv[])
 
 #include "main.moc"
 >>>>>>> 2a1db57 (atelier connexion)
+=======
+
+#include "main.moc"
+>>>>>>> a6aef5d (Ajout de l'interface de login et corrections)
