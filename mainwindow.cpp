@@ -19,6 +19,7 @@
 #include <QStackedWidget>
 #include <QLinearGradient>
 #include <QPen>
+#include <QPixmap>
 
 #include <QtCharts/QPieSeries>
 #include <QtCharts/QPieSlice>
@@ -98,6 +99,13 @@ MainWindow::MainWindow(QWidget *parent)
             }
         }
     });
+    connect(ui->btnStock, &QPushButton::clicked, this, [this](){
+        if (auto *sw = mainStacked()) {
+            if (auto *page = sw->findChild<QWidget*>("pageStock", Qt::FindDirectChildrenOnly)) {
+                sw->setCurrentWidget(page);
+            }
+        }
+    });
 
     // --- REMPLISSAGE DU TABLEAU ---
     if (ui->tableEmployes) {
@@ -169,6 +177,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     setupStatistics();
     setupProduitModule();
+    setupStockModule();
 }
 
 MainWindow::~MainWindow()
@@ -1113,4 +1122,140 @@ QTableWidget#prod_tableProduits QHeaderView::section {
     qss.replace("#rightSidebar", "#prod_rightSidebar");
 
     return qss;
+}
+
+void MainWindow::setupStockModule()
+{
+    if (ui->stock_stackedWidget)
+        ui->stock_stackedWidget->setCurrentIndex(0);
+
+    setupStockTableData();
+
+    // Connexions Sliders -> Inputs (Ajouter)
+    if (ui->sliderStock_add && ui->inputStock_add)
+        connect(ui->sliderStock_add, &QSlider::valueChanged, this, [=](int val){ ui->inputStock_add->setText(QString::number(val)); });
+    if (ui->sliderPrix_add && ui->inputPrix_add)
+        connect(ui->sliderPrix_add, &QSlider::valueChanged, this, [=](int val){ ui->inputPrix_add->setText(QString::number(val)); });
+
+    // Connexions Sliders -> Inputs (Modifier)
+    if (ui->sliderStock_mod && ui->inputStock_mod)
+        connect(ui->sliderStock_mod, &QSlider::valueChanged, this, [=](int val){ ui->inputStock_mod->setText(QString::number(val)); });
+    if (ui->sliderPrix_mod && ui->inputPrix_mod)
+        connect(ui->sliderPrix_mod, &QSlider::valueChanged, this, [=](int val){ ui->inputPrix_mod->setText(QString::number(val) + " TND"); });
+
+    // Navigation buttons
+    if (ui->btnNew) {
+        connect(ui->btnNew, &QPushButton::clicked, this, [this](){
+            if (ui->stock_stackedWidget) ui->stock_stackedWidget->setCurrentIndex(1);
+        });
+    }
+    if (ui->btnCancel_add) {
+        connect(ui->btnCancel_add, &QPushButton::clicked, this, [this](){
+            if (ui->stock_stackedWidget) ui->stock_stackedWidget->setCurrentIndex(0);
+        });
+    }
+    if (ui->btnCancel_mod) {
+        connect(ui->btnCancel_mod, &QPushButton::clicked, this, [this](){
+            if (ui->stock_stackedWidget) ui->stock_stackedWidget->setCurrentIndex(0);
+        });
+    }
+}
+
+void MainWindow::setupStockTableData()
+{
+    if (!ui->tableWidget) return;
+
+    ui->tableWidget->setColumnCount(7);
+    ui->tableWidget->setRowCount(0);
+    ui->tableWidget->setHorizontalHeaderLabels({"REF", "NOM", "STOCK", "SEUIL", "PRIX", "FOURNISSEUR", "ACTIONS"});
+    ui->tableWidget->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    ui->tableWidget->setEditTriggers(QAbstractItemView::NoEditTriggers);
+
+    ui->tableWidget->verticalHeader()->setDefaultSectionSize(50);
+    ui->tableWidget->horizontalHeader()->setSectionResizeMode(6, QHeaderView::Fixed);
+    ui->tableWidget->setColumnWidth(6, 180);
+
+    struct Product { QString ref, nom, stock, seuil, prix, fournisseur; };
+    QList<Product> items = {
+        {"REF-001", "Capteur Ultrason", "150", "OK", "25 TND", "TechSupply"},
+        {"REF-002", "Batterie Lithium", "15", "CRITIQUE", "45 TND", "PowerPack"},
+        {"REF-003", "Module GPS", "80", "MOYEN", "30 TND", "GeoTrack"}
+    };
+
+    double totalValue = 0;
+    int criticalCount = 0;
+
+    ui->tableWidget->setRowCount(items.size());
+
+    for(int i = 0; i < items.size(); ++i) {
+        ui->tableWidget->setItem(i, 0, new QTableWidgetItem(items[i].ref));
+        ui->tableWidget->setItem(i, 1, new QTableWidgetItem(items[i].nom));
+        ui->tableWidget->setItem(i, 2, new QTableWidgetItem(items[i].stock));
+
+        QLabel* badge = new QLabel(items[i].seuil);
+        badge->setAlignment(Qt::AlignCenter);
+        badge->setFixedSize(90, 25);
+        QString style = "border-radius: 5px; font-weight: bold;";
+
+        if(items[i].seuil == "CRITIQUE") {
+            style += "background-color: #dc3545; color: white;";
+            criticalCount++;
+        }
+        else if(items[i].seuil == "MOYEN") style += "background-color: #ffc107; color: #333;";
+        else style += "background-color: #28a745; color: white;";
+
+        badge->setStyleSheet(style);
+
+        QWidget* badgeWidget = new QWidget();
+        QHBoxLayout* badgeLayout = new QHBoxLayout(badgeWidget);
+        badgeLayout->addWidget(badge);
+        badgeLayout->setAlignment(Qt::AlignCenter);
+        badgeLayout->setContentsMargins(0,0,0,0);
+        ui->tableWidget->setCellWidget(i, 3, badgeWidget);
+
+        ui->tableWidget->setItem(i, 4, new QTableWidgetItem(items[i].prix));
+        ui->tableWidget->setItem(i, 5, new QTableWidgetItem(items[i].fournisseur));
+
+        double price = items[i].prix.split(" ")[0].toDouble();
+        totalValue += items[i].stock.toInt() * price;
+
+        QWidget* container = new QWidget();
+        QHBoxLayout* layout = new QHBoxLayout(container);
+        QPushButton* editBtn = new QPushButton("Modifier");
+        QPushButton* delBtn = new QPushButton("Supprimer");
+
+        editBtn->setStyleSheet("color: #3182CE; border: none; font-weight: bold;");
+        delBtn->setStyleSheet("color: #E53E3E; border: none; font-weight: bold;");
+
+        connect(editBtn, &QPushButton::clicked, this, [=]() {
+            if (ui->inputRef_mod) ui->inputRef_mod->setText(ui->tableWidget->item(i, 0)->text());
+            if (ui->inputNom_mod) ui->inputNom_mod->setText(ui->tableWidget->item(i, 1)->text());
+            if (ui->inputStock_mod) ui->inputStock_mod->setText(ui->tableWidget->item(i, 2)->text());
+            if (ui->inputPrix_mod) ui->inputPrix_mod->setText(ui->tableWidget->item(i, 4)->text());
+            if (ui->inputFournisseur_mod) ui->inputFournisseur_mod->setText(ui->tableWidget->item(i, 5)->text());
+
+            if (ui->sliderStock_mod) ui->sliderStock_mod->setValue(ui->tableWidget->item(i, 2)->text().toInt());
+            if (ui->sliderPrix_mod) ui->sliderPrix_mod->setValue(ui->tableWidget->item(i, 4)->text().split(" ")[0].toInt());
+
+            if (ui->stock_stackedWidget) ui->stock_stackedWidget->setCurrentIndex(2);
+        });
+
+        layout->addWidget(editBtn);
+        layout->addWidget(delBtn);
+        layout->setContentsMargins(0,0,0,0);
+        ui->tableWidget->setCellWidget(i, 6, container);
+    }
+
+    if (ui->totalStock) ui->totalStock->setText(QString::number(totalValue, 'f', 3) + " TND");
+    if (ui->lblCriticalStock) ui->lblCriticalStock->setText(QString("⚠ %1 Produits Critiques").arg(criticalCount));
+
+    if (ui->lblOrderSummary) {
+        if(criticalCount > 0) {
+            ui->lblOrderSummary->setText(QString("Urgent : %1 articles à commander").arg(criticalCount));
+            ui->lblOrderSummary->setStyleSheet("font-size: 13px; color: #E53E3E; font-weight: bold; margin-bottom: 5px;");
+        } else {
+            ui->lblOrderSummary->setText("Stock suffisant");
+            ui->lblOrderSummary->setStyleSheet("font-size: 13px; color: #28a745; margin-bottom: 5px;");
+        }
+    }
 }

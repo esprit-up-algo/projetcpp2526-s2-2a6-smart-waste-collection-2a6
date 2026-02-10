@@ -63,6 +63,10 @@ private:
     void ensureProduitModuleVisible();
     QString productStyleSheet() const;
 
+    // Stock Module
+    void setupStockModule();
+    void setupStockTableData();
+
     // Helpers for merged UI
     QStackedWidget *mainStacked() const;
     QWidget *produitRoot() const;
