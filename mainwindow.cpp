@@ -71,7 +71,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     QList<QPushButton*> sidebarButtons = {
         ui->btnAccueil, ui->btnClient, ui->btnStock, ui->btnProduits,
-        ui->btnEmployes, ui->btnStatistiques, ui->btnMaintenance
+        ui->btnEmployes, ui->btnStatistiques, ui->btnMaintenance,
+        this->findChild<QPushButton*>("btnCommandes")
     };
 
     for (QPushButton* btn : sidebarButtons) {
@@ -117,6 +118,37 @@ MainWindow::MainWindow(QWidget *parent)
             }
         }
     });
+
+    // --- COMMANDES INTEGRATION ---
+    // Note: Using findChild for safety against outdated ui headers during hot-reload
+    QPushButton* btnCmd = this->findChild<QPushButton*>("btnCommandes");
+    if (btnCmd) {
+        sidebarGroup->addButton(btnCmd);
+        btnCmd->setCheckable(true);
+        connect(btnCmd, &QPushButton::clicked, this, [this](){
+            if (auto *sw = mainStacked()) {
+                if (auto *page = sw->findChild<QWidget*>("pageCmdDashboard", Qt::FindDirectChildrenOnly)) {
+                    sw->setCurrentWidget(page);
+                }
+            }
+        });
+    }
+
+    // Internal Navigation for Commandes
+    auto safeConnectCmd = [this](const QString& btnName, const QString& targetPageName){
+        QPushButton* btn = findChild<QPushButton*>(btnName); 
+        QWidget* target = findChild<QWidget*>(targetPageName);
+        if (btn && target && mainStacked()) {
+             connect(btn, &QPushButton::clicked, this, [this, target](){
+                 mainStacked()->setCurrentWidget(target);
+             });
+        }
+    };
+    
+    safeConnectCmd("btnAddDashboard", "pageCmdAjout");
+    safeConnectCmd("btnTempToModifier", "pageCmdModifier");
+    safeConnectCmd("btnCancel_Mod", "pageCmdDashboard");
+    safeConnectCmd("btnCancel_Mod_3", "pageCmdDashboard");
 
     // Internal Navigation for Maintenance
     // Note: Assuming these objects exist in the UI now
