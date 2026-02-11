@@ -479,7 +479,11 @@ QFrame.alertCard {
     border: 1px solid #ffcdd2;
 }
 /* BOUTONS D'ACTION Maintenance */
+<<<<<<< HEAD
 QPushButton#btnSave_Add, QPushButton#btnSave_Mod, QPushButton#btnGotoAjout, QPushButton#btnGotoModifier {
+=======
+QPushButton#btnSave_Add, QPushButton#btnSave_Mod, QPushButton#btnGotoModifier {
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
     background-color: #28a745;
     color: white;
     border-radius: 5px;
@@ -487,9 +491,27 @@ QPushButton#btnSave_Add, QPushButton#btnSave_Mod, QPushButton#btnGotoAjout, QPus
     font-weight: bold;
     border: none;
 }
+<<<<<<< HEAD
 QPushButton#btnSave_Add:hover, QPushButton#btnSave_Mod:hover, QPushButton#btnGotoAjout:hover {
     background-color: #218838;
 }
+=======
+QPushButton#btnSave_Add:hover, QPushButton#btnSave_Mod:hover {
+    background-color: #218838;
+}
+QPushButton#btnGotoAjout {
+    background-color: #0f2b4c;
+    color: #ffffff;
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 700;
+    border: none;
+}
+QPushButton#btnGotoAjout:hover {
+    background-color: #1a4270;
+}
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
 QPushButton#btnCancel_Add, QPushButton#btnCancel_Mod {
     background-color: #6c757d;
     color: white;
@@ -503,6 +525,7 @@ QPushButton#btnCancel_Add:hover, QPushButton#btnCancel_Mod:hover {
 }
 QPushButton#btnPdf, QPushButton#btnCsv {
     background-color: #ffffff;
+<<<<<<< HEAD
     color: #333333;
     border: 1px solid #cccccc;
     border-radius: 8px;
@@ -511,12 +534,30 @@ QPushButton#btnPdf, QPushButton#btnCsv {
     font-weight: bold;
     font-size: 13px;
     margin-top: 5px;
+=======
+    color: #1f2d3d;
+    border: 1px solid #dce1e6;
+    border-radius: 10px;
+    padding: 12px 16px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 14px;
+    min-height: 52px;
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
 }
 QPushButton#btnPdf:hover, QPushButton#btnCsv:hover {
     background-color: #e3f2fd;
     border: 1px solid #3498db;
     color: #0f2b4c;
 }
+<<<<<<< HEAD
+=======
+QPushButton#btnPdf:disabled, QPushButton#btnCsv:disabled {
+    background-color: #ffffff;
+    color: #1f2d3d;
+    border: 1px solid #dce1e6;
+}
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
 QPushButton#btnNotif, QPushButton#btnProfil {
     background-color: #f0f2f5;
     border-radius: 4px;
@@ -677,6 +718,58 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
     min-height: 56px;
     max-height: 56px;
     padding: 0px;
+<<<<<<< HEAD
+=======
+}
+
+/* --- Unified right sidebars (Employees reference) --- */
+QFrame#sidePanel_Employe,
+QFrame#rightSidebar,
+QWidget#sidepanel,
+QFrame#prod_rightSidebar {
+    background: transparent;
+    border: none;
+}
+
+QFrame#statCard, QFrame#statCard_2, QFrame#statCard_3, QFrame#actionCard,
+QFrame#stat1, QFrame#stat2, QFrame#stat3, QFrame#statsBox, QFrame#orderBox,
+QWidget#growthWidget {
+    background-color: #ffffff;
+    border: 1px solid #dce1e6;
+    border-radius: 12px;
+}
+
+QLabel#lblFunc, QLabel#pilotage, QLabel#lblStatsTitle, QLabel#lblOrderTitle, QLabel#label_Actions {
+    color: #1f2d3d;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+QPushButton#btnFichePaie, QPushButton#btnGoMission, QPushButton#btnGoPointage, QPushButton#btnGoStats, QPushButton#btnExport,
+QPushButton#btnOrder, QPushButton#btnPrediction, QPushButton#btnAlerts,
+QPushButton#facture, QPushButton#score, QPushButton#exportclient,
+QPushButton#btnPdf, QPushButton#btnCsv,
+QPushButton#prod_btnPdf, QPushButton#prod_btnCsv, QPushButton#prod_btnMap3D, QPushButton#prod_btnVideo3D, QPushButton#prod_btnOpenStats {
+    background-color: #ffffff;
+    color: #1f2d3d;
+    border: 1px solid #dce1e6;
+    border-radius: 10px;
+    padding: 12px 16px;
+    min-height: 48px;
+    font-size: 14px;
+    font-weight: 700;
+    text-align: center;
+}
+
+QPushButton#btnFichePaie:hover, QPushButton#btnGoMission:hover, QPushButton#btnGoPointage:hover, QPushButton#btnGoStats:hover, QPushButton#btnExport:hover,
+QPushButton#btnOrder:hover, QPushButton#btnPrediction:hover, QPushButton#btnAlerts:hover,
+QPushButton#facture:hover, QPushButton#score:hover, QPushButton#exportclient:hover,
+QPushButton#btnPdf:hover, QPushButton#btnCsv:hover,
+QPushButton#prod_btnPdf:hover, QPushButton#prod_btnCsv:hover, QPushButton#prod_btnMap3D:hover, QPushButton#prod_btnVideo3D:hover, QPushButton#prod_btnOpenStats:hover {
+    background-color: #e3f2fd;
+    border: 1px solid #3498db;
+    color: #0f2b4c;
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
 }</string>
     </property>
     <widget class="QWidget" name="centralwidget">
@@ -788,6 +881,12 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
               </item>
               <item>
                 <widget class="QPushButton" name="btnStatistiques">
+<<<<<<< HEAD
+=======
+                  <property name="visible">
+                    <bool>false</bool>
+                  </property>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                   <property name="text">
                     <string>Statistiques</string>
                   </property>
@@ -802,6 +901,12 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
               </item>
               <item>
                 <widget class="QPushButton" name="btnRetour">
+<<<<<<< HEAD
+=======
+                  <property name="visible">
+                    <bool>false</bool>
+                  </property>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                   <property name="text">
                     <string>Retour</string>
                   </property>
@@ -918,7 +1023,11 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                   </property>
                                   <layout class="QVBoxLayout" name="verticalLayout_User">
                                     <property name="spacing">
+<<<<<<< HEAD
                                       <number>2</number>
+=======
+                                      <number>0</number>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                     </property>
                                     <property name="leftMargin">
                                       <number>0</number>
@@ -933,6 +1042,7 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                       <number>0</number>
                                     </property>
                                     <item>
+<<<<<<< HEAD
                                       <widget class="QLabel" name="lblUserName">
                                         <property name="text">
                                           <string>Admin System</string>
@@ -967,6 +1077,56 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                           <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
                                         </property>
                                       </widget>
+=======
+                                      <layout class="QHBoxLayout" name="horizontalLayout_UserHeader">
+                                        <property name="spacing">
+                                          <number>10</number>
+                                        </property>
+                                        <item>
+                                          <layout class="QVBoxLayout" name="verticalLayout_UserText">
+                                            <property name="spacing">
+                                              <number>2</number>
+                                            </property>
+                                            <item>
+                                              <widget class="QLabel" name="lblUserName">
+                                                <property name="text">
+                                                  <string>Admin System</string>
+                                                </property>
+                                                <property name="alignment">
+                                                  <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+                                                </property>
+                                              </widget>
+                                            </item>
+                                            <item>
+                                              <widget class="QLabel" name="lblUserRole">
+                                                <property name="text">
+                                                  <string>Chef d'Atelier</string>
+                                                </property>
+                                                <property name="alignment">
+                                                  <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+                                                </property>
+                                              </widget>
+                                            </item>
+                                          </layout>
+                                        </item>
+                                        <item>
+                                          <widget class="QPushButton" name="btnNouveau">
+                                            <property name="minimumSize">
+                                              <size>
+                                                <width>0</width>
+                                                <height>40</height>
+                                              </size>
+                                            </property>
+                                            <property name="cursor">
+                                              <cursorShape>PointingHandCursor</cursorShape>
+                                            </property>
+                                            <property name="text">
+                                              <string>+ Nouvel Employe</string>
+                                            </property>
+                                          </widget>
+                                        </item>
+                                      </layout>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                     </item>
                                   </layout>
                                 </widget>
@@ -3039,13 +3199,28 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                                               <item>
                                                                 <widget class="QPushButton" name="prod_btnOpenStats">
                                                                   <property name="styleSheet">
+<<<<<<< HEAD
                                                                     <string>color: #000000; background: transparent; border: none;</string>
+=======
+                                                                    <string notr="true">background-color: #ffffff;
+color: #1f2d3d;
+border: 1px solid #dce1e6;
+border-radius: 10px;
+padding: 12px 16px;
+font-size: 14px;
+font-weight: 700;
+text-align: center;</string>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                                                   </property>
                                                                   <property name="text">
                                                                     <string>Voir details  -&gt;</string>
                                                                   </property>
                                                                   <property name="flat">
+<<<<<<< HEAD
                                                                     <bool>true</bool>
+=======
+                                                                    <bool>false</bool>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                                                   </property>
                                                                 </widget>
                                                               </item>
@@ -3058,6 +3233,7 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                                               <cursorShape>PointingHandCursor</cursorShape>
                                                             </property>
                                                             <property name="styleSheet">
+<<<<<<< HEAD
                                                               <string>
                         QPushButton {
                          background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 #8E2DE2, stop:1 #4A00E0);
@@ -3072,6 +3248,16 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                          background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 #a044ff, stop:1 #6a3093);
                         }
                        </string>
+=======
+                                                              <string notr="true">background-color: #ffffff;
+color: #1f2d3d;
+border: 1px solid #dce1e6;
+border-radius: 10px;
+padding: 12px 16px;
+font-size: 14px;
+font-weight: 700;
+text-align: center;</string>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                                             </property>
                                                             <property name="text">
                                                               <string>Visualisation Map 3D</string>
@@ -3084,6 +3270,7 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                                               <cursorShape>PointingHandCursor</cursorShape>
                                                             </property>
                                                             <property name="styleSheet">
+<<<<<<< HEAD
                                                               <string>
                         QPushButton {
                          background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 #11998e, stop:1 #38ef7d);
@@ -3098,6 +3285,16 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                          background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 #1fab89, stop:1 #62d2a2);
                         }
                        </string>
+=======
+                                                              <string notr="true">background-color: #ffffff;
+color: #1f2d3d;
+border: 1px solid #dce1e6;
+border-radius: 10px;
+padding: 12px 16px;
+font-size: 14px;
+font-weight: 700;
+text-align: center;</string>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                                             </property>
                                                             <property name="text">
                                                               <string>Generer Video 3D</string>
@@ -3109,10 +3306,20 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                                             <property name="orientation">
                                                               <enum>Qt::Orientation::Vertical</enum>
                                                             </property>
+<<<<<<< HEAD
                                                             <property name="sizeHint" stdset="0">
                                                               <size>
                                                                 <width>0</width>
                                                                 <height>0</height>
+=======
+                                                            <property name="sizeType">
+                                                              <enum>QSizePolicy::Fixed</enum>
+                                                            </property>
+                                                            <property name="sizeHint" stdset="0">
+                                                              <size>
+                                                                <width>0</width>
+                                                                <height>8</height>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                                               </size>
                                                             </property>
                                                           </spacer>
@@ -4549,6 +4756,7 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                     </layout>
                   </widget>
                   <widget class="QWidget" name="pageStock">
+<<<<<<< HEAD
                     <property name="styleSheet">
                       <string notr="true">Pointage:hover, QPushButton#btnGoStats:hover {
     background-color: #e3f2fd;
@@ -4556,6 +4764,8 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
     color: #000000 !important;
 }</string>
                     </property>
+=======
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                     <layout class="QHBoxLayout" name="horizontalLayout_Main">
                       <property name="spacing">
                         <number>0</number>
@@ -4583,10 +4793,17 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                 <item>
                                   <widget class="QLabel" name="headerTitle">
                                     <property name="styleSheet">
+<<<<<<< HEAD
                                       <string>color: #3182CE; font-weight: bold; margin-left: 20px;</string>
                                     </property>
                                     <property name="text">
                                       <string>Produits</string>
+=======
+                                      <string>color: #1f2d3d; font-size: 18px; font-weight: 700; margin-left: 20px;</string>
+                                    </property>
+                                    <property name="text">
+                                      <string>Tableau de Bord</string>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                     </property>
                                   </widget>
                                 </item>
@@ -4604,12 +4821,30 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                   </spacer>
                                 </item>
                                 <item>
+<<<<<<< HEAD
+=======
+                                  <widget class="QPushButton" name="btnNew">
+                                    <property name="styleSheet">
+                                      <string>background-color: #0f2b4c; color: white; padding: 10px 22px; border-radius: 12px; font-weight: bold;</string>
+                                    </property>
+                                    <property name="text">
+                                      <string>+ Nouveau Composant</string>
+                                    </property>
+                                  </widget>
+                                </item>
+                                <item>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                   <widget class="QLabel" name="user">
                                     <property name="styleSheet">
                                       <string>color: #4A5568; font-size: 12px; margin-right: 20px;</string>
                                     </property>
                                     <property name="text">
+<<<<<<< HEAD
                                       <string>Responsable du stock | Ahmed El Mokhtar</string>
+=======
+                                      <string>Admin System
+Responsable du stock</string>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                     </property>
                                   </widget>
                                 </item>
@@ -4624,7 +4859,11 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                     <number>25</number>
                                   </property>
                                   <property name="margin" stdset="0">
+<<<<<<< HEAD
                                     <number>25</number>
+=======
+                                    <number>18</number>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                   </property>
                                   <item>
                                     <widget class="QFrame" name="tableCard">
@@ -4660,6 +4899,7 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                                 </property>
                                               </spacer>
                                             </item>
+<<<<<<< HEAD
                                             <item>
                                               <widget class="QPushButton" name="btnNew">
                                                 <property name="styleSheet">
@@ -4670,6 +4910,8 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                                 </property>
                                               </widget>
                                             </item>
+=======
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                           </layout>
                                         </item>
                                         <item>
@@ -4685,7 +4927,23 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                   <item>
                                     <layout class="QVBoxLayout" name="rightColumn">
                                       <property name="spacing">
+<<<<<<< HEAD
                                         <number>20</number>
+=======
+                                        <number>14</number>
+                                      </property>
+                                      <property name="leftMargin">
+                                        <number>0</number>
+                                      </property>
+                                      <property name="topMargin">
+                                        <number>0</number>
+                                      </property>
+                                      <property name="rightMargin">
+                                        <number>0</number>
+                                      </property>
+                                      <property name="bottomMargin">
+                                        <number>0</number>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                       </property>
                                       <item>
                                         <widget class="QFrame" name="statsBox">
@@ -4752,7 +5010,18 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                             <item>
                                               <widget class="QPushButton" name="btnOrder">
                                                 <property name="styleSheet">
+<<<<<<< HEAD
                                                   <string>background-color: #3182CE; color: white; padding: 10px; border-radius: 8px;</string>
+=======
+                                                  <string notr="true">background-color: #ffffff;
+color: #1f2d3d;
+border: 1px solid #dce1e6;
+border-radius: 10px;
+padding: 12px 16px;
+font-size: 14px;
+font-weight: 700;
+text-align: center;</string>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                                 </property>
                                                 <property name="text">
                                                   <string>Generer Commande</string>
@@ -4765,7 +5034,18 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                       <item>
                                         <widget class="QPushButton" name="btnPrediction">
                                           <property name="styleSheet">
+<<<<<<< HEAD
                                             <string>background-color: #6c5ce7; color: white; padding: 15px; border-radius: 12px; font-weight: bold; text-align: left; font-size: 14px;</string>
+=======
+                                            <string notr="true">background-color: #ffffff;
+color: #1f2d3d;
+border: 1px solid #dce1e6;
+border-radius: 10px;
+padding: 12px 16px;
+font-size: 14px;
+font-weight: 700;
+text-align: center;</string>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                           </property>
                                           <property name="text">
                                             <string>Predictions de Stock</string>
@@ -4775,7 +5055,18 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                       <item>
                                         <widget class="QPushButton" name="btnAlerts">
                                           <property name="styleSheet">
+<<<<<<< HEAD
                                             <string>background-color: #e67e22; color: white; padding: 15px; border-radius: 12px; font-weight: bold; text-align: left; font-size: 14px;</string>
+=======
+                                            <string notr="true">background-color: #ffffff;
+color: #1f2d3d;
+border: 1px solid #dce1e6;
+border-radius: 10px;
+padding: 12px 16px;
+font-size: 14px;
+font-weight: 700;
+text-align: center;</string>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                           </property>
                                           <property name="text">
                                             <string>Alertes Échéance</string>
@@ -5103,7 +5394,11 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                       <item>
                                         <widget class="QLabel" name="titleLabel">
                                           <property name="text">
+<<<<<<< HEAD
                                             <string>TABLEAU DE BORD</string>
+=======
+                                            <string>Tableau de Bord</string>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                           </property>
                                         </widget>
                                       </item>
@@ -5121,9 +5416,23 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                         </spacer>
                                       </item>
                                       <item>
+<<<<<<< HEAD
                                         <widget class="QLabel" name="userLabel">
                                           <property name="text">
                                             <string>Chef d'Atelier</string>
+=======
+                                        <widget class="QPushButton" name="btnGotoAjout">
+                                          <property name="text">
+                                            <string>Aller a Ajout</string>
+                                          </property>
+                                        </widget>
+                                      </item>
+                                      <item>
+                                        <widget class="QLabel" name="userLabel">
+                                          <property name="text">
+                                            <string>Admin System
+Chef d'Atelier</string>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                           </property>
                                         </widget>
                                       </item>
@@ -5157,7 +5466,23 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                               </property>
                               <layout class="QHBoxLayout" name="contentLayout_1">
                                 <property name="spacing">
+<<<<<<< HEAD
                                   <number>20</number>
+=======
+                                  <number>16</number>
+                                </property>
+                                <property name="leftMargin">
+                                  <number>0</number>
+                                </property>
+                                <property name="topMargin">
+                                  <number>0</number>
+                                </property>
+                                <property name="rightMargin">
+                                  <number>0</number>
+                                </property>
+                                <property name="bottomMargin">
+                                  <number>0</number>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                 </property>
                                 <item>
                                   <layout class="QVBoxLayout" name="tableLayout">
@@ -5202,6 +5527,7 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                           </widget>
                                         </item>
                                         <item>
+<<<<<<< HEAD
                                           <widget class="QPushButton" name="btnGotoAjout">
                                             <property name="text">
                                               <string>Aller a Ajout</string>
@@ -5209,6 +5535,8 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                           </widget>
                                         </item>
                                         <item>
+=======
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                           <widget class="QPushButton" name="btnGotoModifier">
                                             <property name="text">
                                               <string>Aller a Modifier</string>
@@ -5282,7 +5610,38 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                 </item>
                                 <item>
                                   <widget class="QFrame" name="rightSidebar">
+<<<<<<< HEAD
                                     <layout class="QVBoxLayout" name="rightLayout_1">
+=======
+                                    <property name="minimumSize">
+                                      <size>
+                                        <width>300</width>
+                                        <height>0</height>
+                                      </size>
+                                    </property>
+                                    <property name="maximumSize">
+                                      <size>
+                                        <width>350</width>
+                                        <height>16777215</height>
+                                      </size>
+                                    </property>
+                                    <layout class="QVBoxLayout" name="rightLayout_1">
+                                      <property name="leftMargin">
+                                        <number>0</number>
+                                      </property>
+                                      <property name="topMargin">
+                                        <number>0</number>
+                                      </property>
+                                      <property name="rightMargin">
+                                        <number>0</number>
+                                      </property>
+                                      <property name="bottomMargin">
+                                        <number>0</number>
+                                      </property>
+                                      <property name="spacing">
+                                        <number>10</number>
+                                      </property>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                       <item>
                                         <widget class="QLabel" name="lblFunc">
                                           <property name="text">
@@ -5377,6 +5736,7 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                           </layout>
                                         </widget>
                                       </item>
+<<<<<<< HEAD
                                       <item>
                                         <spacer>
                                           <property name="orientation">
@@ -5390,6 +5750,24 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                           </property>
                                         </spacer>
                                       </item>
+=======
+                                        <item>
+                                          <spacer>
+                                            <property name="orientation">
+                                              <enum>Qt::Orientation::Vertical</enum>
+                                            </property>
+                                            <property name="sizeType">
+                                              <enum>QSizePolicy::Fixed</enum>
+                                            </property>
+                                            <property name="sizeHint" stdset="0">
+                                              <size>
+                                                <width>0</width>
+                                                <height>8</height>
+                                              </size>
+                                            </property>
+                                          </spacer>
+                                        </item>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                       <item>
                                         <widget class="QLabel" name="lblExport">
                                           <property name="text">
@@ -5399,6 +5777,19 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                       </item>
                                       <item>
                                         <widget class="QPushButton" name="btnPdf">
+<<<<<<< HEAD
+=======
+                                          <property name="styleSheet">
+                                            <string notr="true">background-color: #ffffff;
+color: #1f2d3d;
+border: 1px solid #dce1e6;
+border-radius: 10px;
+padding: 12px 16px;
+font-size: 14px;
+font-weight: 700;
+text-align: center;</string>
+                                          </property>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                           <property name="text">
                                             <string>Rapport PDF</string>
                                           </property>
@@ -5406,6 +5797,19 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                       </item>
                                       <item>
                                         <widget class="QPushButton" name="btnCsv">
+<<<<<<< HEAD
+=======
+                                          <property name="styleSheet">
+                                            <string notr="true">background-color: #ffffff;
+color: #1f2d3d;
+border: 1px solid #dce1e6;
+border-radius: 10px;
+padding: 12px 16px;
+font-size: 14px;
+font-weight: 700;
+text-align: center;</string>
+                                          </property>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                           <property name="text">
                                             <string>Export CSV</string>
                                           </property>
@@ -6226,23 +6630,39 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                           <property name="minimumSize">
                             <size>
                               <width>0</width>
+<<<<<<< HEAD
                               <height>80</height>
+=======
+                              <height>72</height>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                             </size>
                           </property>
                           <property name="maximumSize">
                             <size>
                               <width>16777215</width>
+<<<<<<< HEAD
                               <height>80</height>
                             </size>
                           </property>
                           <property name="styleSheet">
                             <string notr="true">color: #FFFFFF; font-family: "Montserrat"; font-weight: bold; font-size: 18px; background-color: #1A365D;</string>
+=======
+                              <height>72</height>
+                            </size>
+                          </property>
+                          <property name="styleSheet">
+                            <string notr="true">background-color: #ffffff; border: none; border-bottom: 1px solid #dce1e6;</string>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                           </property>
                           <layout class="QHBoxLayout" name="horizontalLayout_header_Client">
                             <item>
                               <widget class="QLabel" name="wasteguardhead_Client">
                                 <property name="text">
+<<<<<<< HEAD
                                   <string>WasteGuard - Gestion de Clients</string>
+=======
+                                  <string>Gestion de Clients</string>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                 </property>
                               </widget>
                             </item>
@@ -6254,9 +6674,32 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                               </spacer>
                             </item>
                             <item>
+<<<<<<< HEAD
                               <widget class="QLabel" name="responsable_Client">
                                 <property name="text">
                                   <string>Responsable Commercial</string>
+=======
+                              <widget class="QPushButton" name="btnNouveau_Client">
+                                <property name="minimumSize">
+                                  <size>
+                                    <width>120</width>
+                                    <height>30</height>
+                                  </size>
+                                </property>
+                                <property name="styleSheet">
+                                  <string notr="true">background-color: #0f2b4c; color: white; border-radius: 5px; font-weight: bold;</string>
+                                </property>
+                                <property name="text">
+                                  <string>+ Ajouter</string>
+                                </property>
+                              </widget>
+                            </item>
+                            <item>
+                              <widget class="QLabel" name="responsable_Client">
+                                <property name="text">
+                                  <string>Admin System
+Responsable Commercial</string>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                 </property>
                               </widget>
                             </item>
@@ -6273,13 +6716,21 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                     <number>20</number>
                                   </property>
                                   <property name="topMargin">
+<<<<<<< HEAD
                                     <number>20</number>
+=======
+                                    <number>10</number>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                   </property>
                                   <property name="rightMargin">
                                     <number>20</number>
                                   </property>
                                   <property name="bottomMargin">
+<<<<<<< HEAD
                                     <number>10</number>
+=======
+                                    <number>6</number>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                   </property>
                                   <item>
                                     <widget class="QLabel" name="rep">
@@ -6335,6 +6786,7 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                       </property>
                                     </widget>
                                   </item>
+<<<<<<< HEAD
                                   <item>
                                     <widget class="QPushButton" name="btnNouveau_Client">
                                       <property name="minimumSize">
@@ -6351,10 +6803,27 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                       </property>
                                     </widget>
                                   </item>
+=======
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                 </layout>
                               </item>
                               <item>
                                 <layout class="QHBoxLayout" name="horizontalLayout_table">
+<<<<<<< HEAD
+=======
+                                  <property name="leftMargin">
+                                    <number>0</number>
+                                  </property>
+                                  <property name="topMargin">
+                                    <number>0</number>
+                                  </property>
+                                  <property name="rightMargin">
+                                    <number>0</number>
+                                  </property>
+                                  <property name="bottomMargin">
+                                    <number>0</number>
+                                  </property>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                   <item>
                                     <widget class="QTableWidget" name="tableWidget_Client">
                                       <property name="styleSheet">
@@ -6401,14 +6870,45 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                     <widget class="QWidget" name="sidepanel" native="true">
                                       <property name="minimumSize">
                                         <size>
+<<<<<<< HEAD
                                           <width>200</width>
                                           <height>0</height>
                                         </size>
                                       </property>
+=======
+                                          <width>300</width>
+                                          <height>0</height>
+                                        </size>
+                                      </property>
+                                      <property name="maximumSize">
+                                        <size>
+                                          <width>350</width>
+                                          <height>16777215</height>
+                                        </size>
+                                      </property>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                       <property name="styleSheet">
                                         <string notr="true">background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 10px;</string>
                                       </property>
                                       <layout class="QVBoxLayout" name="verticalLayout_sidepanel">
+<<<<<<< HEAD
+=======
+                                        <property name="leftMargin">
+                                          <number>10</number>
+                                        </property>
+                                        <property name="topMargin">
+                                          <number>2</number>
+                                        </property>
+                                        <property name="rightMargin">
+                                          <number>10</number>
+                                        </property>
+                                        <property name="bottomMargin">
+                                          <number>10</number>
+                                        </property>
+                                        <property name="spacing">
+                                          <number>10</number>
+                                        </property>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                         <item>
                                           <widget class="QLabel" name="pilotage">
                                             <property name="text">
@@ -6453,6 +6953,18 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                             <property name="orientation">
                                               <enum>Qt::Vertical</enum>
                                             </property>
+<<<<<<< HEAD
+=======
+                                            <property name="sizeType">
+                                              <enum>QSizePolicy::Fixed</enum>
+                                            </property>
+                                            <property name="sizeHint" stdset="0">
+                                              <size>
+                                                <width>20</width>
+                                                <height>8</height>
+                                              </size>
+                                            </property>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                           </spacer>
                                         </item>
                                         <item>
@@ -6461,7 +6973,18 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                               <string>Facturation Globale</string>
                                             </property>
                                             <property name="styleSheet">
+<<<<<<< HEAD
                                               <string notr="true">background-color: #1F4C8A; color: white; padding: 10px; border-radius: 5px;</string>
+=======
+                                              <string notr="true">background-color: #ffffff;
+color: #1f2d3d;
+border: 1px solid #dce1e6;
+border-radius: 10px;
+padding: 12px 16px;
+font-size: 14px;
+font-weight: 700;
+text-align: center;</string>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                             </property>
                                           </widget>
                                         </item>
@@ -6471,7 +6994,18 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                               <string>Scoring</string>
                                             </property>
                                             <property name="styleSheet">
+<<<<<<< HEAD
                                               <string notr="true">background-color: #D4AF37; color: white; padding: 10px; border-radius: 5px;</string>
+=======
+                                              <string notr="true">background-color: #ffffff;
+color: #1f2d3d;
+border: 1px solid #dce1e6;
+border-radius: 10px;
+padding: 12px 16px;
+font-size: 14px;
+font-weight: 700;
+text-align: center;</string>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                             </property>
                                           </widget>
                                         </item>
@@ -6481,7 +7015,18 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                               <string>Export Clients</string>
                                             </property>
                                             <property name="styleSheet">
+<<<<<<< HEAD
                                               <string notr="true">background-color: #1E7A3E; color: white; padding: 10px; border-radius: 5px;</string>
+=======
+                                              <string notr="true">background-color: #ffffff;
+color: #1f2d3d;
+border: 1px solid #dce1e6;
+border-radius: 10px;
+padding: 12px 16px;
+font-size: 14px;
+font-weight: 700;
+text-align: center;</string>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                             </property>
                                           </widget>
                                         </item>
@@ -6891,16 +7436,27 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                           <item>
                             <layout class="QHBoxLayout" name="horizontalLayout_1">
                               <property name="spacing">
+<<<<<<< HEAD
                                 <number>0</number>
                               </property>
                               <property name="leftMargin">
                                 <number>0</number>
+=======
+                                <number>4</number>
+                              </property>
+                              <property name="leftMargin">
+                                <number>16</number>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                               </property>
                               <property name="topMargin">
                                 <number>0</number>
                               </property>
                               <property name="rightMargin">
+<<<<<<< HEAD
                                 <number>0</number>
+=======
+                                <number>10</number>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                               </property>
                               <property name="bottomMargin">
                                 <number>0</number>
@@ -6908,7 +7464,11 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                               <item>
                                 <widget class="QLabel" name="lb_1">
                                   <property name="text">
+<<<<<<< HEAD
                                     <string>TABLEAU DE BORD</string>
+=======
+                                    <string>Tableau de Bord</string>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                   </property>
                                 </widget>
                               </item>
@@ -6926,6 +7486,16 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
                                 </widget>
                               </item>
                               <item>
+<<<<<<< HEAD
+=======
+                                <widget class="QPushButton" name="btnAddDashboard">
+                                  <property name="text">
+                                    <string>+ Ajouter</string>
+                                  </property>
+                                </widget>
+                              </item>
+                              <item>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                 <widget class="QLabel" name="user_1">
                                   <property name="text">
                                     <string>Admin System
@@ -6937,13 +7507,21 @@ Chef d'Atelier</string>
                                 <widget class="QFrame" name="topGap_1">
                                   <property name="minimumSize">
                                     <size>
+<<<<<<< HEAD
                                       <width>10</width>
+=======
+                                      <width>2</width>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                       <height>0</height>
                                     </size>
                                   </property>
                                   <property name="maximumSize">
                                     <size>
+<<<<<<< HEAD
                                       <width>10</width>
+=======
+                                      <width>2</width>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                       <height>16777215</height>
                                     </size>
                                   </property>
@@ -6954,6 +7532,12 @@ Chef d'Atelier</string>
                               </item>
                               <item>
                                 <widget class="QPushButton" name="btnnotif_1">
+<<<<<<< HEAD
+=======
+                                  <property name="visible">
+                                    <bool>false</bool>
+                                  </property>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                   <property name="text">
                                     <string>🔔</string>
                                   </property>
@@ -6961,6 +7545,12 @@ Chef d'Atelier</string>
                               </item>
                               <item>
                                 <widget class="QPushButton" name="btnprofil_1">
+<<<<<<< HEAD
+=======
+                                  <property name="visible">
+                                    <bool>false</bool>
+                                  </property>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                   <property name="text">
                                     <string>👤</string>
                                   </property>
@@ -6976,7 +7566,23 @@ Chef d'Atelier</string>
                               <widget class="QWidget" name="pageHome">
                                 <layout class="QHBoxLayout" name="pageHomeLayout">
                                   <property name="spacing">
+<<<<<<< HEAD
                                     <number>14</number>
+=======
+                                    <number>12</number>
+                                  </property>
+                                  <property name="leftMargin">
+                                    <number>0</number>
+                                  </property>
+                                  <property name="topMargin">
+                                    <number>0</number>
+                                  </property>
+                                  <property name="rightMargin">
+                                    <number>0</number>
+                                  </property>
+                                  <property name="bottomMargin">
+                                    <number>0</number>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                   </property>
                                   <item>
                                     <layout class="QVBoxLayout" name="dashboardTableArea">
@@ -7044,6 +7650,7 @@ Chef d'Atelier</string>
                                             </widget>
                                           </item>
                                           <item>
+<<<<<<< HEAD
                                             <widget class="QPushButton" name="btnAddDashboard">
                                               <property name="text">
                                                 <string>+ Ajouter</string>
@@ -7051,6 +7658,8 @@ Chef d'Atelier</string>
                                             </widget>
                                           </item>
                                           <item>
+=======
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                             <widget class="QPushButton" name="btnTempToModifier">
                                               <property name="text">
                                                 <string>Modifier (Temp)</string>
@@ -7120,13 +7729,21 @@ Chef d'Atelier</string>
                                     <widget class="QFrame" name="rightSidebar">
                                       <property name="minimumSize">
                                         <size>
+<<<<<<< HEAD
                                           <width>360</width>
+=======
+                                          <width>300</width>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                           <height>0</height>
                                         </size>
                                       </property>
                                       <property name="maximumSize">
                                         <size>
+<<<<<<< HEAD
                                           <width>420</width>
+=======
+                                          <width>350</width>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                           <height>16777215</height>
                                         </size>
                                       </property>
@@ -7134,6 +7751,24 @@ Chef d'Atelier</string>
                                         <enum>QFrame::Shape::StyledPanel</enum>
                                       </property>
                                       <layout class="QVBoxLayout" name="rightLayout">
+<<<<<<< HEAD
+=======
+                                        <property name="leftMargin">
+                                          <number>0</number>
+                                        </property>
+                                        <property name="topMargin">
+                                          <number>0</number>
+                                        </property>
+                                        <property name="rightMargin">
+                                          <number>0</number>
+                                        </property>
+                                        <property name="bottomMargin">
+                                          <number>0</number>
+                                        </property>
+                                        <property name="spacing">
+                                          <number>10</number>
+                                        </property>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                         <item>
                                           <widget class="QLabel" name="lblFunc">
                                             <property name="text">
@@ -7237,6 +7872,19 @@ Chef d'Atelier</string>
                                         </item>
                                         <item>
                                           <widget class="QPushButton" name="btnPdf">
+<<<<<<< HEAD
+=======
+                                            <property name="styleSheet">
+                                              <string notr="true">background-color: #ffffff;
+color: #1f2d3d;
+border: 1px solid #dce1e6;
+border-radius: 10px;
+padding: 12px 16px;
+font-size: 14px;
+font-weight: 700;
+text-align: center;</string>
+                                            </property>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                             <property name="text">
                                               <string>Rapport des Commandes PDF</string>
                                             </property>
@@ -7244,6 +7892,19 @@ Chef d'Atelier</string>
                                         </item>
                                         <item>
                                           <widget class="QPushButton" name="btnCsv">
+<<<<<<< HEAD
+=======
+                                            <property name="styleSheet">
+                                              <string notr="true">background-color: #ffffff;
+color: #1f2d3d;
+border: 1px solid #dce1e6;
+border-radius: 10px;
+padding: 12px 16px;
+font-size: 14px;
+font-weight: 700;
+text-align: center;</string>
+                                            </property>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
                                             <property name="text">
                                               <string>Export Facture</string>
                                             </property>
@@ -8509,4 +9170,8 @@ QPushButton:hover {
       </hints>
     </connection>
   </connections>
+<<<<<<< HEAD
 </ui>
+=======
+</ui>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))

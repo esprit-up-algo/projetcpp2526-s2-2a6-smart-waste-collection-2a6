@@ -20,6 +20,13 @@
 #include <QLinearGradient>
 #include <QPen>
 #include <QPixmap>
+<<<<<<< HEAD
+=======
+#include <QLineEdit>
+#include <QListWidget>
+#include <QListWidgetItem>
+#include <QLabel>
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
 
 #include <QtCharts/QPieSeries>
 #include <QtCharts/QPieSlice>
@@ -56,14 +63,160 @@ void repolishRecursive(QWidget *root)
     for (QWidget *c : childs)
         repolishRecursive(c);
 }
+<<<<<<< HEAD
+=======
+
+void styleTopTitle(QLabel *label)
+{
+    if (!label) return;
+    label->setStyleSheet("color: #1f2d3d; font-size: 18px; font-weight: 700;");
+    label->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+}
+
+void styleTopUserName(QLabel *label)
+{
+    if (!label) return;
+    label->setStyleSheet("color: #0f2b4c; font-size: 14px; font-weight: 700;");
+    label->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+}
+
+void styleTopUserRole(QLabel *label)
+{
+    if (!label) return;
+    label->setStyleSheet("color: #16a34a; font-size: 12px; font-weight: 700;");
+    label->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+}
+
+void styleTopIconButton(QPushButton *button)
+{
+    if (!button) return;
+    button->setMinimumSize(34, 34);
+    button->setMaximumSize(34, 34);
+    button->setCursor(Qt::PointingHandCursor);
+    button->setStyleSheet(
+        "QPushButton {"
+        " background-color: #ffffff;"
+        " color: #0f2b4c;"
+        " border: 1px solid #d4dbe6;"
+        " border-radius: 17px;"
+        " font-size: 14px;"
+        " font-weight: 700;"
+        "}"
+        "QPushButton:hover { background-color: #eff3f8; border-color: #1a4270; }"
+    );
+}
+
+void styleModelAddButton(QPushButton *button)
+{
+    if (!button) return;
+    button->setMinimumHeight(44);
+    button->setMaximumHeight(44);
+    if (button->minimumWidth() < 132)
+        button->setMinimumWidth(132);
+    button->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    button->setCursor(Qt::PointingHandCursor);
+    button->setStyleSheet(
+        "QPushButton {"
+        " background-color: #0f2b4c;"
+        " color: #ffffff;"
+        " border: none;"
+        " border-radius: 12px;"
+        " padding: 8px 22px;"
+        " font-size: 14px;"
+        " font-weight: 700;"
+        "}"
+        "QPushButton:hover { background-color: #1a4270; }"
+        "QPushButton:pressed { background-color: #0b223c; }"
+    );
+}
+
+void moveWidgetBefore(QWidget *root, const char *widgetName, const char *layoutName, const char *beforeWidgetName)
+{
+    if (!root) return;
+
+    QWidget *widget = root->findChild<QWidget*>(widgetName);
+    QHBoxLayout *layout = root->findChild<QHBoxLayout*>(layoutName);
+    QWidget *beforeWidget = root->findChild<QWidget*>(beforeWidgetName);
+    if (!widget || !beforeWidget) return;
+
+    if (!layout) {
+        if (auto *parent = beforeWidget->parentWidget())
+            layout = qobject_cast<QHBoxLayout*>(parent->layout());
+    }
+    if (!layout) return;
+
+    int targetIdx = layout->indexOf(beforeWidget);
+    if (targetIdx < 0) {
+        if (auto *parent = beforeWidget->parentWidget()) {
+            if (auto *fallbackLayout = qobject_cast<QHBoxLayout*>(parent->layout())) {
+                layout = fallbackLayout;
+                targetIdx = layout->indexOf(beforeWidget);
+            }
+        }
+    }
+    if (targetIdx < 0) return;
+
+    if (layout->indexOf(widget) >= 0) {
+        layout->removeWidget(widget);
+    } else if (auto *parentLayout = widget->parentWidget() ? widget->parentWidget()->layout() : nullptr) {
+        parentLayout->removeWidget(widget);
+    }
+    layout->insertWidget(targetIdx, widget);
+}
+
+void moveWidgetToStart(QWidget *root, const char *widgetName, const char *layoutName)
+{
+    if (!root) return;
+
+    QWidget *widget = root->findChild<QWidget*>(widgetName);
+    QHBoxLayout *layout = root->findChild<QHBoxLayout*>(layoutName);
+    if (!widget || !layout) return;
+
+    if (layout->indexOf(widget) >= 0) {
+        layout->removeWidget(widget);
+    } else if (auto *parentLayout = widget->parentWidget() ? widget->parentWidget()->layout() : nullptr) {
+        parentLayout->removeWidget(widget);
+    }
+    layout->insertWidget(0, widget);
+}
+
+void styleTopCombinedUser(QLabel *label)
+{
+    if (!label) return;
+
+    const QString raw = label->text().trimmed();
+    if (raw.contains('\n')) {
+        const QStringList lines = raw.split('\n');
+        const QString firstLine = lines.value(0).trimmed().toHtmlEscaped();
+        const QString secondLine = lines.mid(1).join(" ").trimmed().toHtmlEscaped();
+        label->setTextFormat(Qt::RichText);
+        label->setText(
+            QString("<span style=\"color:#0f2b4c;font-size:14px;font-weight:700;\">%1</span>"
+                    "<br/>"
+                    "<span style=\"color:#16a34a;font-size:12px;font-weight:700;\">%2</span>")
+                .arg(firstLine, secondLine));
+    } else {
+        label->setTextFormat(Qt::PlainText);
+        label->setStyleSheet("color: #0f2b4c; font-size: 14px; font-weight: 700;");
+    }
+    label->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+}
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
 }
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
     , sidebarGroup(nullptr)
+<<<<<<< HEAD
+=======
+    , homeDashboardPage(nullptr)
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
 {
     ui->setupUi(this);
+
+    if (ui->btnStatistiques) ui->btnStatistiques->hide();
+    if (ui->btnRetour) ui->btnRetour->hide();
 
     // --- SIDEBAR NAVIGATION LOGIC ---
     sidebarGroup = new QButtonGroup(this);
@@ -81,6 +234,7 @@ MainWindow::MainWindow(QWidget *parent)
         sidebarGroup->addButton(btn);
     }
 
+<<<<<<< HEAD
     if (ui->btnEmployes)
         ui->btnEmployes->setChecked(true);
 
@@ -90,6 +244,16 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->btnAccueil, &QPushButton::clicked, this, [this](){
         if (auto *sw = mainStacked()) sw->setCurrentIndex(0);
     });
+=======
+    if (ui->btnAccueil) {
+        ui->btnAccueil->setChecked(true);
+    } else if (ui->btnEmployes) {
+        ui->btnEmployes->setChecked(true);
+    }
+
+    connect(ui->btnEmployes, &QPushButton::clicked, this, &MainWindow::showEmployesPage);
+    connect(ui->btnAccueil, &QPushButton::clicked, this, &MainWindow::showDashboardHome);
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
     connect(ui->btnProduits, &QPushButton::clicked, this, [this](){
         if (auto *sw = mainStacked()) {
             if (auto *page = sw->findChild<QWidget*>("pageProduit", Qt::FindDirectChildrenOnly)) {
@@ -109,6 +273,16 @@ MainWindow::MainWindow(QWidget *parent)
     });
 
     connect(ui->btnClient, &QPushButton::clicked, this, &MainWindow::on_btnClient_clicked);
+<<<<<<< HEAD
+=======
+    connect(ui->btnStatistiques, &QPushButton::clicked, this, [this]() {
+        if (auto *sw = mainStacked()) {
+            if (auto *page = sw->findChild<QWidget*>("statistiques", Qt::FindDirectChildrenOnly)) {
+                sw->setCurrentWidget(page);
+            }
+        }
+    });
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
 
     // --- MAINTENANCE INTEGRATION ---
     connect(ui->btnMaintenance, &QPushButton::clicked, this, [this](){
@@ -215,6 +389,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->btnSimulerBadge, &QPushButton::clicked, this, &MainWindow::on_btnSimulerBadge_clicked);
     connect(ui->btnNouveau, &QPushButton::clicked, this, &MainWindow::on_btnNouveau_clicked);
     connect(ui->btnAnnuler_Ajout, &QPushButton::clicked, this, &MainWindow::on_btnAnnuler_Ajout_clicked);
+<<<<<<< HEAD
     connect(ui->btnAnnuler, &QPushButton::clicked, this, [this](){ if (auto *sw = mainStacked()) sw->setCurrentIndex(0); });
     connect(ui->btnFichePaie, &QPushButton::clicked, this, &MainWindow::on_btnFichePaie_clicked);
 
@@ -227,6 +402,38 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->btnAnnulerMission, &QPushButton::clicked, this, [this](){ if (auto *sw = mainStacked()) sw->setCurrentIndex(0); });
     connect(ui->btnAnnulerPointage, &QPushButton::clicked, this, [this](){ if (auto *sw = mainStacked()) sw->setCurrentIndex(0); });
     connect(ui->btnAnnulerStats, &QPushButton::clicked, this, [this](){ if (auto *sw = mainStacked()) sw->setCurrentIndex(0); });
+=======
+    connect(ui->btnAnnuler, &QPushButton::clicked, this, &MainWindow::showEmployesPage);
+    connect(ui->btnFichePaie, &QPushButton::clicked, this, &MainWindow::on_btnFichePaie_clicked);
+
+    // --- NAVIGATION DASHBOARD (ACTIONS RAPIDES) ---
+    connect(ui->btnGoMission, &QPushButton::clicked, this, [this](){
+        if (auto *sw = mainStacked()) {
+            if (auto *page = sw->findChild<QWidget*>("mission", Qt::FindDirectChildrenOnly)) {
+                sw->setCurrentWidget(page);
+            }
+        }
+    });
+    connect(ui->btnGoPointage, &QPushButton::clicked, this, [this](){
+        if (auto *sw = mainStacked()) {
+            if (auto *page = sw->findChild<QWidget*>("pointage", Qt::FindDirectChildrenOnly)) {
+                sw->setCurrentWidget(page);
+            }
+        }
+    });
+    connect(ui->btnGoStats, &QPushButton::clicked, this, [this](){
+        if (auto *sw = mainStacked()) {
+            if (auto *page = sw->findChild<QWidget*>("statistiques", Qt::FindDirectChildrenOnly)) {
+                sw->setCurrentWidget(page);
+            }
+        }
+    });
+
+    // --- BOUTONS ANNULER / RETOUR ---
+    connect(ui->btnAnnulerMission, &QPushButton::clicked, this, &MainWindow::showEmployesPage);
+    connect(ui->btnAnnulerPointage, &QPushButton::clicked, this, &MainWindow::showEmployesPage);
+    connect(ui->btnAnnulerStats, &QPushButton::clicked, this, &MainWindow::showEmployesPage);
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
 
     // Connexion ComboBox Projet Stats
     connect(ui->cbProjetStats, &QComboBox::currentTextChanged, this, &MainWindow::updateTaskChart);
@@ -267,9 +474,18 @@ MainWindow::MainWindow(QWidget *parent)
     if (ui->btnNouveau_Client) connect(ui->btnNouveau_Client, &QPushButton::clicked, this, &MainWindow::on_btnNouveau_client_clicked);
 
     setupStatistics();
+<<<<<<< HEAD
     setupProduitModule();
     setupStockModule();
     setupMaintenanceModule();
+=======
+    setupAccueilDashboard();
+    setupProduitModule();
+    setupStockModule();
+    setupMaintenanceModule();
+    applyUnifiedTopBarStyle();
+    showDashboardHome();
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
 }
 
 MainWindow::~MainWindow()
@@ -278,9 +494,38 @@ MainWindow::~MainWindow()
 }
 
 // --- NAVIGATION ---
+<<<<<<< HEAD
 void MainWindow::on_btnNouveau_clicked() { if (auto *sw = mainStacked()) sw->setCurrentIndex(2); }
 void MainWindow::on_btnAnnuler_Ajout_clicked() { if (auto *sw = mainStacked()) sw->setCurrentIndex(0); }
 void MainWindow::on_btnModifier_clicked() { if (auto *sw = mainStacked()) sw->setCurrentIndex(1); }
+=======
+void MainWindow::on_btnNouveau_clicked()
+{
+    if (auto *sw = mainStacked()) {
+        if (auto *page = sw->findChild<QWidget*>("ajout", Qt::FindDirectChildrenOnly)) {
+            sw->setCurrentWidget(page);
+        } else {
+            sw->setCurrentIndex(2);
+        }
+    }
+}
+
+void MainWindow::on_btnAnnuler_Ajout_clicked()
+{
+    showEmployesPage();
+}
+
+void MainWindow::on_btnModifier_clicked()
+{
+    if (auto *sw = mainStacked()) {
+        if (auto *page = sw->findChild<QWidget*>("modification", Qt::FindDirectChildrenOnly)) {
+            sw->setCurrentWidget(page);
+        } else {
+            sw->setCurrentIndex(1);
+        }
+    }
+}
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
 
 // --- SUPPRESSION ---
 void MainWindow::on_btnSupprimer_clicked()
@@ -352,6 +597,27 @@ void MainWindow::on_btnFichePaie_clicked()
     }
 }
 
+<<<<<<< HEAD
+=======
+void MainWindow::on_btnCommsSend_clicked()
+{
+    QLineEdit *input = findChild<QLineEdit*>("txtCommsInput");
+    QListWidget *list = findChild<QListWidget*>("listComms");
+
+    if (!input || !list)
+        return;
+
+    const QString message = input->text().trimmed();
+    if (message.isEmpty())
+        return;
+
+    QListWidgetItem *item = new QListWidgetItem("Vous : " + message);
+    item->setForeground(QColor("#27ae60"));
+    list->addItem(item);
+    input->clear();
+}
+
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
 void MainWindow::setupStatistics()
 {
     QPieSeries *absenceSeries = new QPieSeries();
@@ -410,6 +676,802 @@ void MainWindow::setupStatistics()
     ui->chartViewWorkload->setRenderHint(QPainter::Antialiasing);
 
     updateTaskChart("Projet A");
+<<<<<<< HEAD
+=======
+}
+
+void MainWindow::setupAccueilDashboard()
+{
+    QStackedWidget *sw = mainStacked();
+    if (!sw)
+        return;
+
+    QWidget *existing = sw->findChild<QWidget*>("dashboardAccueil", Qt::FindDirectChildrenOnly);
+    if (existing) {
+        homeDashboardPage = existing;
+    } else {
+        QWidget *page = new QWidget();
+        page->setObjectName("dashboardAccueil");
+
+        auto *mainLayout = new QHBoxLayout(page);
+        mainLayout->setContentsMargins(20, 20, 20, 20);
+        mainLayout->setSpacing(16);
+
+        auto *leftLayout = new QVBoxLayout();
+        leftLayout->setSpacing(14);
+
+        auto *title = new QLabel("Tableau de Bord");
+        title->setStyleSheet("font-size: 28px; font-weight: 700;");
+        leftLayout->addWidget(title);
+
+        auto *welcomeCard = new QFrame();
+        welcomeCard->setObjectName("welcomeCard");
+        welcomeCard->setFrameShape(QFrame::StyledPanel);
+        auto *welcomeLayout = new QVBoxLayout(welcomeCard);
+        auto *welcomeTitle = new QLabel("WasteGuard : L'Innovation au Service de la Ville Durable.");
+        auto *welcomeMsg = new QLabel("Nous optimisons la collecte des déchets urbains grâce à l'intelligence artificielle (IA) et aux objets connectés (IoT).");
+        welcomeMsg->setWordWrap(true);
+        welcomeLayout->addWidget(welcomeTitle);
+        welcomeLayout->addWidget(welcomeMsg);
+        leftLayout->addWidget(welcomeCard);
+
+        auto *financeRow = new QHBoxLayout();
+        financeRow->setSpacing(12);
+
+        auto *financeCard1 = new QFrame();
+        financeCard1->setObjectName("financeCard");
+        financeCard1->setFrameShape(QFrame::StyledPanel);
+        auto *f1 = new QVBoxLayout(financeCard1);
+        f1->addWidget(new QLabel("Chiffre d'Affaires Mensuel (CA)"));
+        f1->addWidget(new QLabel("125 k TND"));
+        {
+            auto *desc = new QLabel("Montant total des ventes (bacs intelligents + abonnements) ce mois-ci.");
+            desc->setWordWrap(true);
+            f1->addWidget(desc);
+        }
+
+        auto *financeCard2 = new QFrame();
+        financeCard2->setObjectName("financeCard_2");
+        financeCard2->setFrameShape(QFrame::StyledPanel);
+        auto *f2 = new QVBoxLayout(financeCard2);
+        f2->addWidget(new QLabel("Marge Bénéficiaire Nette"));
+        f2->addWidget(new QLabel("+ 24 %"));
+        {
+            auto *desc = new QLabel("Pourcentage de profit réel après coûts de production et salaires.");
+            desc->setWordWrap(true);
+            f2->addWidget(desc);
+        }
+
+        financeRow->addWidget(financeCard1);
+        financeRow->addWidget(financeCard2);
+        leftLayout->addLayout(financeRow);
+
+        auto *chartsRow = new QHBoxLayout();
+        chartsRow->setSpacing(12);
+
+        auto *teamsCard = new QFrame();
+        teamsCard->setObjectName("hrChartCard");
+        teamsCard->setFrameShape(QFrame::StyledPanel);
+        auto *teamsLayout = new QVBoxLayout(teamsCard);
+        teamsLayout->addWidget(new QLabel("Gestion des Ressources Humaines"));
+        auto *teamsView = new QChartView();
+        teamsView->setObjectName("chartViewTeams");
+        teamsView->setMinimumHeight(220);
+        teamsLayout->addWidget(teamsView);
+
+        auto *prodCard = new QFrame();
+        prodCard->setObjectName("productionChartCard");
+        prodCard->setFrameShape(QFrame::StyledPanel);
+        auto *prodLayout = new QVBoxLayout(prodCard);
+        prodLayout->addWidget(new QLabel("Production & Logistique"));
+        auto *prodView = new QChartView();
+        prodView->setObjectName("chartViewProduction");
+        prodView->setMinimumHeight(220);
+        prodLayout->addWidget(prodView);
+
+        chartsRow->addWidget(teamsCard);
+        chartsRow->addWidget(prodCard);
+        leftLayout->addLayout(chartsRow);
+        leftLayout->addStretch();
+
+        auto *rightCard = new QFrame();
+        rightCard->setObjectName("commsCard");
+        rightCard->setFrameShape(QFrame::StyledPanel);
+        rightCard->setMinimumWidth(360);
+        rightCard->setMaximumWidth(420);
+        auto *rightLayout = new QVBoxLayout(rightCard);
+        rightLayout->setContentsMargins(14, 14, 14, 14);
+        rightLayout->setSpacing(10);
+
+        auto *commsTitle = new QLabel("Communication Interne");
+        commsTitle->setObjectName("lblCommsTitle");
+        rightLayout->addWidget(commsTitle);
+        auto *list = new QListWidget();
+        list->setObjectName("listComms");
+        list->setMinimumHeight(220);
+        list->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        list->setWordWrap(true);
+        list->setTextElideMode(Qt::ElideNone);
+        rightLayout->addWidget(list);
+
+        auto *inputRow = new QHBoxLayout();
+        auto *input = new QLineEdit();
+        input->setObjectName("txtCommsInput");
+        input->setPlaceholderText("Écrire un message...");
+        auto *btnSend = new QPushButton("Envoyer");
+        btnSend->setObjectName("btnCommsSend");
+        btnSend->setMinimumWidth(110);
+        btnSend->setMinimumHeight(36);
+        btnSend->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+        inputRow->addWidget(input);
+        inputRow->addWidget(btnSend);
+        rightLayout->addLayout(inputRow);
+
+        rightCard->setStyleSheet(
+            "QFrame#commsCard {"
+            " background-color: #ffffff;"
+            " border: 1px solid #d4dbe6;"
+            " border-radius: 12px;"
+            "}"
+            "QLabel#lblCommsTitle {"
+            " color: #0f2b4c;"
+            " font-size: 18px;"
+            " font-weight: 700;"
+            " border: none;"
+            " background: transparent;"
+            "}"
+            "QListWidget#listComms {"
+            " background-color: #f7f9fc;"
+            " color: #1f2d3d;"
+            " border: 1px solid #d4dbe6;"
+            " border-radius: 10px;"
+            " padding: 6px;"
+            "}"
+            "QListWidget#listComms::item {"
+            " color: #1f2d3d;"
+            " padding: 6px 4px;"
+            " border: none;"
+            "}"
+            "QListWidget#listComms::item:selected {"
+            " background-color: #e8f0ff;"
+            " color: #0f2b4c;"
+            "}"
+            "QLineEdit#txtCommsInput {"
+            " background-color: #ffffff;"
+            " color: #1f2d3d;"
+            " border: 1px solid #c7d2e3;"
+            " border-radius: 8px;"
+            " padding: 8px 10px;"
+            "}"
+            "QLineEdit#txtCommsInput::placeholder {"
+            " color: #7b8798;"
+            "}"
+        );
+
+        mainLayout->addLayout(leftLayout, 3);
+        mainLayout->addWidget(rightCard, 1);
+
+        homeDashboardPage = page;
+        sw->insertWidget(0, page);
+    }
+
+    QPushButton *btnSend = findChild<QPushButton*>("btnCommsSend");
+    QLineEdit *input = findChild<QLineEdit*>("txtCommsInput");
+    QListWidget *list = findChild<QListWidget*>("listComms");
+
+    if (btnSend) {
+        btnSend->setVisible(true);
+        btnSend->setEnabled(true);
+        btnSend->setCursor(Qt::PointingHandCursor);
+        btnSend->setMinimumWidth(110);
+        btnSend->setMinimumHeight(36);
+        btnSend->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+        btnSend->setStyleSheet(
+            "QPushButton#btnCommsSend {"
+            " background-color: #0f2b4c;"
+            " color: white;"
+            " border: 1px solid #0b223c;"
+            " border-radius: 8px;"
+            " font-weight: 700;"
+            " padding: 6px 14px;"
+            "}"
+            "QPushButton#btnCommsSend:hover { background-color: #1a4270; }"
+            "QPushButton#btnCommsSend:pressed { background-color: #0b223c; }"
+        );
+        connect(btnSend, &QPushButton::clicked, this, &MainWindow::on_btnCommsSend_clicked, Qt::UniqueConnection);
+    }
+    if (input) {
+        input->setMinimumHeight(36);
+        connect(input, &QLineEdit::returnPressed, this, &MainWindow::on_btnCommsSend_clicked, Qt::UniqueConnection);
+    }
+
+    if (list && list->count() == 0) {
+        QListWidgetItem *msg1 = new QListWidgetItem("Ahmed (Technique) : Intervention prévue Zone Nord à 15h.");
+        msg1->setForeground(QColor("#1f2d3d"));
+        list->addItem(msg1);
+
+        QListWidgetItem *msg2 = new QListWidgetItem("Sarah (RH) : Réunion RH demain à 10h.");
+        msg2->setForeground(QColor("#1f2d3d"));
+        list->addItem(msg2);
+
+        QListWidgetItem *systemAlert = new QListWidgetItem("Alerte Système : Maintenance serveur ce soir à 22h.");
+        systemAlert->setForeground(QColor("#e67e22"));
+        list->addItem(systemAlert);
+    }
+
+    setupDashboardCharts();
+}
+
+void MainWindow::setupDashboardCharts()
+{
+    QChartView *teamsView = findChild<QChartView*>("chartViewTeams");
+    QChartView *productionView = findChild<QChartView*>("chartViewProduction");
+
+    if (!teamsView || !productionView)
+        return;
+
+    QPieSeries *teamSeries = new QPieSeries();
+    teamSeries->append("Disponibles (12)", 12);
+    teamSeries->append("En Mission (8)", 8);
+    teamSeries->append("Absents (3)", 3);
+    teamSeries->setHoleSize(0.45);
+
+    teamSeries->slices().at(0)->setBrush(QColor("#27ae60"));
+    teamSeries->slices().at(1)->setBrush(QColor("#f39c12"));
+    teamSeries->slices().at(2)->setBrush(QColor("#c0392b"));
+    for (QPieSlice *slice : teamSeries->slices()) {
+        slice->setLabelVisible(true);
+        slice->setLabelColor(Qt::black);
+    }
+
+    QChart *teamChart = new QChart();
+    teamChart->addSeries(teamSeries);
+    teamChart->legend()->setAlignment(Qt::AlignBottom);
+    teamChart->setAnimationOptions(QChart::SeriesAnimations);
+    teamChart->setTitle("Disponibilité des équipes techniques");
+    teamsView->setChart(teamChart);
+    teamsView->setRenderHint(QPainter::Antialiasing);
+
+    QBarSet *setRaw = new QBarSet("Matière Première (t)");
+    *setRaw << 40 << 38 << 42 << 36;
+    setRaw->setColor(QColor("#95a5a6"));
+
+    QBarSet *setBins = new QBarSet("Bacs Assemblés");
+    *setBins << 28 << 32 << 35 << 30;
+    setBins->setColor(QColor("#3498db"));
+
+    QBarSeries *prodSeries = new QBarSeries();
+    prodSeries->append(setRaw);
+    prodSeries->append(setBins);
+
+    QChart *prodChart = new QChart();
+    prodChart->addSeries(prodSeries);
+    prodChart->setTitle("Suivi de fabrication (hebdomadaire)");
+    prodChart->legend()->setAlignment(Qt::AlignBottom);
+    prodChart->setAnimationOptions(QChart::SeriesAnimations);
+
+    QStringList weeks;
+    weeks << "S1" << "S2" << "S3" << "S4";
+    QBarCategoryAxis *axisX = new QBarCategoryAxis();
+    axisX->append(weeks);
+    prodChart->addAxis(axisX, Qt::AlignBottom);
+    prodSeries->attachAxis(axisX);
+
+    QValueAxis *axisY = new QValueAxis();
+    axisY->setRange(0, 50);
+    axisY->setTitleText("Volume / semaine");
+    prodChart->addAxis(axisY, Qt::AlignLeft);
+    prodSeries->attachAxis(axisY);
+
+    productionView->setChart(prodChart);
+    productionView->setRenderHint(QPainter::Antialiasing);
+}
+
+void MainWindow::applyUnifiedTopBarStyle()
+{
+    const QStringList headerContainers = {
+        "headerBar", "topBar", "header_Client"
+    };
+    for (const QString &name : headerContainers) {
+        if (auto *w = findChild<QWidget*>(name)) {
+            w->setStyleSheet("background-color: #ffffff; border: none; border-bottom: 1px solid #dce1e6;");
+        }
+    }
+    if (auto *stockHeader = findChild<QWidget*>("headerBar")) {
+        stockHeader->setMinimumHeight(68);
+        stockHeader->setMaximumHeight(68);
+    }
+    if (auto *clientHeader = findChild<QWidget*>("header_Client")) {
+        clientHeader->setMinimumHeight(72);
+        clientHeader->setMaximumHeight(72);
+    }
+
+    const QStringList titleLabels = {
+        "label_Title", "prod_label_Title", "headerTitle",
+        "wasteguardhead_Client", "lb_1", "lb_3", "lb_5", "titleLabel"
+    };
+    for (const QString &name : titleLabels)
+        styleTopTitle(findChild<QLabel*>(name));
+
+    const QStringList userNameLabels = {
+        "lblUserName", "lblUserName_Modif", "lblUserName_Ajout", "prod_lblUserName"
+    };
+    for (const QString &name : userNameLabels)
+        styleTopUserName(findChild<QLabel*>(name));
+
+    const QStringList userRoleLabels = {
+        "lblUserRole", "lblUserRole_Modif", "lblUserRole_Ajout", "prod_lblUserRole", "userLabel"
+    };
+    for (const QString &name : userRoleLabels)
+        styleTopUserRole(findChild<QLabel*>(name));
+
+    const QStringList combinedUserLabels = {
+        "user_1", "user_3", "user_5", "user", "responsable_Client"
+    };
+    for (const QString &name : combinedUserLabels)
+        styleTopCombinedUser(findChild<QLabel*>(name));
+
+    const QStringList addButtons = {
+        "btnNouveau", "prod_btnAddProduct", "btnNouveau_Client",
+        "btnAddDashboard", "btnAddProduct_2", "btnNew", "btnGotoAjout"
+    };
+    for (const QString &name : addButtons)
+        styleModelAddButton(findChild<QPushButton*>(name));
+
+    const QStringList iconButtons = {
+        "btnnotif_1", "btnprofil_1", "btnnotif_3", "btnprofil_3",
+        "btnnotif_5", "btnprofil_5", "btnNotif", "btnProfil"
+    };
+    for (const QString &name : iconButtons)
+        styleTopIconButton(findChild<QPushButton*>(name));
+
+    const QStringList userFrames = {
+        "frameUser", "frameUser_Modif", "frameUser_Ajout", "prod_frameUser"
+    };
+    for (const QString &name : userFrames) {
+        if (auto *frame = findChild<QFrame*>(name))
+            frame->setStyleSheet("background: transparent; border: none;");
+    }
+
+    // --- Maintenance top bar: align visual structure with other module headers ---
+    if (auto *maintLayout = findChild<QHBoxLayout*>("topLayout_1")) {
+        maintLayout->setContentsMargins(16, 8, 16, 8);
+        maintLayout->setSpacing(10);
+    }
+    if (auto *maintTitle = findChild<QLabel*>("titleLabel")) {
+        styleTopTitle(maintTitle);
+        maintTitle->setText("Tableau de Bord");
+    }
+    if (auto *maintUser = findChild<QLabel*>("userLabel")) {
+        maintUser->setTextFormat(Qt::RichText);
+        maintUser->setText(
+            "<span style=\"color:#0f2b4c;font-size:14px;font-weight:700;\">Admin System</span>"
+            "<br/>"
+            "<span style=\"color:#16a34a;font-size:12px;font-weight:700;\">Chef d'Atelier</span>"
+        );
+        maintUser->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    }
+    if (auto *notif = findChild<QPushButton*>("btnNotif")) notif->hide();
+    if (auto *profil = findChild<QPushButton*>("btnProfil")) profil->hide();
+    moveWidgetBefore(this, "btnGotoAjout", "topLayout_1", "userLabel");
+
+    // --- Client top bar: same visual language as global headers ---
+    if (auto *clientLayout = findChild<QHBoxLayout*>("horizontalLayout_header_Client")) {
+        clientLayout->setContentsMargins(16, 6, 16, 6);
+        clientLayout->setSpacing(8);
+    }
+    if (auto *clientTitle = findChild<QLabel*>("wasteguardhead_Client")) {
+        styleTopTitle(clientTitle);
+        clientTitle->setText("Gestion de Clients");
+    }
+    if (auto *clientResp = findChild<QLabel*>("responsable_Client")) {
+        clientResp->setTextFormat(Qt::RichText);
+        clientResp->setText(
+            "<span style=\"color:#0f2b4c;font-size:14px;font-weight:700;\">Admin System</span>"
+            "<br/>"
+            "<span style=\"color:#16a34a;font-size:12px;font-weight:700;\">Responsable Commercial</span>"
+        );
+        clientResp->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    }
+    moveWidgetBefore(this, "btnNouveau_Client", "horizontalLayout_header_Client", "responsable_Client");
+
+    // Employes top bar: keep + button directly before user block.
+    moveWidgetToStart(this, "btnNouveau", "horizontalLayout_UserHeader");
+
+    // Stock top bar: use "Tableau de Bord" strip as the main top strip.
+    if (auto *stockTitle = findChild<QLabel*>("headerTitle")) {
+        styleTopTitle(stockTitle);
+        stockTitle->setText("Tableau de Bord");
+    }
+    if (auto *stockUser = findChild<QLabel*>("user")) {
+        stockUser->setTextFormat(Qt::RichText);
+        stockUser->setText(
+            "<span style=\"color:#0f2b4c;font-size:14px;font-weight:700;\">Admin System</span>"
+            "<br/>"
+            "<span style=\"color:#16a34a;font-size:12px;font-weight:700;\">Responsable du stock</span>"
+        );
+        stockUser->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    }
+    if (auto *headerLayout = findChild<QHBoxLayout*>("headerLayout")) {
+        headerLayout->setContentsMargins(16, 4, 12, 4);
+        headerLayout->setSpacing(4);
+        QWidget *stockUserWidget = findChild<QWidget*>("user");
+        QWidget *stockAddWidget = findChild<QWidget*>("btnNew");
+
+        if (stockUserWidget) {
+            if (auto *parentLayout = stockUserWidget->parentWidget() ? stockUserWidget->parentWidget()->layout() : nullptr)
+                parentLayout->removeWidget(stockUserWidget);
+        }
+        if (stockAddWidget) {
+            if (auto *parentLayout = stockAddWidget->parentWidget() ? stockAddWidget->parentWidget()->layout() : nullptr)
+                parentLayout->removeWidget(stockAddWidget);
+        }
+
+        // Keep add button close to the user block: [+ Ajouter][Admin System]
+        if (stockAddWidget) headerLayout->addWidget(stockAddWidget);
+        if (stockUserWidget) headerLayout->addWidget(stockUserWidget);
+    }
+    if (auto *lblTableTitle = findChild<QLabel*>("lblTableTitle"))
+        lblTableTitle->hide();
+    if (auto *tableHeaderActions = findChild<QHBoxLayout*>("tableHeaderActions")) {
+        tableHeaderActions->setContentsMargins(0, 0, 0, 0);
+        tableHeaderActions->setSpacing(0);
+        for (int i = 0; i < tableHeaderActions->count(); ++i) {
+            if (auto *spacer = tableHeaderActions->itemAt(i)->spacerItem()) {
+                spacer->changeSize(0, 0, QSizePolicy::Fixed, QSizePolicy::Fixed);
+            }
+        }
+    }
+    if (auto *stockPage = findChild<QWidget*>("pageStock")) {
+        if (auto *dashLayout = stockPage->findChild<QHBoxLayout*>("dashboardLayout")) {
+            dashLayout->setContentsMargins(25, 18, 25, 25);
+        }
+        if (auto *rightColumn = stockPage->findChild<QVBoxLayout*>("rightColumn")) {
+            rightColumn->setContentsMargins(0, 0, 0, 0);
+            rightColumn->setSpacing(14);
+        }
+
+        auto styleStockCard = [](QFrame *card) {
+            if (!card) return;
+            card->setStyleSheet(
+                "QFrame {"
+                " background-color: #ffffff;"
+                " border: 1px solid #dce1e6;"
+                " border-radius: 14px;"
+                "}"
+            );
+        };
+        styleStockCard(stockPage->findChild<QFrame*>("statsBox"));
+        styleStockCard(stockPage->findChild<QFrame*>("orderBox"));
+
+        if (auto *statsTitle = stockPage->findChild<QLabel*>("lblStatsTitle")) {
+            statsTitle->setStyleSheet("color: #607080; font-size: 13px; font-weight: 600;");
+        }
+        if (auto *totalStock = stockPage->findChild<QLabel*>("totalStock")) {
+            totalStock->setStyleSheet("color: #1f2d3d; font-size: 22px; font-weight: 700;");
+        }
+        if (auto *criticalStock = stockPage->findChild<QLabel*>("lblCriticalStock")) {
+            criticalStock->setStyleSheet("color: #ef4444; font-size: 16px; font-weight: 700;");
+        }
+        if (auto *orderTitle = stockPage->findChild<QLabel*>("lblOrderTitle")) {
+            orderTitle->setStyleSheet("color: #1f2d3d; font-size: 13px; font-weight: 700;");
+        }
+        if (auto *orderSummary = stockPage->findChild<QLabel*>("lblOrderSummary")) {
+            orderSummary->setStyleSheet("color: #ef4444; font-size: 14px; font-weight: 700;");
+        }
+
+        if (auto *btnOrder = stockPage->findChild<QPushButton*>("btnOrder")) {
+            btnOrder->setMinimumHeight(56);
+            btnOrder->setCursor(Qt::PointingHandCursor);
+        }
+    }
+
+    if (auto *maintRightLayout = findChild<QVBoxLayout*>("rightLayout_1")) {
+        maintRightLayout->setContentsMargins(0, 0, 0, 0);
+        maintRightLayout->setSpacing(10);
+        if (auto *maintRight = qobject_cast<QFrame*>(maintRightLayout->parentWidget())) {
+            maintRight->setMinimumWidth(300);
+            maintRight->setMaximumWidth(350);
+        }
+    }
+    if (auto *maintContent = findChild<QHBoxLayout*>("contentLayout_1")) {
+        maintContent->setContentsMargins(0, 0, 0, 0);
+        maintContent->setSpacing(16);
+    }
+    if (auto *maintTop = findChild<QHBoxLayout*>("topLayout_1")) {
+        maintTop->setContentsMargins(16, 6, 12, 6);
+        maintTop->setSpacing(4);
+    }
+
+    // Commandes dashboard top bar: put add button before user block.
+    moveWidgetBefore(this, "btnAddDashboard", "horizontalLayout_1", "user_1");
+    moveWidgetBefore(this, "btnAddProduct_2", "horizontalLayout_9", "user_5");
+    if (auto *cmdAddDash = findChild<QWidget*>("btnAddDashboard")) {
+        if (auto *cmdUserDash = findChild<QWidget*>("user_1")) {
+            if (auto *targetLayout = qobject_cast<QHBoxLayout*>(cmdUserDash->parentWidget() ? cmdUserDash->parentWidget()->layout() : nullptr)) {
+                if (auto *oldLayout = cmdAddDash->parentWidget() ? cmdAddDash->parentWidget()->layout() : nullptr)
+                    oldLayout->removeWidget(cmdAddDash);
+                int userIdx = targetLayout->indexOf(cmdUserDash);
+                if (userIdx >= 0) targetLayout->insertWidget(userIdx, cmdAddDash);
+            }
+        }
+    }
+    if (auto *cmdAddAjout = findChild<QWidget*>("btnAddProduct_2")) {
+        if (auto *cmdUserAjoutWidget = findChild<QWidget*>("user_5")) {
+            if (auto *targetLayout = qobject_cast<QHBoxLayout*>(cmdUserAjoutWidget->parentWidget() ? cmdUserAjoutWidget->parentWidget()->layout() : nullptr)) {
+                if (auto *oldLayout = cmdAddAjout->parentWidget() ? cmdAddAjout->parentWidget()->layout() : nullptr)
+                    oldLayout->removeWidget(cmdAddAjout);
+                int userIdx = targetLayout->indexOf(cmdUserAjoutWidget);
+                if (userIdx >= 0) targetLayout->insertWidget(userIdx, cmdAddAjout);
+            }
+        }
+    }
+    if (auto *cmdUserDash = findChild<QLabel*>("user_1")) {
+        cmdUserDash->setTextFormat(Qt::RichText);
+        cmdUserDash->setText(
+            "<span style=\"color:#0f2b4c;font-size:14px;font-weight:700;\">Admin System</span>"
+            "<br/>"
+            "<span style=\"color:#16a34a;font-size:12px;font-weight:700;\">Chef d'Atelier</span>"
+        );
+        cmdUserDash->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        cmdUserDash->setStyleSheet("background-color: #ffffff; border: none; border-bottom: 1px solid #dce1e6; padding: 0 6px;");
+        cmdUserDash->setMinimumHeight(64);
+        cmdUserDash->setMaximumHeight(64);
+    }
+    if (auto *cmdUserAjout = findChild<QLabel*>("user_5")) {
+        cmdUserAjout->setTextFormat(Qt::RichText);
+        cmdUserAjout->setText(
+            "<span style=\"color:#0f2b4c;font-size:14px;font-weight:700;\">Admin System</span>"
+            "<br/>"
+            "<span style=\"color:#16a34a;font-size:12px;font-weight:700;\">Chef d'Atelier</span>"
+        );
+        cmdUserAjout->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        cmdUserAjout->setStyleSheet("background-color: #ffffff; border: none; border-bottom: 1px solid #dce1e6; padding: 0 6px;");
+        cmdUserAjout->setMinimumHeight(64);
+        cmdUserAjout->setMaximumHeight(64);
+    }
+    if (auto *cmdTitleDash = findChild<QLabel*>("lb_1")) {
+        cmdTitleDash->setText("Tableau de Bord");
+        cmdTitleDash->setStyleSheet("color: #1f2d3d; font-size: 18px; font-weight: 700; background-color: #ffffff; border: none; border-bottom: 1px solid #dce1e6; padding: 0 6px;");
+        cmdTitleDash->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+        cmdTitleDash->setMinimumHeight(64);
+        cmdTitleDash->setMaximumHeight(64);
+    }
+    if (auto *cmdTitleAjout = findChild<QLabel*>("lb_5")) {
+        cmdTitleAjout->setStyleSheet("color: #1f2d3d; font-size: 18px; font-weight: 700; background-color: #ffffff; border: none; border-bottom: 1px solid #dce1e6; padding: 0 6px;");
+        cmdTitleAjout->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+        cmdTitleAjout->setMinimumHeight(64);
+        cmdTitleAjout->setMaximumHeight(64);
+    }
+    if (auto *layoutDash = findChild<QHBoxLayout*>("horizontalLayout_1")) {
+        layoutDash->setContentsMargins(16, 0, 10, 0);
+        layoutDash->setSpacing(4);
+    }
+    if (auto *layoutAjout = findChild<QHBoxLayout*>("horizontalLayout_9")) {
+        layoutAjout->setContentsMargins(16, 0, 10, 0);
+        layoutAjout->setSpacing(4);
+    }
+    if (auto *fillDash = findChild<QFrame*>("topFill_1")) {
+        fillDash->setStyleSheet("background-color: #ffffff; border: none; border-bottom: 1px solid #dce1e6;");
+        fillDash->setMinimumHeight(64);
+        fillDash->setMaximumHeight(64);
+    }
+    if (auto *fillAjout = findChild<QFrame*>("topFill_5")) {
+        fillAjout->setStyleSheet("background-color: #ffffff; border: none; border-bottom: 1px solid #dce1e6;");
+        fillAjout->setMinimumHeight(64);
+        fillAjout->setMaximumHeight(64);
+    }
+    if (auto *gapDash = findChild<QFrame*>("topGap_1")) {
+        gapDash->setStyleSheet("background-color: #ffffff; border: none; border-bottom: 1px solid #dce1e6;");
+        gapDash->setMinimumSize(2, 64);
+        gapDash->setMaximumSize(2, 64);
+    }
+    if (auto *gapAjout = findChild<QFrame*>("topGap_5")) {
+        gapAjout->setStyleSheet("background-color: #ffffff; border: none; border-bottom: 1px solid #dce1e6;");
+        gapAjout->setMinimumSize(2, 64);
+        gapAjout->setMaximumSize(2, 64);
+    }
+    if (auto *notif1 = findChild<QPushButton*>("btnnotif_1")) notif1->hide();
+    if (auto *profil1 = findChild<QPushButton*>("btnprofil_1")) profil1->hide();
+    if (auto *notif5 = findChild<QPushButton*>("btnnotif_5")) notif5->hide();
+    if (auto *profil5 = findChild<QPushButton*>("btnprofil_5")) profil5->hide();
+
+    // Produit top bar: ensure add button remains before user.
+    moveWidgetBefore(this, "prod_btnAddProduct", "prod_topBarLayout", "prod_frameUser");
+
+    if (auto *clientPage = findChild<QWidget*>("pageClient")) {
+        if (auto *tableLayout = clientPage->findChild<QHBoxLayout*>("horizontalLayout_table")) {
+            tableLayout->setContentsMargins(0, 0, 0, 0);
+            tableLayout->setSpacing(10);
+        }
+        if (auto *sidepanel = clientPage->findChild<QWidget*>("sidepanel")) {
+            sidepanel->setAttribute(Qt::WA_StyledBackground, true);
+            sidepanel->setMinimumWidth(300);
+            sidepanel->setMaximumWidth(350);
+            sidepanel->setStyleSheet(
+                "QWidget#sidepanel {"
+                " background-color: #ffffff;"
+                " border: 1px solid #dce1e6;"
+                " border-radius: 14px;"
+                "}"
+            );
+        }
+        if (auto *sidepanelLayout = clientPage->findChild<QVBoxLayout*>("verticalLayout_sidepanel")) {
+            sidepanelLayout->setContentsMargins(10, 2, 10, 10);
+            sidepanelLayout->setSpacing(10);
+        }
+        if (auto *pilotage = clientPage->findChild<QLabel*>("pilotage")) {
+            pilotage->setStyleSheet("color: #1f2d3d; font-size: 16px; font-weight: 700;");
+        }
+        if (auto *growth = clientPage->findChild<QWidget*>("growthWidget")) {
+            growth->setAttribute(Qt::WA_StyledBackground, true);
+            growth->setStyleSheet(
+                "QWidget#growthWidget {"
+                " background-color: #f4f6f9;"
+                " border: 1px solid #dce1e6;"
+                " border-radius: 10px;"
+                "}"
+            );
+        }
+
+        for (const QString &btnName : {QStringLiteral("facture"), QStringLiteral("score"), QStringLiteral("exportclient")}) {
+            if (auto *btn = clientPage->findChild<QPushButton*>(btnName)) {
+                btn->setMinimumHeight(56);
+                btn->setCursor(Qt::PointingHandCursor);
+            }
+        }
+    }
+
+    if (auto *clientTop = findChild<QHBoxLayout*>("horizontalLayout_header_Client")) {
+        clientTop->setContentsMargins(16, 6, 12, 6);
+        clientTop->setSpacing(4);
+    }
+    if (auto *cmdPage = findChild<QWidget*>("pageCmdDashboard")) {
+        if (auto *homeLayout = cmdPage->findChild<QHBoxLayout*>("pageHomeLayout")) {
+            homeLayout->setContentsMargins(0, 0, 0, 0);
+            homeLayout->setSpacing(12);
+        }
+        if (auto *cmdRight = cmdPage->findChild<QVBoxLayout*>("rightLayout")) {
+            cmdRight->setContentsMargins(0, 0, 0, 0);
+            cmdRight->setSpacing(10);
+        }
+    }
+
+    auto styleRightSidebarButton = [](QPushButton *button) {
+        if (!button) return;
+        button->setEnabled(true);
+        button->setFlat(false);
+        button->setMinimumHeight(56);
+        button->setCursor(Qt::PointingHandCursor);
+        button->setStyleSheet(
+            "QPushButton {"
+            " background-color: #ffffff;"
+            " color: #1f2d3d;"
+            " border: 1px solid #dcdcdc;"
+            " border-radius: 8px;"
+            " padding: 15px 20px;"
+            " font-size: 14px;"
+            " font-weight: 700;"
+            " text-align: center;"
+            "}"
+            "QPushButton:hover {"
+            " background-color: #f0f8ff;"
+            " border: 1px solid #3498db;"
+            " color: #000000;"
+            "}"
+            "QPushButton:pressed {"
+            " background-color: #e1ecf4;"
+            " border: 1px solid #2980b9;"
+            "}"
+            "QPushButton:disabled {"
+            " background-color: #ffffff;"
+            " color: #1f2d3d;"
+            " border: 1px solid #dcdcdc;"
+            "}"
+        );
+    };
+
+    auto styleRightSidebarButtonCompact = [](QPushButton *button) {
+        if (!button) return;
+        button->setEnabled(true);
+        button->setFlat(false);
+        button->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+        button->setMinimumHeight(42);
+        button->setMaximumHeight(46);
+        button->setCursor(Qt::PointingHandCursor);
+        button->setStyleSheet(
+            "QPushButton {"
+            " background-color: #ffffff;"
+            " color: #1f2d3d;"
+            " border: 1px solid #dcdcdc;"
+            " border-radius: 8px;"
+            " padding: 8px 12px;"
+            " font-size: 13px;"
+            " font-weight: 700;"
+            " text-align: center;"
+            "}"
+            "QPushButton:hover {"
+            " background-color: #f0f8ff;"
+            " border: 1px solid #3498db;"
+            " color: #000000;"
+            "}"
+            "QPushButton:pressed {"
+            " background-color: #e1ecf4;"
+            " border: 1px solid #2980b9;"
+            "}"
+            "QPushButton:disabled {"
+            " background-color: #ffffff;"
+            " color: #1f2d3d;"
+            " border: 1px solid #dcdcdc;"
+            "}"
+        );
+    };
+
+    auto styleButtonsIn = [&](QWidget *container) {
+        if (!container) return;
+        const auto buttons = container->findChildren<QPushButton*>();
+        for (QPushButton *btn : buttons)
+            styleRightSidebarButton(btn);
+    };
+
+    // All right-side panels across modules
+    if (auto *empRight = findChild<QWidget*>("sidePanel_Employe")) styleButtonsIn(empRight);
+    if (auto *clientRight = findChild<QWidget*>("sidepanel")) styleButtonsIn(clientRight);
+    if (auto *prodRight = findChild<QWidget*>("prod_rightSidebar")) {
+        prodRight->setMinimumWidth(300);
+        prodRight->setMaximumWidth(350);
+        styleButtonsIn(prodRight);
+
+        // Product sidebar: keep the same visual style but with compact button size.
+        if (auto *prodRightLayout = prodRight->findChild<QVBoxLayout*>("prod_rightLayout")) {
+            prodRightLayout->setSpacing(8);
+        }
+        for (const QString &btnName : {
+                 QStringLiteral("prod_btnOpenStats"),
+                 QStringLiteral("prod_btnMap3D"),
+                 QStringLiteral("prod_btnVideo3D"),
+                 QStringLiteral("prod_btnPdf"),
+                 QStringLiteral("prod_btnCsv")
+             }) {
+            styleRightSidebarButtonCompact(prodRight->findChild<QPushButton*>(btnName));
+        }
+    }
+    const auto rightPanels = findChildren<QWidget*>("rightSidebar");
+    for (QWidget *panel : rightPanels) {
+        panel->setMinimumWidth(300);
+        panel->setMaximumWidth(350);
+        styleButtonsIn(panel);
+    }
+
+    // Stock right-side buttons are not inside a dedicated rightSidebar frame
+    styleRightSidebarButton(findChild<QPushButton*>("btnOrder"));
+    styleRightSidebarButton(findChild<QPushButton*>("btnPrediction"));
+    styleRightSidebarButton(findChild<QPushButton*>("btnAlerts"));
+}
+
+void MainWindow::showDashboardHome()
+{
+    if (auto *sw = mainStacked()) {
+        if (homeDashboardPage) {
+            sw->setCurrentWidget(homeDashboardPage);
+            return;
+        }
+        if (auto *page = sw->findChild<QWidget*>("dashboardAccueil", Qt::FindDirectChildrenOnly)) {
+            sw->setCurrentWidget(page);
+        } else {
+            sw->setCurrentIndex(0);
+        }
+    }
+}
+
+void MainWindow::showEmployesPage()
+{
+    if (auto *sw = mainStacked()) {
+        if (auto *page = sw->findChild<QWidget*>("affichage", Qt::FindDirectChildrenOnly)) {
+            sw->setCurrentWidget(page);
+        }
+    }
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
 }
 
 void MainWindow::updateTaskChart(const QString &projectName)

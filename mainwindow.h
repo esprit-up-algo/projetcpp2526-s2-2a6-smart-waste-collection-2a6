@@ -38,6 +38,31 @@ private slots:
     void on_btnSupprimer_clicked();
     void on_cbProjetStats_currentIndexChanged(const QString &arg1);
     void on_btnFichePaie_clicked();
+    void on_btnCommsSend_clicked();
+
+    // Client module slots (from mainwindowcl)
+    void on_btnClient_clicked();
+    void on_btn_ajouter_client_clicked();
+    void on_btn_modifier_client_clicked();
+    void on_btn_annuler_client_clicked();
+    void on_btnNouveau_client_clicked();
+    void onClientAdded(QString matricule, QString nom, QString email, QString bacs, QString score, QString paiement);
+    void onClientModified(int row, QString matricule, QString nom, QString email, QString bacs, QString score, QString paiement);
+
+    // Maintenance
+    void on_btnSave_Add_clicked();
+    void on_btnSave_Mod_clicked();
+    void handleMaintEditClicked();
+    void handleMaintDeleteClicked();
+
+    // Produit
+    void goAffichage();
+    void goAjout();
+    void goModification();
+    void goStatistiques();
+
+    void handleEditClicked();
+    void handleDeleteClicked();
 
     // Client module slots (from mainwindowcl)
     void on_btnClient_clicked();
@@ -66,6 +91,14 @@ private slots:
 private:
     // Employe
     void setupStatistics();
+<<<<<<< HEAD
+=======
+    void setupAccueilDashboard();
+    void setupDashboardCharts();
+    void applyUnifiedTopBarStyle();
+    void showDashboardHome();
+    void showEmployesPage();
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
     void updateTaskChart(const QString &projectName);
 
     // Produit
@@ -98,6 +131,10 @@ private:
 
     Ui::MainWindow *ui;
     QButtonGroup *sidebarGroup;
+<<<<<<< HEAD
+=======
+    QWidget *homeDashboardPage;
+>>>>>>> 7273fba (Ajout de Dashboard(acceuil))
     int currentClientRow; // To track which row is being modified in client table
     int currentMaintRow;  // To track which row is being modified in maintenance table
     void addClientActionButtons(int row);
