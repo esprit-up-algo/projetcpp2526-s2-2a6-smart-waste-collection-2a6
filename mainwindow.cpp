@@ -1,4 +1,4 @@
-#include "mainwindow.h"
+﻿#include "mainwindow.h"
 #include "ui_mainwindow.h"
 
 #include <QPushButton>
@@ -107,6 +107,39 @@ MainWindow::MainWindow(QWidget *parent)
         }
     });
 
+    // --- MAINTENANCE INTEGRATION ---
+    connect(ui->btnMaintenance, &QPushButton::clicked, this, [this](){
+        if (auto *sw = mainStacked()) {
+            if (auto *page = sw->findChild<QWidget*>("page_Maintenance_Tab", Qt::FindDirectChildrenOnly)) {
+                sw->setCurrentWidget(page);
+            }
+        }
+    });
+
+    // Internal Navigation for Maintenance
+    // Note: Assuming these objects exist in the UI now
+    // If not, these lines should be commented out or verified after uic build.
+    // Logic: Connect Dashboard buttons to Stack switching
+    auto safeConnect = [this](QPushButton* btn, QWidget* targetPage){
+        if (btn && targetPage && ui->stackedWidget_Maintenance) {
+             connect(btn, &QPushButton::clicked, this, [this, targetPage](){
+                 ui->stackedWidget_Maintenance->setCurrentWidget(targetPage);
+             });
+        }
+    };
+
+    safeConnect(ui->btnGotoAjout, ui->page_Maint_Ajout);
+    safeConnect(ui->btnGotoModifier, ui->page_Maint_Modif);
+    
+    // Back / Cancel buttons -> Return to Dashboard
+    QList<QPushButton*> backButtons = {
+        ui->btnBack_Ajout, ui->btnBack_Modif, 
+        ui->btnCancel_Add, ui->btnCancel_Mod
+    };
+    for(auto* btn : backButtons) {
+        safeConnect(btn, ui->page_Maint_Dash);
+    }
+
     // --- REMPLISSAGE DU TABLEAU ---
     if (ui->tableEmployes) {
         ui->tableEmployes->setRowCount(0);
@@ -116,8 +149,8 @@ MainWindow::MainWindow(QWidget *parent)
             ui->tableEmployes->insertRow(row);
 
             ui->tableEmployes->setItem(row, 0, new QTableWidgetItem("EMP-00" + QString::number(i)));
-            ui->tableEmployes->setItem(row, 1, new QTableWidgetItem("EmployÃ© Test " + QString::number(i)));
-            ui->tableEmployes->setItem(row, 2, new QTableWidgetItem("MÃ©canicien"));
+            ui->tableEmployes->setItem(row, 1, new QTableWidgetItem("Employé Test " + QString::number(i)));
+            ui->tableEmployes->setItem(row, 2, new QTableWidgetItem("Mécanicien"));
             ui->tableEmployes->setItem(row, 3, new QTableWidgetItem("Disponible"));
 
             QWidget* pWidget = new QWidget();
@@ -193,7 +226,7 @@ void MainWindow::on_btnModifier_clicked() { if (auto *sw = mainStacked()) sw->se
 // --- SUPPRESSION ---
 void MainWindow::on_btnSupprimer_clicked()
 {
-    QMessageBox::question(this, "Supprimer", "Voulez-vous vraiment supprimer cet employÃ© ?", QMessageBox::Yes|QMessageBox::No);
+    QMessageBox::question(this, "Supprimer", "Voulez-vous vraiment supprimer cet employé ?", QMessageBox::Yes|QMessageBox::No);
 }
 
 // --- MISSION IA ---
@@ -203,7 +236,7 @@ void MainWindow::on_btnAnalyser_clicked()
     ui->tableResultat->insertRow(0);
     ui->tableResultat->setItem(0, 0, new QTableWidgetItem("EMP-001"));
     ui->tableResultat->setItem(0, 1, new QTableWidgetItem("Ali Ben Salah"));
-    ui->tableResultat->setItem(0, 2, new QTableWidgetItem("ðŸ”§ Moteur Diesel"));
+    ui->tableResultat->setItem(0, 2, new QTableWidgetItem("🔧 Moteur Diesel"));
     QTableWidgetItem* score1 = new QTableWidgetItem("99%");
     score1->setForeground(QBrush(QColor("#27ae60")));
     ui->tableResultat->setItem(0, 3, score1);
@@ -212,7 +245,7 @@ void MainWindow::on_btnAnalyser_clicked()
 // --- POINTAGE ---
 void MainWindow::on_btnSimulerBadge_clicked()
 {
-    ui->lblStatutRFID->setText("âœ… BADGE ACCEPTÃ‰");
+    ui->lblStatutRFID->setText("✅ BADGE ACCEPTÉ");
     ui->lblStatutRFID->setStyleSheet("background-color: #2ecc71; color: white; font-size: 24px; font-weight: bold; border-radius: 10px; padding: 20px; border: 2px solid #27ae60;");
 
     int row = ui->tablePointage->rowCount();
@@ -221,7 +254,7 @@ void MainWindow::on_btnSimulerBadge_clicked()
     ui->tablePointage->setItem(row, 1, new QTableWidgetItem("BADGE-123"));
     ui->tablePointage->setItem(row, 2, new QTableWidgetItem("Ali Ben Salah"));
 
-    QTableWidgetItem* status = new QTableWidgetItem("PRÃ‰SENT");
+    QTableWidgetItem* status = new QTableWidgetItem("PRÉSENT");
     status->setForeground(QBrush(QColor("#27ae60")));
     ui->tablePointage->setItem(row, 3, status);
 }
@@ -230,7 +263,7 @@ void MainWindow::on_btnFichePaie_clicked()
 {
     QInputDialog dialog(this);
     dialog.setWindowTitle("Fiche de Paie");
-    dialog.setLabelText("Veuillez entrer le matricule de l'employÃ© :");
+    dialog.setLabelText("Veuillez entrer le matricule de l'employé :");
     dialog.setTextValue("");
     dialog.setInputMode(QInputDialog::TextInput);
     dialog.resize(400, 200);
@@ -254,8 +287,8 @@ void MainWindow::on_btnFichePaie_clicked()
     if (dialog.exec() == QDialog::Accepted) {
         QString matricule = dialog.textValue();
         if (!matricule.isEmpty()) {
-            QMessageBox::information(this, "GÃ©nÃ©ration en cours",
-                                     "âœ… GÃ©nÃ©ration de la fiche de paie pour le matricule : " + matricule);
+            QMessageBox::information(this, "Génération en cours",
+                                     "✅ Génération de la fiche de paie pour le matricule : " + matricule);
         }
     }
 }
@@ -263,7 +296,7 @@ void MainWindow::on_btnFichePaie_clicked()
 void MainWindow::setupStatistics()
 {
     QPieSeries *absenceSeries = new QPieSeries();
-    absenceSeries->append("PrÃ©sent", 85);
+    absenceSeries->append("Présent", 85);
     absenceSeries->append("Absent", 15);
 
     QPieSlice *presentSlice = absenceSeries->slices().at(0);
@@ -279,7 +312,7 @@ void MainWindow::setupStatistics()
 
     QChart *absenceChart = new QChart();
     absenceChart->addSeries(absenceSeries);
-    absenceChart->setTitle("Taux de PrÃ©sence Global");
+    absenceChart->setTitle("Taux de Présence Global");
     absenceChart->setTitleFont(QFont("Segoe UI", 12, QFont::Bold));
     absenceChart->legend()->setAlignment(Qt::AlignBottom);
     absenceChart->setAnimationOptions(QChart::SeriesAnimations);
@@ -287,7 +320,7 @@ void MainWindow::setupStatistics()
     ui->chartViewAbsence->setChart(absenceChart);
     ui->chartViewAbsence->setRenderHint(QPainter::Antialiasing);
 
-    QBarSet *set0 = new QBarSet("Heures TravaillÃ©es");
+    QBarSet *set0 = new QBarSet("Heures Travaillées");
     *set0 << 40 << 35 << 42 << 38 << 45;
     set0->setColor(QColor("#3498db"));
 
@@ -296,7 +329,7 @@ void MainWindow::setupStatistics()
 
     QChart *workloadChart = new QChart();
     workloadChart->addSeries(workloadSeries);
-    workloadChart->setTitle("Charge de Travail par EmployÃ© (Semaine)");
+    workloadChart->setTitle("Charge de Travail par Employé (Semaine)");
     workloadChart->setTitleFont(QFont("Segoe UI", 12, QFont::Bold));
     workloadChart->setAnimationOptions(QChart::SeriesAnimations);
     workloadChart->legend()->setVisible(false);
@@ -323,7 +356,7 @@ void MainWindow::setupStatistics()
 void MainWindow::updateTaskChart(const QString &projectName)
 {
     QLineSeries *series = new QLineSeries();
-    series->setName("TÃ¢ches accomplies - " + projectName);
+    series->setName("Tâches accomplies - " + projectName);
 
     if (projectName == "Projet A") {
         series->append(0, 12);
@@ -360,7 +393,7 @@ void MainWindow::updateTaskChart(const QString &projectName)
     series->attachAxis(axisX);
 
     QValueAxis *axisY = new QValueAxis();
-    axisY->setTitleText("TÃ¢ches");
+    axisY->setTitleText("Tâches");
     axisY->setLabelFormat("%d");
     chart->addAxis(axisY, Qt::AlignLeft);
     series->attachAxis(axisY);
@@ -610,7 +643,7 @@ void MainWindow::addExampleRow()
 
     setCell(0, "WG-001");
     setCell(1, "SmartBin X1");
-    setCell(2, "IntÃ©rieur");
+    setCell(2, "Intérieur");
     setCell(3, "60 L");
     setCell(4, "450");
     setCell(5, "12");
@@ -761,7 +794,7 @@ void MainWindow::buildStatsCharts()
 
     auto *donutChart = new QChart();
     donutChart->addSeries(donutSeries);
-    donutChart->setTitle("RÃ©partition Globale (Donut)");
+    donutChart->setTitle("Répartition Globale (Donut)");
     donutChart->setTheme(QChart::ChartThemeBlueCerulean);
     donutChart->setAnimationOptions(QChart::AllAnimations);
     donutChart->legend()->setAlignment(Qt::AlignRight);
@@ -794,7 +827,7 @@ void MainWindow::buildStatsCharts()
 
     auto *areaChart = new QChart();
     areaChart->addSeries(areaSeries);
-    areaChart->setTitle("Ã‰volution Dynamique");
+    areaChart->setTitle("Évolution Dynamique");
     areaChart->setTheme(QChart::ChartThemeLight);
     areaChart->setAnimationOptions(QChart::SeriesAnimations);
     areaChart->legend()->setAlignment(Qt::AlignBottom);
