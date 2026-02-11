@@ -1,0 +1,10 @@
+build/
+.qtcreator/
+*.pro.user*
+*.o
+*.obj
+*.exe
+*.dll
+*.moc
+*.qrc.depends
+.qtc_clangd/

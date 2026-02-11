@@ -39,6 +39,21 @@ private slots:
     void on_cbProjetStats_currentIndexChanged(const QString &arg1);
     void on_btnFichePaie_clicked();
 
+    // Client module slots (from mainwindowcl)
+    void on_btnClient_clicked();
+    void on_btn_ajouter_client_clicked();
+    void on_btn_modifier_client_clicked();
+    void on_btn_annuler_client_clicked();
+    void on_btnNouveau_client_clicked();
+    void onClientAdded(QString matricule, QString nom, QString email, QString bacs, QString score, QString paiement);
+    void onClientModified(int row, QString matricule, QString nom, QString email, QString bacs, QString score, QString paiement);
+
+    // Maintenance
+    void on_btnSave_Add_clicked();
+    void on_btnSave_Mod_clicked();
+    void handleMaintEditClicked();
+    void handleMaintDeleteClicked();
+
     // Produit
     void goAffichage();
     void goAjout();
@@ -67,6 +82,12 @@ private:
     void setupStockModule();
     void setupStockTableData();
 
+    // Maintenance Module
+    void setupMaintenanceModule();
+    void refreshMaintActionButtons();
+    void installMaintActionButtonsForRow(int row);
+    QTableWidget* maintenanceTable() const;
+
     // Helpers for merged UI
     QStackedWidget *mainStacked() const;
     QWidget *produitRoot() const;
@@ -77,6 +98,10 @@ private:
 
     Ui::MainWindow *ui;
     QButtonGroup *sidebarGroup;
+    int currentClientRow; // To track which row is being modified in client table
+    int currentMaintRow;  // To track which row is being modified in maintenance table
+    void addClientActionButtons(int row);
+    int getRowForClientWidget(QWidget *widget);
 };
 
 #endif // MAINWINDOW_H

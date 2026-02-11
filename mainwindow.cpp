@@ -70,7 +70,7 @@ MainWindow::MainWindow(QWidget *parent)
     sidebarGroup->setExclusive(true);
 
     QList<QPushButton*> sidebarButtons = {
-        ui->btnAccueil, ui->btnStock, ui->btnProduits,
+        ui->btnAccueil, ui->btnClient, ui->btnStock, ui->btnProduits,
         ui->btnEmployes, ui->btnStatistiques, ui->btnMaintenance
     };
 
@@ -106,6 +106,8 @@ MainWindow::MainWindow(QWidget *parent)
             }
         }
     });
+
+    connect(ui->btnClient, &QPushButton::clicked, this, &MainWindow::on_btnClient_clicked);
 
     // --- MAINTENANCE INTEGRATION ---
     connect(ui->btnMaintenance, &QPushButton::clicked, this, [this](){
@@ -208,9 +210,34 @@ MainWindow::MainWindow(QWidget *parent)
     });
     ui->lblValSalaire_Modif->setText(QString::number(ui->sliderSalaire_Modif->value()) + " DT");
 
+    // --- CLIENT INITIALIZATION ---
+    if (ui->tableWidget_Client) {
+        ui->tableWidget_Client->setColumnCount(7);
+        QStringList headers = { "Matricule", "Nom", "Email", "Bacs", "Score", "Paiement", "Actions" };
+        ui->tableWidget_Client->setHorizontalHeaderLabels(headers);
+        ui->tableWidget_Client->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+        
+        // Add default example client
+        int row = ui->tableWidget_Client->rowCount();
+        ui->tableWidget_Client->insertRow(row);
+        ui->tableWidget_Client->setItem(row, 0, new QTableWidgetItem("CL-001"));
+        ui->tableWidget_Client->setItem(row, 1, new QTableWidgetItem("Jean Dupont"));
+        ui->tableWidget_Client->setItem(row, 2, new QTableWidgetItem("jean.dupont@email.com"));
+        ui->tableWidget_Client->setItem(row, 3, new QTableWidgetItem("5"));
+        ui->tableWidget_Client->setItem(row, 4, new QTableWidgetItem("85"));
+        ui->tableWidget_Client->setItem(row, 5, new QTableWidgetItem("Mensuel"));
+        addClientActionButtons(row);
+    }
+    if (ui->btn_save_ajouter) connect(ui->btn_save_ajouter, &QPushButton::clicked, this, &MainWindow::on_btn_ajouter_client_clicked);
+    if (ui->btn_annuler_ajouter) connect(ui->btn_annuler_ajouter, &QPushButton::clicked, this, &MainWindow::on_btn_annuler_client_clicked);
+    if (ui->btn_save_modifier) connect(ui->btn_save_modifier, &QPushButton::clicked, this, &MainWindow::on_btn_modifier_client_clicked);
+    if (ui->btn_annuler_modifier) connect(ui->btn_annuler_modifier, &QPushButton::clicked, this, &MainWindow::on_btn_annuler_client_clicked);
+    if (ui->btnNouveau_Client) connect(ui->btnNouveau_Client, &QPushButton::clicked, this, &MainWindow::on_btnNouveau_client_clicked);
+
     setupStatistics();
     setupProduitModule();
     setupStockModule();
+    setupMaintenanceModule();
 }
 
 MainWindow::~MainWindow()
@@ -733,6 +760,141 @@ void MainWindow::handleDeleteClicked()
 
     t->removeRow(row);
     refreshActionButtons();
+}
+
+// ---------- Maintenance Module Implementation ----------
+
+QTableWidget* MainWindow::maintenanceTable() const {
+    return ui->tableMaintenance;
+}
+
+void MainWindow::setupMaintenanceModule() {
+    if (auto* table = maintenanceTable()) {
+        table->setColumnCount(7);
+        QStringList headers = { "Reference", "Date", "Technicien", "Coût", "Durée", "Priorité", "Actions" };
+        table->setHorizontalHeaderLabels(headers);
+        table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+        table->setRowCount(0);
+        
+        // Add example row
+        int row = table->rowCount();
+        table->insertRow(row);
+        table->setItem(row, 0, new QTableWidgetItem("INT-001"));
+        table->setItem(row, 1, new QTableWidgetItem("2024-02-11"));
+        table->setItem(row, 2, new QTableWidgetItem("Ahmed Ali"));
+        table->setItem(row, 3, new QTableWidgetItem("150.0 DT"));
+        table->setItem(row, 4, new QTableWidgetItem("2h"));
+        table->setItem(row, 5, new QTableWidgetItem("Normale"));
+        
+        refreshMaintActionButtons();
+    }
+    
+    if (ui->btnSave_Add) connect(ui->btnSave_Add, &QPushButton::clicked, this, &MainWindow::on_btnSave_Add_clicked);
+    if (ui->btnSave_Mod) connect(ui->btnSave_Mod, &QPushButton::clicked, this, &MainWindow::on_btnSave_Mod_clicked);
+}
+
+void MainWindow::refreshMaintActionButtons() {
+    auto* table = maintenanceTable();
+    if (!table) return;
+    for (int i = 0; i < table->rowCount(); ++i) {
+        installMaintActionButtonsForRow(i);
+    }
+}
+
+void MainWindow::installMaintActionButtonsForRow(int row) {
+    auto* table = maintenanceTable();
+    if (!table) return;
+
+    QWidget* pWidget = new QWidget();
+    QPushButton* btnEdit = new QPushButton("Modifier");
+    btnEdit->setCursor(Qt::PointingHandCursor);
+    btnEdit->setStyleSheet("QPushButton { background-color: #3498db; color: white; border-radius: 4px; padding: 4px 8px; font-weight: bold; }");
+
+    QPushButton* btnDelete = new QPushButton("Supprimer");
+    btnDelete->setCursor(Qt::PointingHandCursor);
+    btnDelete->setStyleSheet("QPushButton { background-color: #e74c3c; color: white; border-radius: 4px; padding: 4px 8px; font-weight: bold; }");
+
+    btnEdit->setProperty("row", row);
+    btnDelete->setProperty("row", row);
+
+    connect(btnEdit, &QPushButton::clicked, this, &MainWindow::handleMaintEditClicked);
+    connect(btnDelete, &QPushButton::clicked, this, &MainWindow::handleMaintDeleteClicked);
+
+    QHBoxLayout* pLayout = new QHBoxLayout(pWidget);
+    pLayout->addWidget(btnEdit);
+    pLayout->addWidget(btnDelete);
+    pLayout->setAlignment(Qt::AlignCenter);
+    pLayout->setContentsMargins(0, 0, 0, 0);
+    pWidget->setLayout(pLayout);
+
+    table->setCellWidget(row, 6, pWidget);
+}
+
+void MainWindow::on_btnSave_Add_clicked() {
+    auto* table = maintenanceTable();
+    if (!table) return;
+
+    int row = table->rowCount();
+    table->insertRow(row);
+    table->setItem(row, 0, new QTableWidgetItem(ui->editRefAdd->text()));
+    table->setItem(row, 1, new QTableWidgetItem(ui->dateAdd->date().toString("yyyy-MM-dd")));
+    table->setItem(row, 2, new QTableWidgetItem(ui->editTechAdd->text()));
+    table->setItem(row, 3, new QTableWidgetItem(QString::number(ui->spinCoutAdd->value()) + " DT"));
+    table->setItem(row, 4, new QTableWidgetItem(ui->comboDurAdd->currentText()));
+    table->setItem(row, 5, new QTableWidgetItem(ui->comboPrioAdd->currentText()));
+
+    installMaintActionButtonsForRow(row);
+    ui->stackedWidget_Maintenance->setCurrentWidget(ui->page_Maint_Dash);
+    
+    // Clear fields
+    ui->editRefAdd->clear();
+    ui->editTechAdd->clear();
+    ui->spinCoutAdd->setValue(0);
+}
+
+void MainWindow::on_btnSave_Mod_clicked() {
+    auto* table = maintenanceTable();
+    if (!table || currentMaintRow < 0) return;
+
+    table->item(currentMaintRow, 0)->setText(ui->editRefMod->text());
+    table->item(currentMaintRow, 1)->setText(ui->dateMod->date().toString("yyyy-MM-dd"));
+    table->item(currentMaintRow, 2)->setText(ui->editTechMod->text());
+    table->item(currentMaintRow, 3)->setText(QString::number(ui->spinCoutMod->value()) + " DT");
+    table->item(currentMaintRow, 4)->setText(ui->comboDurMod->currentText());
+    table->item(currentMaintRow, 5)->setText(ui->comboPrioMod->currentText());
+
+    ui->stackedWidget_Maintenance->setCurrentWidget(ui->page_Maint_Dash);
+}
+
+void MainWindow::handleMaintEditClicked() {
+    QPushButton* btn = qobject_cast<QPushButton*>(sender());
+    if (!btn) return;
+    int row = btn->property("row").toInt();
+    currentMaintRow = row;
+
+    auto* table = maintenanceTable();
+    ui->editRefMod->setText(table->item(row, 0)->text());
+    ui->dateMod->setDate(QDate::fromString(table->item(row, 1)->text(), "yyyy-MM-dd"));
+    ui->editTechMod->setText(table->item(row, 2)->text());
+    
+    QString coutStr = table->item(row, 3)->text().replace(" DT", "");
+    ui->spinCoutMod->setValue(coutStr.toDouble());
+    
+    ui->comboDurMod->setCurrentText(table->item(row, 4)->text());
+    ui->comboPrioMod->setCurrentText(table->item(row, 5)->text());
+
+    ui->stackedWidget_Maintenance->setCurrentWidget(ui->page_Maint_Modif);
+}
+
+void MainWindow::handleMaintDeleteClicked() {
+    QPushButton* btn = qobject_cast<QPushButton*>(sender());
+    if (!btn) return;
+    int row = btn->property("row").toInt();
+
+    if (QMessageBox::question(this, "Supprimer", "Voulez-vous vraiment supprimer cette intervention ?", QMessageBox::Yes|QMessageBox::No) == QMessageBox::Yes) {
+        maintenanceTable()->removeRow(row);
+        refreshMaintActionButtons();
+    }
 }
 
 // ---------- Produit module stats ----------
@@ -1291,4 +1453,123 @@ void MainWindow::setupStockTableData()
             ui->lblOrderSummary->setStyleSheet("font-size: 13px; color: #28a745; margin-bottom: 5px;");
         }
     }
+}
+
+// --- CLIENT MODULE (Integrated from mainwindowcl) ---
+void MainWindow::on_btnClient_clicked() {
+    if (auto *sw = mainStacked()) {
+        if (auto *page = sw->findChild<QWidget*>("pageClient", Qt::FindDirectChildrenOnly)) {
+            sw->setCurrentWidget(page);
+        }
+    }
+}
+
+void MainWindow::on_btnNouveau_client_clicked() {
+    if (ui->stackedWidget_Client) {
+        ui->input_matricule_ajouter->clear();
+        ui->input_nom_ajouter->clear();
+        ui->input_email_ajouter->clear();
+        ui->input_bacs_ajouter->setValue(0);
+        ui->input_score_ajouter->setValue(0);
+        ui->stackedWidget_Client->setCurrentIndex(1);
+    }
+}
+
+void MainWindow::on_btn_annuler_client_clicked() {
+    if (ui->stackedWidget_Client) ui->stackedWidget_Client->setCurrentIndex(0);
+}
+
+void MainWindow::on_btn_ajouter_client_clicked() {
+    if(ui->input_matricule_ajouter->text().isEmpty() || ui->input_nom_ajouter->text().isEmpty()) {
+         QMessageBox::warning(this, "Champs Manquants", "Veuillez remplir au moins le Matricule et le Nom.");
+         return;
+    }
+    onClientAdded(ui->input_matricule_ajouter->text(), 
+                  ui->input_nom_ajouter->text(), 
+                  ui->input_email_ajouter->text(), 
+                  QString::number(ui->input_bacs_ajouter->value()),
+                  QString::number(ui->input_score_ajouter->value()), 
+                  ui->input_paiement_ajouter->currentText());
+    QMessageBox::information(this, "Succès", "Client ajouté avec succès.");
+    if (ui->stackedWidget_Client) ui->stackedWidget_Client->setCurrentIndex(0);
+}
+
+void MainWindow::on_btn_modifier_client_clicked() {
+    if(ui->input_matricule_modifier->text().isEmpty() || ui->input_nom_modifier->text().isEmpty()) {
+         QMessageBox::warning(this, "Champs Manquants", "Veuillez remplir au moins le Matricule et le Nom.");
+         return;
+    }
+    onClientModified(currentClientRow,
+                     ui->input_matricule_modifier->text(), 
+                     ui->input_nom_modifier->text(), 
+                     ui->input_email_modifier->text(), 
+                     QString::number(ui->input_bacs_modifier->value()),
+                     QString::number(ui->input_score_modifier->value()), 
+                     ui->input_paiement_modifier->currentText());
+    QMessageBox::information(this, "Succès", "Informations du client modifiées avec succès.");
+    if (ui->stackedWidget_Client) ui->stackedWidget_Client->setCurrentIndex(0);
+}
+
+void MainWindow::onClientAdded(QString matricule, QString nom, QString email, QString bacs, QString score, QString paiement) {
+    int row = ui->tableWidget_Client->rowCount();
+    ui->tableWidget_Client->insertRow(row);
+    ui->tableWidget_Client->setItem(row, 0, new QTableWidgetItem(matricule));
+    ui->tableWidget_Client->setItem(row, 1, new QTableWidgetItem(nom));
+    ui->tableWidget_Client->setItem(row, 2, new QTableWidgetItem(email));
+    ui->tableWidget_Client->setItem(row, 3, new QTableWidgetItem(bacs));
+    ui->tableWidget_Client->setItem(row, 4, new QTableWidgetItem(score));
+    ui->tableWidget_Client->setItem(row, 5, new QTableWidgetItem(paiement));
+    addClientActionButtons(row);
+}
+
+void MainWindow::onClientModified(int row, QString matricule, QString nom, QString email, QString bacs, QString score, QString paiement) {
+    if(row < ui->tableWidget_Client->rowCount()) {
+        ui->tableWidget_Client->item(row, 0)->setText(matricule);
+        ui->tableWidget_Client->item(row, 1)->setText(nom);
+        ui->tableWidget_Client->item(row, 2)->setText(email);
+        ui->tableWidget_Client->item(row, 3)->setText(bacs);
+        ui->tableWidget_Client->item(row, 4)->setText(score);
+        ui->tableWidget_Client->item(row, 5)->setText(paiement);
+    }
+}
+
+void MainWindow::addClientActionButtons(int row) {
+    QWidget* actionWidget = new QWidget();
+    QHBoxLayout* layout = new QHBoxLayout(actionWidget);
+    layout->setContentsMargins(4, 2, 4, 2);
+    layout->setSpacing(6);
+    QPushButton* btnEdit = new QPushButton("✏️");
+    btnEdit->setStyleSheet("background-color: #f39c12; color: white; border-radius: 4px; padding: 4px;");
+    QPushButton* btnDelete = new QPushButton("🗑️");
+    btnDelete->setStyleSheet("background-color: #e74c3c; color: white; border-radius: 4px; padding: 4px;");
+    layout->addWidget(btnEdit);
+    layout->addWidget(btnDelete);
+    layout->addStretch();
+    ui->tableWidget_Client->setCellWidget(row, 6, actionWidget);
+    connect(btnEdit, &QPushButton::clicked, this, [this, actionWidget](){
+        int r = getRowForClientWidget(actionWidget);
+        if (r < 0) return;
+        currentClientRow = r;
+        ui->input_matricule_modifier->setText(ui->tableWidget_Client->item(r, 0)->text());
+        ui->input_nom_modifier->setText(ui->tableWidget_Client->item(r, 1)->text());
+        ui->input_email_modifier->setText(ui->tableWidget_Client->item(r, 2)->text());
+        ui->input_bacs_modifier->setValue(ui->tableWidget_Client->item(r, 3)->text().toInt());
+        ui->input_score_modifier->setValue(ui->tableWidget_Client->item(r, 4)->text().toInt());
+        ui->input_paiement_modifier->setCurrentText(ui->tableWidget_Client->item(r, 5)->text());
+        if (ui->stackedWidget_Client) ui->stackedWidget_Client->setCurrentIndex(2);
+    });
+    connect(btnDelete, &QPushButton::clicked, this, [this, actionWidget](){
+        int r = getRowForClientWidget(actionWidget);
+        if (r < 0) return;
+        if (QMessageBox::question(this, "Supprimer", "Voulez-vous supprimer ce client ?") == QMessageBox::Yes) {
+            ui->tableWidget_Client->removeRow(r);
+        }
+    });
+}
+
+int MainWindow::getRowForClientWidget(QWidget *widget) {
+    for (int i = 0; i < ui->tableWidget_Client->rowCount(); i++) {
+        if (ui->tableWidget_Client->cellWidget(i, 6) == widget) return i;
+    }
+    return -1;
 }
