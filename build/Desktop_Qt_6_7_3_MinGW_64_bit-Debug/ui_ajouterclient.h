@@ -11,10 +11,16 @@
 
 #include <QtCore/QVariant>
 #include <QtWidgets/QApplication>
-#include <QtWidgets/QFormLayout>
+#include <QtWidgets/QComboBox>
+#include <QtWidgets/QFrame>
+#include <QtWidgets/QGridLayout>
+#include <QtWidgets/QHBoxLayout>
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QLineEdit>
 #include <QtWidgets/QPushButton>
+#include <QtWidgets/QSpacerItem>
+#include <QtWidgets/QSpinBox>
+#include <QtWidgets/QVBoxLayout>
 #include <QtWidgets/QWidget>
 
 QT_BEGIN_NAMESPACE
@@ -22,6 +28,7 @@ QT_BEGIN_NAMESPACE
 class Ui_AjouterClient
 {
 public:
+    QHBoxLayout *horizontalLayout_main;
     QWidget *sidebar;
     QLabel *logo;
     QLabel *acceuil;
@@ -30,37 +37,59 @@ public:
     QLabel *employes;
     QLabel *maintenance;
     QLabel *vente;
+    QWidget *rightContainer;
+    QVBoxLayout *verticalLayout_right;
     QWidget *header;
+    QHBoxLayout *horizontalLayout_header;
     QLabel *wasteguardhead;
+    QSpacerItem *horizontalSpacer;
     QLabel *responsable;
-    QLabel *titrePage;
-    QWidget *formContainer;
-    QFormLayout *formLayout;
-    QLabel *labelEntreprise;
-    QLineEdit *le_entreprise;
-    QLabel *labelContact;
-    QLineEdit *le_contact;
-    QLabel *labelTelephone;
-    QLineEdit *le_telephone;
-    QLabel *labelEmail;
-    QLineEdit *le_email;
-    QPushButton *btn_ajouter;
+    QWidget *contentArea;
+    QHBoxLayout *horizontalLayout_content;
+    QSpacerItem *horizontalSpacer_2;
+    QFrame *formCard;
+    QVBoxLayout *verticalLayout_card;
+    QLabel *titleLabel;
+    QGridLayout *gridLayout_form;
+    QLabel *label_matricule;
+    QLineEdit *input_matricule;
+    QLabel *label_nom;
+    QLineEdit *input_nom;
+    QLabel *label_email;
+    QLineEdit *input_email;
+    QLabel *label_bacs;
+    QSpinBox *input_bacs;
+    QLabel *label_score;
+    QSpinBox *input_score;
+    QLabel *label_paiement;
+    QComboBox *input_paiement;
+    QSpacerItem *verticalSpacer;
+    QHBoxLayout *horizontalLayout_buttons;
+    QSpacerItem *horizontalSpacer_3;
     QPushButton *btn_annuler;
+    QPushButton *btn_ajouter;
+    QSpacerItem *horizontalSpacer_4;
+    QSpacerItem *horizontalSpacer_5;
 
     void setupUi(QWidget *AjouterClient)
     {
         if (AjouterClient->objectName().isEmpty())
             AjouterClient->setObjectName("AjouterClient");
         AjouterClient->resize(1280, 720);
-        AjouterClient->setStyleSheet(QString::fromUtf8("background-color: #F5F5F5;"));
+        AjouterClient->setStyleSheet(QString::fromUtf8("background-color: #f4f6f9;"));
+        horizontalLayout_main = new QHBoxLayout(AjouterClient);
+        horizontalLayout_main->setSpacing(0);
+        horizontalLayout_main->setObjectName("horizontalLayout_main");
+        horizontalLayout_main->setContentsMargins(0, 0, 0, 0);
         sidebar = new QWidget(AjouterClient);
         sidebar->setObjectName("sidebar");
-        sidebar->setGeometry(QRect(0, 0, 171, 750));
+        sidebar->setMinimumSize(QSize(171, 0));
+        sidebar->setMaximumSize(QSize(171, 16777215));
         sidebar->setStyleSheet(QString::fromUtf8("background-color: #0f2c4f;"));
         logo = new QLabel(sidebar);
         logo->setObjectName("logo");
-        logo->setGeometry(QRect(-10, 0, 181, 121));
-        logo->setPixmap(QPixmap(QString::fromUtf8("waste-logo.png")));
+        logo->setGeometry(QRect(0, 0, 171, 121));
+        logo->setPixmap(QPixmap(QString::fromUtf8(":/waste-logo.png")));
         logo->setScaledContents(true);
         acceuil = new QLabel(sidebar);
         acceuil->setObjectName("acceuil");
@@ -68,116 +97,239 @@ public:
         QFont font;
         font.setPointSize(10);
         acceuil->setFont(font);
+        acceuil->setStyleSheet(QString::fromUtf8("color: white;"));
         produits = new QLabel(sidebar);
         produits->setObjectName("produits");
         produits->setGeometry(QRect(50, 260, 63, 20));
         produits->setFont(font);
+        produits->setStyleSheet(QString::fromUtf8("color: white;"));
         clients = new QLabel(sidebar);
         clients->setObjectName("clients");
-        clients->setGeometry(QRect(50, 340, 63, 20));
+        clients->setGeometry(QRect(0, 330, 171, 35));
         clients->setFont(font);
+        clients->setStyleSheet(QString::fromUtf8("background-color: #2a4a6e; color: white; padding-left: 50px;"));
         employes = new QLabel(sidebar);
         employes->setObjectName("employes");
         employes->setGeometry(QRect(50, 420, 81, 31));
         employes->setFont(font);
+        employes->setStyleSheet(QString::fromUtf8("color: white;"));
         maintenance = new QLabel(sidebar);
         maintenance->setObjectName("maintenance");
         maintenance->setGeometry(QRect(50, 500, 111, 31));
         maintenance->setFont(font);
+        maintenance->setStyleSheet(QString::fromUtf8("color: white;"));
         vente = new QLabel(sidebar);
         vente->setObjectName("vente");
         vente->setGeometry(QRect(50, 580, 71, 31));
         vente->setFont(font);
-        header = new QWidget(AjouterClient);
+        vente->setStyleSheet(QString::fromUtf8("color: white;"));
+
+        horizontalLayout_main->addWidget(sidebar);
+
+        rightContainer = new QWidget(AjouterClient);
+        rightContainer->setObjectName("rightContainer");
+        verticalLayout_right = new QVBoxLayout(rightContainer);
+        verticalLayout_right->setSpacing(0);
+        verticalLayout_right->setObjectName("verticalLayout_right");
+        verticalLayout_right->setContentsMargins(0, 0, 0, 0);
+        header = new QWidget(rightContainer);
         header->setObjectName("header");
-        header->setGeometry(QRect(170, 0, 931, 80));
-        header->setStyleSheet(QString::fromUtf8("color: #FFFFFF;\n"
-"    font-family: \"Montserrat\";\n"
-"    font-weight: bold;\n"
-"    font-size: 18px;\n"
-"    background-color: #1A365D;"));
+        header->setMinimumSize(QSize(0, 80));
+        header->setMaximumSize(QSize(16777215, 80));
+        header->setStyleSheet(QString::fromUtf8("background-color: #1A365D; color: white;"));
+        horizontalLayout_header = new QHBoxLayout(header);
+        horizontalLayout_header->setObjectName("horizontalLayout_header");
         wasteguardhead = new QLabel(header);
         wasteguardhead->setObjectName("wasteguardhead");
-        wasteguardhead->setGeometry(QRect(30, 20, 311, 31));
+        QFont font1;
+        font1.setFamilies({QString::fromUtf8("Montserrat")});
+        font1.setPointSize(14);
+        font1.setBold(true);
+        wasteguardhead->setFont(font1);
+
+        horizontalLayout_header->addWidget(wasteguardhead);
+
+        horizontalSpacer = new QSpacerItem(40, 20, QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Minimum);
+
+        horizontalLayout_header->addItem(horizontalSpacer);
+
         responsable = new QLabel(header);
         responsable->setObjectName("responsable");
-        responsable->setGeometry(QRect(690, 20, 231, 31));
-        titrePage = new QLabel(AjouterClient);
-        titrePage->setObjectName("titrePage");
-        titrePage->setGeometry(QRect(210, 100, 301, 41));
-        QFont font1;
-        font1.setPointSize(16);
-        font1.setBold(true);
-        titrePage->setFont(font1);
-        titrePage->setStyleSheet(QString::fromUtf8("color: #1A365D;"));
-        formContainer = new QWidget(AjouterClient);
-        formContainer->setObjectName("formContainer");
-        formContainer->setGeometry(QRect(210, 160, 600, 400));
-        formContainer->setStyleSheet(QString::fromUtf8("background-color: white; border-radius: 10px;"));
-        formLayout = new QFormLayout(formContainer);
-        formLayout->setObjectName("formLayout");
-        formLayout->setFieldGrowthPolicy(QFormLayout::FieldGrowthPolicy::ExpandingFieldsGrow);
-        formLayout->setRowWrapPolicy(QFormLayout::RowWrapPolicy::DontWrapRows);
-        formLayout->setLabelAlignment(Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter);
-        formLayout->setFormAlignment(Qt::AlignmentFlag::AlignHCenter|Qt::AlignmentFlag::AlignTop);
-        formLayout->setVerticalSpacing(20);
-        formLayout->setContentsMargins(30, 30, 30, 30);
-        labelEntreprise = new QLabel(formContainer);
-        labelEntreprise->setObjectName("labelEntreprise");
-        labelEntreprise->setFont(font);
+        QFont font2;
+        font2.setFamilies({QString::fromUtf8("Montserrat")});
+        font2.setPointSize(10);
+        responsable->setFont(font2);
 
-        formLayout->setWidget(0, QFormLayout::LabelRole, labelEntreprise);
+        horizontalLayout_header->addWidget(responsable);
 
-        le_entreprise = new QLineEdit(formContainer);
-        le_entreprise->setObjectName("le_entreprise");
-        le_entreprise->setMinimumSize(QSize(0, 30));
 
-        formLayout->setWidget(0, QFormLayout::FieldRole, le_entreprise);
+        verticalLayout_right->addWidget(header);
 
-        labelContact = new QLabel(formContainer);
-        labelContact->setObjectName("labelContact");
-        labelContact->setFont(font);
+        contentArea = new QWidget(rightContainer);
+        contentArea->setObjectName("contentArea");
+        horizontalLayout_content = new QHBoxLayout(contentArea);
+        horizontalLayout_content->setObjectName("horizontalLayout_content");
+        horizontalSpacer_2 = new QSpacerItem(40, 20, QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Minimum);
 
-        formLayout->setWidget(1, QFormLayout::LabelRole, labelContact);
+        horizontalLayout_content->addItem(horizontalSpacer_2);
 
-        le_contact = new QLineEdit(formContainer);
-        le_contact->setObjectName("le_contact");
-        le_contact->setMinimumSize(QSize(0, 30));
+        formCard = new QFrame(contentArea);
+        formCard->setObjectName("formCard");
+        formCard->setMinimumSize(QSize(900, 500));
+        formCard->setStyleSheet(QString::fromUtf8("\n"
+"             QFrame#formCard {\n"
+"              background-color: white;\n"
+"              border-radius: 15px;\n"
+"              border: 1px solid #e0e0e0;\n"
+"             }\n"
+"             QLabel { color: #333; font-size: 14px; font-weight: bold; }\n"
+"             QLineEdit, QComboBox, QSpinBox {\n"
+"              padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 14px; background-color: #fafafa; color: black;\n"
+"             }\n"
+"             QLineEdit:focus, QComboBox:focus, QSpinBox:focus { border: 1px solid #3498db; background-color: white; }\n"
+"             QPushButton#btn_ajouter {\n"
+"              background-color: #28a745; color: white; font-weight: bold; border-radius: 5px; padding: 12px; font-size: 14px;\n"
+"             }\n"
+"             QPushButton#btn_ajouter:hover { background-color: #218838; }\n"
+"             QPushButton#btn_annuler {\n"
+"              background-color: #6c757d; color: white; font-weight: bold; border-radius: 5px; padding: 12px; font-size: 14p"
+                        "x;\n"
+"             }\n"
+"             QPushButton#btn_annuler:hover { background-color: #5a6268; }\n"
+"            "));
+        verticalLayout_card = new QVBoxLayout(formCard);
+        verticalLayout_card->setSpacing(25);
+        verticalLayout_card->setObjectName("verticalLayout_card");
+        verticalLayout_card->setContentsMargins(40, 30, 40, 30);
+        titleLabel = new QLabel(formCard);
+        titleLabel->setObjectName("titleLabel");
+        QFont font3;
+        font3.setPointSize(18);
+        font3.setBold(true);
+        titleLabel->setFont(font3);
+        titleLabel->setStyleSheet(QString::fromUtf8("color: #1A365D; border-bottom: 2px solid #3498db; padding-bottom: 15px;"));
+        titleLabel->setAlignment(Qt::AlignCenter);
 
-        formLayout->setWidget(1, QFormLayout::FieldRole, le_contact);
+        verticalLayout_card->addWidget(titleLabel);
 
-        labelTelephone = new QLabel(formContainer);
-        labelTelephone->setObjectName("labelTelephone");
-        labelTelephone->setFont(font);
+        gridLayout_form = new QGridLayout();
+        gridLayout_form->setObjectName("gridLayout_form");
+        gridLayout_form->setHorizontalSpacing(40);
+        gridLayout_form->setVerticalSpacing(30);
+        label_matricule = new QLabel(formCard);
+        label_matricule->setObjectName("label_matricule");
 
-        formLayout->setWidget(2, QFormLayout::LabelRole, labelTelephone);
+        gridLayout_form->addWidget(label_matricule, 0, 0, 1, 1);
 
-        le_telephone = new QLineEdit(formContainer);
-        le_telephone->setObjectName("le_telephone");
-        le_telephone->setMinimumSize(QSize(0, 30));
+        input_matricule = new QLineEdit(formCard);
+        input_matricule->setObjectName("input_matricule");
 
-        formLayout->setWidget(2, QFormLayout::FieldRole, le_telephone);
+        gridLayout_form->addWidget(input_matricule, 0, 1, 1, 1);
 
-        labelEmail = new QLabel(formContainer);
-        labelEmail->setObjectName("labelEmail");
-        labelEmail->setFont(font);
+        label_nom = new QLabel(formCard);
+        label_nom->setObjectName("label_nom");
 
-        formLayout->setWidget(3, QFormLayout::LabelRole, labelEmail);
+        gridLayout_form->addWidget(label_nom, 0, 2, 1, 1);
 
-        le_email = new QLineEdit(formContainer);
-        le_email->setObjectName("le_email");
-        le_email->setMinimumSize(QSize(0, 30));
+        input_nom = new QLineEdit(formCard);
+        input_nom->setObjectName("input_nom");
 
-        formLayout->setWidget(3, QFormLayout::FieldRole, le_email);
+        gridLayout_form->addWidget(input_nom, 0, 3, 1, 1);
 
-        btn_ajouter = new QPushButton(AjouterClient);
-        btn_ajouter->setObjectName("btn_ajouter");
-        btn_ajouter->setGeometry(QRect(650, 580, 160, 40));
-        btn_ajouter->setStyleSheet(QString::fromUtf8("background-color: #45a049; color: white; font-weight: bold; border-radius: 5px;"));
-        btn_annuler = new QPushButton(AjouterClient);
+        label_email = new QLabel(formCard);
+        label_email->setObjectName("label_email");
+
+        gridLayout_form->addWidget(label_email, 1, 0, 1, 1);
+
+        input_email = new QLineEdit(formCard);
+        input_email->setObjectName("input_email");
+
+        gridLayout_form->addWidget(input_email, 1, 1, 1, 1);
+
+        label_bacs = new QLabel(formCard);
+        label_bacs->setObjectName("label_bacs");
+
+        gridLayout_form->addWidget(label_bacs, 1, 2, 1, 1);
+
+        input_bacs = new QSpinBox(formCard);
+        input_bacs->setObjectName("input_bacs");
+        input_bacs->setMaximum(999);
+
+        gridLayout_form->addWidget(input_bacs, 1, 3, 1, 1);
+
+        label_score = new QLabel(formCard);
+        label_score->setObjectName("label_score");
+
+        gridLayout_form->addWidget(label_score, 2, 0, 1, 1);
+
+        input_score = new QSpinBox(formCard);
+        input_score->setObjectName("input_score");
+        input_score->setMaximum(9999);
+
+        gridLayout_form->addWidget(input_score, 2, 1, 1, 1);
+
+        label_paiement = new QLabel(formCard);
+        label_paiement->setObjectName("label_paiement");
+
+        gridLayout_form->addWidget(label_paiement, 2, 2, 1, 1);
+
+        input_paiement = new QComboBox(formCard);
+        input_paiement->addItem(QString());
+        input_paiement->addItem(QString());
+        input_paiement->addItem(QString());
+        input_paiement->addItem(QString());
+        input_paiement->setObjectName("input_paiement");
+
+        gridLayout_form->addWidget(input_paiement, 2, 3, 1, 1);
+
+
+        verticalLayout_card->addLayout(gridLayout_form);
+
+        verticalSpacer = new QSpacerItem(20, 40, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
+
+        verticalLayout_card->addItem(verticalSpacer);
+
+        horizontalLayout_buttons = new QHBoxLayout();
+        horizontalLayout_buttons->setSpacing(20);
+        horizontalLayout_buttons->setObjectName("horizontalLayout_buttons");
+        horizontalSpacer_3 = new QSpacerItem(40, 20, QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Minimum);
+
+        horizontalLayout_buttons->addItem(horizontalSpacer_3);
+
+        btn_annuler = new QPushButton(formCard);
         btn_annuler->setObjectName("btn_annuler");
-        btn_annuler->setGeometry(QRect(470, 580, 160, 40));
-        btn_annuler->setStyleSheet(QString::fromUtf8("background-color: #d9534f; color: white; font-weight: bold; border-radius: 5px;"));
+        btn_annuler->setCursor(QCursor(Qt::CursorShape::PointingHandCursor));
+        btn_annuler->setMinimumSize(QSize(160, 45));
+
+        horizontalLayout_buttons->addWidget(btn_annuler);
+
+        btn_ajouter = new QPushButton(formCard);
+        btn_ajouter->setObjectName("btn_ajouter");
+        btn_ajouter->setCursor(QCursor(Qt::CursorShape::PointingHandCursor));
+        btn_ajouter->setMinimumSize(QSize(200, 45));
+
+        horizontalLayout_buttons->addWidget(btn_ajouter);
+
+        horizontalSpacer_4 = new QSpacerItem(40, 20, QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Minimum);
+
+        horizontalLayout_buttons->addItem(horizontalSpacer_4);
+
+
+        verticalLayout_card->addLayout(horizontalLayout_buttons);
+
+
+        horizontalLayout_content->addWidget(formCard);
+
+        horizontalSpacer_5 = new QSpacerItem(40, 20, QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Minimum);
+
+        horizontalLayout_content->addItem(horizontalSpacer_5);
+
+
+        verticalLayout_right->addWidget(contentArea);
+
+
+        horizontalLayout_main->addWidget(rightContainer);
+
 
         retranslateUi(AjouterClient);
 
@@ -195,17 +347,23 @@ public:
         vente->setText(QCoreApplication::translate("AjouterClient", "Vente", nullptr));
         wasteguardhead->setText(QCoreApplication::translate("AjouterClient", "WasteGuard - Gestion de Clients", nullptr));
         responsable->setText(QCoreApplication::translate("AjouterClient", "Responsable Commercial", nullptr));
-        titrePage->setText(QCoreApplication::translate("AjouterClient", "Ajouter un Nouveau Client", nullptr));
-        labelEntreprise->setText(QCoreApplication::translate("AjouterClient", "Entreprise / Nom :", nullptr));
-        le_entreprise->setPlaceholderText(QCoreApplication::translate("AjouterClient", "Nom de l'entreprise", nullptr));
-        labelContact->setText(QCoreApplication::translate("AjouterClient", "Contact :", nullptr));
-        le_contact->setPlaceholderText(QCoreApplication::translate("AjouterClient", "Nom du contact", nullptr));
-        labelTelephone->setText(QCoreApplication::translate("AjouterClient", "T\303\251l\303\251phone :", nullptr));
-        le_telephone->setPlaceholderText(QCoreApplication::translate("AjouterClient", "Num\303\251ro de t\303\251l\303\251phone", nullptr));
-        labelEmail->setText(QCoreApplication::translate("AjouterClient", "Email :", nullptr));
-        le_email->setPlaceholderText(QCoreApplication::translate("AjouterClient", "Adresse email", nullptr));
+        titleLabel->setText(QCoreApplication::translate("AjouterClient", "Ajouter un Nouveau Client", nullptr));
+        label_matricule->setText(QCoreApplication::translate("AjouterClient", "Matricule Client :", nullptr));
+        input_matricule->setPlaceholderText(QCoreApplication::translate("AjouterClient", "Ex: CL-001", nullptr));
+        label_nom->setText(QCoreApplication::translate("AjouterClient", "Nom / Entreprise :", nullptr));
+        input_nom->setPlaceholderText(QCoreApplication::translate("AjouterClient", "Nom du client ou entreprise", nullptr));
+        label_email->setText(QCoreApplication::translate("AjouterClient", "Adresse Email :", nullptr));
+        input_email->setPlaceholderText(QCoreApplication::translate("AjouterClient", "email@exemple.com", nullptr));
+        label_bacs->setText(QCoreApplication::translate("AjouterClient", "Nombre de Bacs :", nullptr));
+        label_score->setText(QCoreApplication::translate("AjouterClient", "Score Fid\303\251lit\303\251 :", nullptr));
+        label_paiement->setText(QCoreApplication::translate("AjouterClient", "Statut Paiement :", nullptr));
+        input_paiement->setItemText(0, QCoreApplication::translate("AjouterClient", "\303\200 Jour", nullptr));
+        input_paiement->setItemText(1, QCoreApplication::translate("AjouterClient", "En Retard", nullptr));
+        input_paiement->setItemText(2, QCoreApplication::translate("AjouterClient", "En Attente", nullptr));
+        input_paiement->setItemText(3, QCoreApplication::translate("AjouterClient", "Pay\303\251", nullptr));
+
+        btn_annuler->setText(QCoreApplication::translate("AjouterClient", "Annuler (Retour)", nullptr));
         btn_ajouter->setText(QCoreApplication::translate("AjouterClient", "Ajouter Client", nullptr));
-        btn_annuler->setText(QCoreApplication::translate("AjouterClient", "Annuler", nullptr));
     } // retranslateUi
 
 };

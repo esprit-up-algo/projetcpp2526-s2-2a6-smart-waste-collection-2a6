@@ -15,6 +15,9 @@ public:
     explicit AjouterClient(QWidget *parent = nullptr);
     ~AjouterClient();
 
+signals:
+    void clientAdded(QString matricule, QString nom, QString email, QString bacs, QString score, QString paiement);
+
 private:
     Ui::AjouterClient *ui;
 };

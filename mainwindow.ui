@@ -17,6 +17,9 @@
    <iconset theme="QIcon::ThemeIcon::ImageLoading"/>
   </property>
   <widget class="QWidget" name="centralwidget">
+   <property name="styleSheet">
+    <string notr="true">background-color: white;</string>
+   </property>
    <widget class="QWidget" name="sidebar" native="true">
     <property name="enabled">
      <bool>true</bool>
@@ -33,7 +36,7 @@
      <bool>false</bool>
     </property>
     <property name="styleSheet">
-     <string notr="true">background-color: #0f2c4f;</string>
+     <string notr="true">background-color: #0f2c4f; color: white;</string>
     </property>
     <widget class="QLabel" name="acceuil">
      <property name="geometry">
@@ -74,16 +77,19 @@
     <widget class="QLabel" name="clients">
      <property name="geometry">
       <rect>
-       <x>50</x>
-       <y>340</y>
-       <width>63</width>
-       <height>20</height>
+       <x>0</x>
+       <y>330</y>
+       <width>171</width>
+       <height>51</height>
       </rect>
      </property>
      <property name="font">
       <font>
        <pointsize>10</pointsize>
       </font>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">background-color: #2a4a6e; color: white; padding-left: 50px;</string>
      </property>
      <property name="text">
       <string>Clients</string>
@@ -153,7 +159,7 @@
       </rect>
      </property>
      <property name="pixmap">
-      <pixmap>waste-logo.png</pixmap>
+      <pixmap resource="logo.qrc">:/waste-logo.png</pixmap>
      </property>
      <property name="scaledContents">
       <bool>true</bool>
@@ -212,94 +218,80 @@
       <height>41</height>
      </rect>
     </property>
+    <property name="styleSheet">
+     <string notr="true">color:rgb(0, 0, 0)</string>
+    </property>
     <property name="text">
      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:16pt;&quot;&gt;Répertoire des Clients&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
     </property>
    </widget>
+   <widget class="QLabel" name="lblTrier">
+    <property name="geometry">
+     <rect>
+      <x>190</x>
+      <y>150</y>
+      <width>71</width>
+      <height>28</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">font-weight: bold; color: #333;</string>
+    </property>
+    <property name="text">
+     <string>Trier par :</string>
+    </property>
+   </widget>
+   <widget class="QComboBox" name="cbTrier">
+    <property name="geometry">
+     <rect>
+      <x>270</x>
+      <y>150</y>
+      <width>151</width>
+      <height>28</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">color:rgb(144, 144, 144)</string>
+    </property>
+    <item>
+     <property name="text">
+      <string>Réference</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>Nom</string>
+     </property>
+    </item>
+   </widget>
    <widget class="QLineEdit" name="recherche">
     <property name="geometry">
      <rect>
-      <x>180</x>
+      <x>440</x>
       <y>150</y>
       <width>340</width>
       <height>28</height>
      </rect>
     </property>
     <property name="placeholderText">
-     <string>Rechercher un client…</string>
+     <string>Rechercher...</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="nvclient">
+   <widget class="QPushButton" name="btnNouveau">
     <property name="geometry">
      <rect>
-      <x>1070</x>
-      <y>110</y>
-      <width>171</width>
-      <height>41</height>
+      <x>800</x>
+      <y>150</y>
+      <width>120</width>
+      <height>28</height>
      </rect>
     </property>
     <property name="styleSheet">
-     <string notr="true">background-color: #45a049;</string>
+     <string notr="true">background-color: #0f2b4c; color: white; border-radius: 5px; font-weight: bold;</string>
     </property>
     <property name="text">
-     <string>+Nouveau Client</string>
+     <string>+ Ajouter</string>
     </property>
-   </widget>
-   <widget class="QTableWidget" name="tableWidget">
-    <property name="geometry">
-     <rect>
-      <x>190</x>
-      <y>230</y>
-      <width>801</width>
-      <height>211</height>
-     </rect>
-    </property>
-    <property name="showGrid">
-     <bool>true</bool>
-    </property>
-    <attribute name="horizontalHeaderVisible">
-     <bool>true</bool>
-    </attribute>
-    <attribute name="horizontalHeaderDefaultSectionSize">
-     <number>160</number>
-    </attribute>
-    <attribute name="horizontalHeaderHighlightSections">
-     <bool>true</bool>
-    </attribute>
-    <attribute name="verticalHeaderVisible">
-     <bool>false</bool>
-    </attribute>
-    <attribute name="verticalHeaderDefaultSectionSize">
-     <number>50</number>
-    </attribute>
-    <attribute name="verticalHeaderHighlightSections">
-     <bool>true</bool>
-    </attribute>
-    <column>
-     <property name="text">
-      <string>Entreprise / Nom</string>
-     </property>
-    </column>
-    <column>
-     <property name="text">
-      <string>Contact</string>
-     </property>
-    </column>
-    <column>
-     <property name="text">
-      <string>Bacs Actifs</string>
-     </property>
-    </column>
-    <column>
-     <property name="text">
-      <string>Paiement</string>
-     </property>
-    </column>
-    <column>
-     <property name="text">
-      <string>Fidelité</string>
-     </property>
-    </column>
    </widget>
    <widget class="QWidget" name="sidepanel" native="true">
     <property name="geometry">
@@ -335,7 +327,7 @@
        <rect>
         <x>40</x>
         <y>20</y>
-        <width>61</width>
+        <width>71</width>
         <height>21</height>
        </rect>
       </property>
@@ -434,7 +426,7 @@
 }</string>
      </property>
      <property name="text">
-      <string>Scoring Fidelité</string>
+      <string>Scoring</string>
      </property>
     </widget>
     <widget class="QPushButton" name="exportclient">
@@ -457,6 +449,143 @@
      </property>
     </widget>
    </widget>
+   <widget class="QTableWidget" name="tableWidget">
+    <property name="enabled">
+     <bool>true</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>180</x>
+      <y>230</y>
+      <width>851</width>
+      <height>400</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>-1</pointsize>
+      <kerning>true</kerning>
+     </font>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">color:rgb(0, 0, 0);
+font-size: 14px;
+QHeaderView::section {
+    background-color: #1A365D;
+    color: white;
+    font-weight: bold;
+    padding: 4px;
+    border: none;
+    font-size: 11px;
+}</string>
+    </property>
+    <property name="showGrid">
+     <bool>true</bool>
+    </property>
+    <property name="gridStyle">
+     <enum>Qt::PenStyle::SolidLine</enum>
+    </property>
+    <property name="sortingEnabled">
+     <bool>false</bool>
+    </property>
+    <property name="wordWrap">
+     <bool>true</bool>
+    </property>
+    <property name="cornerButtonEnabled">
+     <bool>true</bool>
+    </property>
+    <property name="rowCount">
+     <number>1</number>
+    </property>
+    <attribute name="horizontalHeaderMinimumSectionSize">
+     <number>26</number>
+    </attribute>
+    <attribute name="horizontalHeaderDefaultSectionSize">
+     <number>120</number>
+    </attribute>
+    <attribute name="verticalHeaderMinimumSectionSize">
+     <number>19</number>
+    </attribute>
+    <attribute name="verticalHeaderDefaultSectionSize">
+     <number>50</number>
+    </attribute>
+    <row/>
+    <column>
+     <property name="text">
+      <string>Matricule</string>
+     </property>
+     <property name="font">
+      <font>
+       <pointsize>9</pointsize>
+      </font>
+     </property>
+    </column>
+    <column>
+     <property name="text">
+      <string>Nom</string>
+     </property>
+    </column>
+    <column>
+     <property name="text">
+      <string>Email</string>
+     </property>
+    </column>
+    <column>
+     <property name="text">
+      <string>Bacs</string>
+     </property>
+    </column>
+    <column>
+     <property name="text">
+      <string>Score</string>
+     </property>
+    </column>
+    <column>
+     <property name="text">
+      <string>Paiement</string>
+     </property>
+    </column>
+    <column>
+     <property name="text">
+      <string>Actions</string>
+     </property>
+    </column>
+    <item row="0" column="0">
+     <property name="text">
+      <string>C-01</string>
+     </property>
+    </item>
+    <item row="0" column="1">
+     <property name="text">
+      <string>test</string>
+     </property>
+    </item>
+    <item row="0" column="2">
+     <property name="text">
+      <string>test@gmail.com</string>
+     </property>
+    </item>
+    <item row="0" column="3">
+     <property name="text">
+      <string>0</string>
+     </property>
+    </item>
+    <item row="0" column="4">
+     <property name="text">
+      <string>6</string>
+     </property>
+    </item>
+    <item row="0" column="5">
+     <property name="text">
+      <string>Payé</string>
+     </property>
+    </item>
+    <item row="0" column="6">
+     <property name="text">
+      <string/>
+     </property>
+    </item>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
@@ -470,23 +599,8 @@
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
  </widget>
- <resources/>
- <connections>
-  <connection>
-   <sender>nvclient</sender>
-   <signal>clicked()</signal>
-   <receiver>MainWindow</receiver>
-   <slot>show()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>1131</x>
-     <y>151</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>1030</x>
-     <y>196</y>
-    </hint>
-   </hints>
-  </connection>
- </connections>
+ <resources>
+  <include location="logo.qrc"/>
+ </resources>
+ <connections/>
 </ui>

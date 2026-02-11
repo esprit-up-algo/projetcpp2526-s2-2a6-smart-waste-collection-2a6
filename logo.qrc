@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/">
+        <file>waste-logo.png</file>
+        <file alias="style.qss">style.css</file>
+    </qresource>
+</RCC>
