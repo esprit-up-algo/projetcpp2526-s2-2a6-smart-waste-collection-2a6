@@ -1,5 +1,14 @@
 <RCC>
     <qresource prefix="/">
+<<<<<<< HEAD
         <file>Gemini_Generated_Image_8k5i7p8k5i7p8k5i-removebg-preview (2).png</file>
+=======
+        <file>login_logo.png</file>
+        <file>wasteguard_logo.png</file>
+        <file>logo1.png</file>
+        <file>logo2.png</file>
+        <file>WASTEGUARD (1) (1).png</file>
+        <file>WASTEGUARD (1).png</file>
+>>>>>>> 2a1db57 (atelier connexion)
     </qresource>
 </RCC>
