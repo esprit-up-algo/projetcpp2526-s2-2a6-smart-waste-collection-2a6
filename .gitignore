@@ -1,0 +1,17 @@
+build/
+*.pro.user*
+*.qtc_clangd/
+.qtc_clangd/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+
+# Compiled
+*.o
+*.obj
+*.exe
+*.dll
+*.a
+*.so
+*.log
+*.tmp
