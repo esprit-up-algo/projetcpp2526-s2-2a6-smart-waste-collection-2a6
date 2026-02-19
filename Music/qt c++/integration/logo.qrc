@@ -1,0 +1,14 @@
+<RCC>
+    <qresource prefix="/">
+        <file>login_logo.png</file>
+        <file>wasteguard_logo.png</file>
+        <file>logo1.png</file>
+        <file>logo2.png</file>
+        <file>WASTEGUARD (1) (1).png</file>
+        <file>WASTEGUARD (1).png</file>
+        <file>assets/bin.png</file>
+        <file>assets/sensor.png</file>
+        <file>assets/compactor.png</file>
+        <file>assets/landscape_bin.png</file>
+    </qresource>
+</RCC>
