@@ -5,14 +5,20 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 CONFIG += c++17
 
 SOURCES += \
+    connection.cpp \
     main.cpp \
-    mainwindow.cpp
+    mainwindow.cpp \
+    mascotwidget.cpp
 
 HEADERS += \
-    mainwindow.h
+    connection.h \
+    mainwindow.h \
+    mascotwidget.h
 
 FORMS += \
     mainwindow.ui
 
 RESOURCES += \
     logo.qrc
+QT += sql
+CONFIG += console

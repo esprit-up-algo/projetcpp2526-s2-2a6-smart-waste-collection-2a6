@@ -699,7 +699,6 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
 /* --- Unified right sidebars (Employees reference) --- */
 QFrame#sidePanel_Employe,
 QFrame#rightSidebar,
-QFrame#rightSidebar_Commande,
 QWidget#sidepanel,
 QFrame#prod_rightSidebar {
     background: transparent;
@@ -707,89 +706,17 @@ QFrame#prod_rightSidebar {
 }
 
 QFrame#statCard, QFrame#statCard_2, QFrame#statCard_3, QFrame#actionCard,
-QFrame#statsBox, QFrame#orderBox,
+QFrame#stat1, QFrame#stat2, QFrame#stat3, QFrame#statsBox, QFrame#orderBox,
 QWidget#growthWidget {
     background-color: #ffffff;
     border: 1px solid #dce1e6;
     border-radius: 12px;
 }
 
-QFrame#stat1, QFrame#stat2, QFrame#stat3,
-QFrame#stat1_Cmd, QFrame#stat2_Cmd, QFrame#stat3_Cmd {
-    background-color: #ffffff;
-    border: none;
-    border-radius: 16px;
-    padding: 18px 16px;
-}
-
-QFrame#stat1:hover, QFrame#stat2:hover, QFrame#stat3:hover,
-QFrame#stat1_Cmd:hover, QFrame#stat2_Cmd:hover, QFrame#stat3_Cmd:hover {
-    background-color: #f0f7ff;
-    border: 1px solid #b3d4fc;
-}
-
-QLabel#lblFunc, QLabel#lblFunc_Cmd, QLabel#pilotage, QLabel#lblStatsTitle, QLabel#lblOrderTitle, QLabel#label_Actions {
+QLabel#lblFunc, QLabel#pilotage, QLabel#lblStatsTitle, QLabel#lblOrderTitle, QLabel#label_Actions {
     color: #1f2d3d;
     font-size: 15px;
     font-weight: 700;
-}
-
-QLabel#st_icon1, QLabel#st_icon2, QLabel#st_icon3,
-QLabel#st_icon1_Cmd, QLabel#st_icon2_Cmd, QLabel#st_icon3_Cmd {
-    font-size: 28px;
-    padding: 0px;
-    background: transparent;
-    border: none;
-}
-
-QFrame#miniChartFrame {
-    background-color: #ffffff;
-    border: none;
-    border-radius: 16px;
-    padding: 14px;
-}
-
-QLabel#lblMiniChartTitle {
-    font-size: 13px;
-    font-weight: 700;
-    color: #1f2d3d;
-}
-
-QLabel#lblMiniBar1, QLabel#lblMiniBar2, QLabel#lblMiniBar3 {
-    font-size: 12px;
-    color: #4a5568;
-    font-weight: 500;
-}
-
-QProgressBar#pbMini1, QProgressBar#pbMini2, QProgressBar#pbMini3 {
-    border: none;
-    border-radius: 5px;
-    background-color: #e2e8f0;
-    min-height: 10px;
-    max-height: 10px;
-    text-align: center;
-}
-
-QProgressBar#pbMini1::chunk {
-    background-color: #38a169;
-    border-radius: 5px;
-}
-
-QProgressBar#pbMini2::chunk {
-    background-color: #3182ce;
-    border-radius: 5px;
-}
-
-QProgressBar#pbMini3::chunk {
-    background-color: #e53e3e;
-    border-radius: 5px;
-}
-
-QLabel#lblMiniPct1, QLabel#lblMiniPct2, QLabel#lblMiniPct3 {
-    font-size: 11px;
-    font-weight: 700;
-    color: #2d3748;
-    min-width: 32px;
 }
 
 QPushButton#btnFichePaie, QPushButton#btnGoMission, QPushButton#btnGoPointage, QPushButton#btnGoStats, QPushButton#btnExport,
@@ -816,515 +743,6 @@ QPushButton#prod_btnPdf:hover, QPushButton#prod_btnMap3D:hover, QPushButton#prod
     background-color: #e3f2fd;
     border: 1px solid #3498db;
     color: #0f2b4c;
-}
-
-QPushButton#btnGoStats_Maint,
-QPushButton#btnGoStats_Cmd,
-QPushButton#btnPdf,
-QPushButton#btnPdf_Cmd {
-    background-color: #1a365d;
-    color: #ffffff;
-    border: none;
-    border-radius: 12px;
-    padding: 16px 20px;
-    font-size: 15px;
-    font-weight: 700;
-    min-height: 48px;
-}
-
-QPushButton#btnGoStats_Maint:hover,
-QPushButton#btnGoStats_Cmd:hover,
-QPushButton#btnPdf:hover,
-QPushButton#btnPdf_Cmd:hover {
-    background-color: #2a4a7f;
-}
-
-QLabel#st_val1, QLabel#st_val2, QLabel#st_val3,
-QLabel#st_val1_Cmd, QLabel#st_val2_Cmd, QLabel#st_val3_Cmd {
-    font-size: 28px;
-    font-weight: 800;
-    color: #1a365d;
-    padding: 2px 0px;
-}
-
-QLabel#st_lbl1, QLabel#st_lbl2, QLabel#st_lbl3,
-QLabel#st_lbl1_Cmd, QLabel#st_lbl2_Cmd, QLabel#st_lbl3_Cmd {
-    font-size: 12px;
-    color: #a0aec0;
-    font-weight: 600;
-    letter-spacing: 1px;
-}
-
-QWidget#pageCmdAjout {
-    background-color: #f0f2f5;
-}
-
-QFrame#cardMod_3 {
-    background-color: #ffffff;
-    border-radius: 18px;
-    border: 1px solid #e2e8f0;
-    padding: 10px;
-}
-
-QLabel#lblTitleMod_3 {
-    font-size: 22px;
-    font-weight: 800;
-    color: #1a365d;
-    padding: 8px 0px 12px 0px;
-    border-bottom: 2px solid #e2e8f0;
-    margin-bottom: 8px;
-}
-
-QFrame#cardMod_3 QLabel {
-    font-size: 13px;
-    font-weight: 600;
-    color: #4a5568;
-}
-
-QFrame#cardMod_3 QLineEdit {
-    background-color: #f7fafc;
-    border: 1.5px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 12px 16px;
-    font-size: 14px;
-    color: #2d3748;
-    min-height: 24px;
-}
-
-QFrame#cardMod_3 QLineEdit:focus {
-    border: 1.5px solid #4299e1;
-    background-color: #ffffff;
-}
-
-QFrame#cardMod_3 QComboBox {
-    background-color: #f7fafc;
-    border: 1.5px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 10px 14px;
-    font-size: 14px;
-    color: #2d3748;
-    min-height: 24px;
-}
-
-QFrame#cardMod_3 QComboBox:focus {
-    border: 1.5px solid #4299e1;
-    background-color: #ffffff;
-}
-
-QFrame#cardMod_3 QSpinBox,
-QFrame#cardMod_3 QDoubleSpinBox {
-    background-color: #f7fafc;
-    border: 1.5px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 10px 14px;
-    font-size: 14px;
-    color: #2d3748;
-    min-height: 24px;
-}
-
-QFrame#cardMod_3 QSpinBox:focus,
-QFrame#cardMod_3 QDoubleSpinBox:focus {
-    border: 1.5px solid #4299e1;
-    background-color: #ffffff;
-}
-
-QFrame#cardMod_3 QTextEdit {
-    background-color: #f7fafc;
-    border: 1.5px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 12px 16px;
-    font-size: 14px;
-    color: #2d3748;
-}
-
-QFrame#cardMod_3 QTextEdit:focus {
-    border: 1.5px solid #4299e1;
-    background-color: #ffffff;
-}
-
-QLabel#lblSectionDates {
-    font-size: 16px;
-    font-weight: 700;
-    color: #2d3748;
-    padding: 6px 0px;
-}
-
-QLabel#lblSectionAdresse {
-    font-size: 16px;
-    font-weight: 700;
-    color: #2d3748;
-    padding: 6px 0px;
-}
-
-QFrame#separatorLine1, QFrame#separatorLine2, QFrame#separatorLine3 {
-    background-color: #e2e8f0;
-    border: none;
-    min-height: 1px;
-    max-height: 1px;
-}
-
-QPushButton#btnSave_Mod_3 {
-    background-color: #38a169;
-    color: #ffffff;
-    border: none;
-    border-radius: 12px;
-    padding: 14px 20px;
-    font-size: 15px;
-    font-weight: 700;
-    min-height: 48px;
-}
-
-QPushButton#btnSave_Mod_3:hover {
-    background-color: #2f855a;
-}
-
-QPushButton#btnCancel_Mod_3 {
-    background-color: #edf2f7;
-    color: #4a5568;
-    border: 1.5px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 14px 20px;
-    font-size: 15px;
-    font-weight: 700;
-    min-height: 48px;
-}
-
-QPushButton#btnCancel_Mod_3:hover {
-    background-color: #e2e8f0;
-    border-color: #cbd5e0;
-    color: #2d3748;
-}
-
-QLabel#label_27, QLabel#label_28, QLabel#label_29,
-QLabel#label_30, QLabel#label_31, QLabel#label_32,
-QLabel#label_33, QLabel#label_34 {
-    font-size: 13px;
-    font-weight: 600;
-    color: #718096;
-}
-
-QLabel#l1_4, QLabel#l_px_4, QLabel#l_stat_4,
-QLabel#l2_4, QLabel#l_qty_4 {
-    font-size: 13px;
-    font-weight: 700;
-    color: #4a5568;
-    padding: 4px 0px;
-}
-
-QLabel#label {
-    font-size: 13px;
-    font-weight: 700;
-    color: #4a5568;
-    padding: 4px 0px;
-}
-
-QWidget#pageCmdModifier {
-    background-color: #f0f2f5;
-}
-
-QFrame#cardMod {
-    background-color: #ffffff;
-    border-radius: 18px;
-    border: 1px solid #e2e8f0;
-    padding: 10px;
-}
-
-QLabel#lblTitleMod {
-    font-size: 22px;
-    font-weight: 800;
-    color: #1a365d;
-    padding: 8px 0px 12px 0px;
-    border-bottom: 2px solid #e2e8f0;
-    margin-bottom: 8px;
-}
-
-QFrame#cardMod QLabel {
-    font-size: 13px;
-    font-weight: 600;
-    color: #4a5568;
-}
-
-QFrame#cardMod QLineEdit {
-    background-color: #f7fafc;
-    border: 1.5px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 12px 16px;
-    font-size: 14px;
-    color: #2d3748;
-    min-height: 24px;
-}
-
-QFrame#cardMod QLineEdit:focus {
-    border: 1.5px solid #4299e1;
-    background-color: #ffffff;
-}
-
-QFrame#cardMod QComboBox {
-    background-color: #f7fafc;
-    border: 1.5px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 10px 14px;
-    font-size: 14px;
-    color: #2d3748;
-    min-height: 24px;
-}
-
-QFrame#cardMod QComboBox:focus {
-    border: 1.5px solid #4299e1;
-    background-color: #ffffff;
-}
-
-QFrame#cardMod QSpinBox,
-QFrame#cardMod QDoubleSpinBox {
-    background-color: #f7fafc;
-    border: 1.5px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 10px 14px;
-    font-size: 14px;
-    color: #2d3748;
-    min-height: 24px;
-}
-
-QFrame#cardMod QSpinBox:focus,
-QFrame#cardMod QDoubleSpinBox:focus {
-    border: 1.5px solid #4299e1;
-    background-color: #ffffff;
-}
-
-QFrame#cardMod QTextEdit {
-    background-color: #f7fafc;
-    border: 1.5px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 12px 16px;
-    font-size: 14px;
-    color: #2d3748;
-}
-
-QFrame#cardMod QTextEdit:focus {
-    border: 1.5px solid #4299e1;
-    background-color: #ffffff;
-}
-
-QLabel#lblSectionDates_Mod {
-    font-size: 16px;
-    font-weight: 700;
-    color: #2d3748;
-    padding: 6px 0px;
-}
-
-QLabel#lblSectionAdresse_Mod {
-    font-size: 16px;
-    font-weight: 700;
-    color: #2d3748;
-    padding: 6px 0px;
-}
-
-QFrame#sepLineMod1, QFrame#sepLineMod2, QFrame#sepLineMod3 {
-    background-color: #e2e8f0;
-    border: none;
-    min-height: 1px;
-    max-height: 1px;
-}
-
-QLabel#l1_2, QLabel#l_px_2, QLabel#l_stat_2,
-QLabel#l2_2, QLabel#l_qty_2 {
-    font-size: 13px;
-    font-weight: 700;
-    color: #4a5568;
-    padding: 4px 0px;
-}
-
-QLabel#label_11, QLabel#label_12, QLabel#label_13,
-QLabel#label_14, QLabel#label_19, QLabel#label_20,
-QLabel#label_21, QLabel#label_22 {
-    font-size: 13px;
-    font-weight: 600;
-    color: #718096;
-}
-
-QFrame#cardMod[objectName="cardMod"] {
-    background-color: #ffffff;
-    border-radius: 18px;
-    border: 1px solid #e2e8f0;
-}
-
-QLabel#lblTitreFormMod {
-    font-size: 22px;
-    font-weight: 800;
-    color: #1a365d;
-    padding: 8px 0px 12px 0px;
-    border-bottom: 2px solid #e2e8f0;
-    margin-bottom: 8px;
-}
-
-QLabel#lblRefMod, QLabel#lblDateMod, QLabel#lblDurMod,
-QLabel#lblCoutMod, QLabel#lblPrioMod, QLabel#lblTechMod,
-QLabel#lblAddrMod, QLabel#lblDescMod, QLabel#lblPhotosAvantMod {
-    font-size: 13px;
-    font-weight: 700;
-    color: #4a5568;
-    padding: 4px 0px;
-}
-
-QLabel#lblLastUpdate {
-    font-size: 11px;
-    font-weight: 500;
-    color: #a0aec0;
-    padding: 4px 0px;
-}
-
-QLabel#lblImgPreview_Mod {
-    border: 2.5px dashed #cbd5e0;
-    border-radius: 14px;
-    background-color: #f7fafc;
-    color: #a0aec0;
-    font-size: 14px;
-    font-weight: 500;
-    min-height: 120px;
-    padding: 20px;
-}
-
-QFrame#sepMaintMod1, QFrame#sepMaintMod2, QFrame#sepMaintMod3, QFrame#sepMaintMod4 {
-    background-color: #e2e8f0;
-    border: none;
-    min-height: 1px;
-    max-height: 1px;
-}
-
-QLabel#lblSecInfoMod {
-    font-size: 16px;
-    font-weight: 700;
-    color: #2d3748;
-    padding: 6px 0px;
-}
-
-QLabel#lblSecTechMod {
-    font-size: 16px;
-    font-weight: 700;
-    color: #2d3748;
-    padding: 6px 0px;
-}
-
-QLabel#lblSecDescMod {
-    font-size: 16px;
-    font-weight: 700;
-    color: #2d3748;
-    padding: 6px 0px;
-}
-
-QLabel#lblSecPhotoMod {
-    font-size: 16px;
-    font-weight: 700;
-    color: #2d3748;
-    padding: 6px 0px;
-}
-
-QFrame#cardAdd {
-    background-color: #ffffff;
-    border-radius: 18px;
-    border: 1px solid #e2e8f0;
-}
-
-QLabel#lblTitreFormAdd {
-    font-size: 22px;
-    font-weight: 800;
-    color: #1a365d;
-    padding: 8px 0px 12px 0px;
-    border-bottom: 2px solid #e2e8f0;
-    margin-bottom: 8px;
-}
-
-QLabel#lblRefAdd, QLabel#lblDateAdd, QLabel#lblDurAdd,
-QLabel#lblCoutAdd, QLabel#lblPrioAdd, QLabel#lblTechAdd,
-QLabel#lblAddrAdd {
-    font-size: 13px;
-    font-weight: 700;
-    color: #4a5568;
-    padding: 4px 0px;
-}
-
-QLabel#lblDescAdd {
-    font-size: 15px;
-    font-weight: 700;
-    color: #2d3748;
-    padding: 6px 0px;
-}
-
-QLabel#lblPhotosAvantAdd, QLabel#lblPhotosApresAdd {
-    font-size: 15px;
-    font-weight: 700;
-    color: #2d3748;
-    padding: 6px 0px;
-}
-
-QLabel#lblImgPreview_Add, QLabel#lblImgPreview2_Add {
-    border: 2.5px dashed #cbd5e0;
-    border-radius: 14px;
-    background-color: #f7fafc;
-    color: #a0aec0;
-    font-size: 13px;
-    font-weight: 500;
-    min-height: 140px;
-    padding: 20px;
-}
-
-QLabel#lblImgPreview_Add:hover, QLabel#lblImgPreview2_Add:hover {
-    border-color: #90cdf4;
-    background-color: #ebf8ff;
-}
-
-QFrame#sepMaintAdd1, QFrame#sepMaintAdd2, QFrame#sepMaintAdd3, QFrame#sepMaintAdd4 {
-    background-color: #e2e8f0;
-    border: none;
-    min-height: 1px;
-    max-height: 1px;
-}
-
-QPushButton#btnSave_Add {
-    background-color: #38a169;
-    color: white;
-    border: none;
-    border-radius: 10px;
-    font-size: 14px;
-    font-weight: 700;
-    padding: 12px 28px;
-}
-
-QPushButton#btnSave_Add:hover {
-    background-color: #2f855a;
-}
-
-QPushButton#btnCancel_Add {
-    background-color: #edf2f7;
-    color: #4a5568;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    font-size: 14px;
-    font-weight: 600;
-    padding: 12px 28px;
-}
-
-QPushButton#btnCancel_Add:hover {
-    background-color: #e2e8f0;
-}
-
-QFrame#topBar_Aj {
-    background-color: #ffffff;
-    border-bottom: 1px solid #e2e8f0;
-    padding: 8px 16px;
-}
-
-QLabel#titleLabel_Aj {
-    font-size: 16px;
-    font-weight: 800;
-    color: #1a365d;
-    letter-spacing: 1px;
-}
-
-QLabel#userLabel_Aj {
-    font-size: 13px;
-    font-weight: 600;
-    color: #4a5568;
 }</string>
   </property>
   <widget class="QWidget" name="centralwidget">
@@ -5566,46 +4984,21 @@ text-align: center;</string>
              <widget class="QWidget" name="page_Maint_Dash">
               <layout class="QVBoxLayout" name="vl_page_Maint_Dash">
                <property name="spacing">
-                <number>0</number>
+                <number>20</number>
                </property>
                <property name="leftMargin">
-                <number>0</number>
+                <number>20</number>
                </property>
                <property name="topMargin">
                 <number>0</number>
                </property>
                <property name="rightMargin">
-                <number>0</number>
+                <number>20</number>
                </property>
                <property name="bottomMargin">
-                <number>0</number>
+                <number>20</number>
                </property>
                <item>
-                <widget class="QScrollArea" name="scrollAreaMaint">
-                 <property name="widgetResizable">
-                  <bool>true</bool>
-                 </property>
-                 <property name="frameShape">
-                  <enum>QFrame::Shape::NoFrame</enum>
-                 </property>
-                 <widget class="QWidget" name="scrollContentMaint">
-                  <layout class="QVBoxLayout" name="vlScrollMaint">
-                   <property name="spacing">
-                    <number>20</number>
-                   </property>
-                   <property name="leftMargin">
-                    <number>20</number>
-                   </property>
-                   <property name="topMargin">
-                    <number>0</number>
-                   </property>
-                   <property name="rightMargin">
-                    <number>20</number>
-                   </property>
-                   <property name="bottomMargin">
-                    <number>20</number>
-                   </property>
-                   <item>
                 <layout class="QHBoxLayout" name="horizontalLayout_1">
                  <property name="leftMargin">
                   <number>20</number>
@@ -5726,11 +5119,6 @@ Chef d'Atelier</string>
                          <string>Quantite</string>
                         </property>
                        </item>
-                       <item>
-                        <property name="text">
-                         <string>Priorite</string>
-                        </property>
-                       </item>
                       </widget>
                      </item>
                      <item>
@@ -5828,19 +5216,19 @@ Chef d'Atelier</string>
                    </property>
                    <layout class="QVBoxLayout" name="rightLayout_1">
                     <property name="spacing">
-                     <number>14</number>
+                     <number>10</number>
                     </property>
                     <property name="leftMargin">
-                     <number>8</number>
+                     <number>0</number>
                     </property>
                     <property name="topMargin">
-                     <number>8</number>
+                     <number>0</number>
                     </property>
                     <property name="rightMargin">
-                     <number>8</number>
+                     <number>0</number>
                     </property>
                     <property name="bottomMargin">
-                     <number>8</number>
+                     <number>0</number>
                     </property>
                     <item>
                      <widget class="QLabel" name="lblFunc">
@@ -5851,28 +5239,27 @@ Chef d'Atelier</string>
                     </item>
                     <item>
                      <widget class="QFrame" name="stat1">
-                      <layout class="QVBoxLayout" name="vlStat1">
-                       <property name="spacing">
-                        <number>4</number>
-                       </property>
-                       <item>
-                        <widget class="QLabel" name="st_icon1">
-                         <property name="text">
-                          <string>&#x1f6e0;</string>
-                         </property>
-                        </widget>
-                       </item>
+                      <property name="class" stdset="0">
+                       <string>statCard</string>
+                      </property>
+                      <layout class="QVBoxLayout">
                        <item>
                         <widget class="QLabel" name="st_val1">
                          <property name="text">
                           <string>1,245</string>
+                         </property>
+                         <property name="class" stdset="0">
+                          <string>statValue</string>
                          </property>
                         </widget>
                        </item>
                        <item>
                         <widget class="QLabel" name="st_lbl1">
                          <property name="text">
-                          <string>TOTAL INTERVENTIONS</string>
+                          <string>Total Interventions</string>
+                         </property>
+                         <property name="class" stdset="0">
+                          <string>statLabel</string>
                          </property>
                         </widget>
                        </item>
@@ -5881,28 +5268,27 @@ Chef d'Atelier</string>
                     </item>
                     <item>
                      <widget class="QFrame" name="stat2">
-                      <layout class="QVBoxLayout" name="vlStat2">
-                       <property name="spacing">
-                        <number>4</number>
-                       </property>
-                       <item>
-                        <widget class="QLabel" name="st_icon2">
-                         <property name="text">
-                          <string>&#x1f4b0;</string>
-                         </property>
-                        </widget>
-                       </item>
+                      <property name="class" stdset="0">
+                       <string>statCard</string>
+                      </property>
+                      <layout class="QVBoxLayout">
                        <item>
                         <widget class="QLabel" name="st_val2">
                          <property name="text">
                           <string>85,400 TND</string>
+                         </property>
+                         <property name="class" stdset="0">
+                          <string>statValue</string>
                          </property>
                         </widget>
                        </item>
                        <item>
                         <widget class="QLabel" name="st_lbl2">
                          <property name="text">
-                          <string>TOTAL COUT</string>
+                          <string>Total Coût</string>
+                         </property>
+                         <property name="class" stdset="0">
+                          <string>statLabel</string>
                          </property>
                         </widget>
                        </item>
@@ -5911,28 +5297,27 @@ Chef d'Atelier</string>
                     </item>
                     <item>
                      <widget class="QFrame" name="stat3">
-                      <layout class="QVBoxLayout" name="vlStat3">
-                       <property name="spacing">
-                        <number>4</number>
-                       </property>
-                       <item>
-                        <widget class="QLabel" name="st_icon3">
-                         <property name="text">
-                          <string>&#x23f1;</string>
-                         </property>
-                        </widget>
-                       </item>
+                      <property name="class" stdset="0">
+                       <string>statCard</string>
+                      </property>
+                      <layout class="QVBoxLayout">
                        <item>
                         <widget class="QLabel" name="st_val3">
                          <property name="text">
                           <string>0</string>
+                         </property>
+                         <property name="class" stdset="0">
+                          <string>statValue</string>
                          </property>
                         </widget>
                        </item>
                        <item>
                         <widget class="QLabel" name="st_lbl3">
                          <property name="text">
-                          <string>HEURES DE MAINTENANCE</string>
+                          <string>Nombre des heures de maintenance</string>
+                         </property>
+                         <property name="class" stdset="0">
+                          <string>statLabel</string>
                          </property>
                         </widget>
                        </item>
@@ -5950,7 +5335,7 @@ Chef d'Atelier</string>
                       <property name="sizeHint" stdset="0">
                        <size>
                         <width>0</width>
-                        <height>6</height>
+                        <height>8</height>
                        </size>
                       </property>
                      </spacer>
@@ -5964,15 +5349,6 @@ Chef d'Atelier</string>
                     </item>
                     <item>
                      <widget class="QLabel" name="lblExport">
-                      <property name="visible">
-                       <bool>false</bool>
-                      </property>
-                      <property name="maximumSize">
-                       <size>
-                        <width>0</width>
-                        <height>0</height>
-                       </size>
-                      </property>
                       <property name="text">
                        <string>EXPORTER</string>
                       </property>
@@ -5980,171 +5356,28 @@ Chef d'Atelier</string>
                     </item>
                     <item>
                      <widget class="QPushButton" name="btnPdf">
+                      <property name="styleSheet">
+                       <string notr="true">background-color: #ffffff;
+color: #1f2d3d;
+border: 1px solid #dce1e6;
+border-radius: 10px;
+padding: 12px 16px;
+font-size: 14px;
+font-weight: 700;
+text-align: center;</string>
+                      </property>
                       <property name="text">
                        <string>Rapport PDF</string>
                       </property>
                      </widget>
-                    </item>
-                    <item>
-                     <spacer name="vSpacerBottom_Maint">
-                      <property name="orientation">
-                       <enum>Qt::Orientation::Vertical</enum>
-                      </property>
-                      <property name="sizeHint" stdset="0">
-                       <size>
-                        <width>0</width>
-                        <height>0</height>
-                       </size>
-                      </property>
-                     </spacer>
                     </item>
                    </layout>
                   </widget>
                  </item>
                 </layout>
                </item>
-               <item>
-                <widget class="QFrame" name="miniChartFrame">
-                 <layout class="QVBoxLayout" name="vlMiniChart">
-                  <property name="spacing">
-                   <number>10</number>
-                  </property>
-                  <item>
-                   <widget class="QLabel" name="lblMiniChartTitle">
-                    <property name="text">
-                     <string>Repartition par Priorite</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <layout class="QHBoxLayout" name="hlMiniBar1">
-                    <property name="spacing">
-                     <number>8</number>
-                    </property>
-                    <item>
-                     <widget class="QLabel" name="lblMiniBar1">
-                      <property name="text">
-                       <string>Normale</string>
-                      </property>
-                      <property name="minimumSize">
-                       <size>
-                        <width>70</width>
-                        <height>0</height>
-                       </size>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <widget class="QProgressBar" name="pbMini1">
-                      <property name="value">
-                       <number>55</number>
-                      </property>
-                      <property name="textVisible">
-                       <bool>false</bool>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <widget class="QLabel" name="lblMiniPct1">
-                      <property name="text">
-                       <string>55%</string>
-                      </property>
-                      <property name="alignment">
-                       <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter</set>
-                      </property>
-                     </widget>
-                    </item>
-                   </layout>
-                  </item>
-                  <item>
-                   <layout class="QHBoxLayout" name="hlMiniBar2">
-                    <property name="spacing">
-                     <number>8</number>
-                    </property>
-                    <item>
-                     <widget class="QLabel" name="lblMiniBar2">
-                      <property name="text">
-                       <string>Urgente</string>
-                      </property>
-                      <property name="minimumSize">
-                       <size>
-                        <width>70</width>
-                        <height>0</height>
-                       </size>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <widget class="QProgressBar" name="pbMini2">
-                      <property name="value">
-                       <number>30</number>
-                      </property>
-                      <property name="textVisible">
-                       <bool>false</bool>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <widget class="QLabel" name="lblMiniPct2">
-                      <property name="text">
-                       <string>30%</string>
-                      </property>
-                      <property name="alignment">
-                       <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter</set>
-                      </property>
-                     </widget>
-                    </item>
-                   </layout>
-                  </item>
-                  <item>
-                   <layout class="QHBoxLayout" name="hlMiniBar3">
-                    <property name="spacing">
-                     <number>8</number>
-                    </property>
-                    <item>
-                     <widget class="QLabel" name="lblMiniBar3">
-                      <property name="text">
-                       <string>Critique</string>
-                      </property>
-                      <property name="minimumSize">
-                       <size>
-                        <width>70</width>
-                        <height>0</height>
-                       </size>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <widget class="QProgressBar" name="pbMini3">
-                      <property name="value">
-                       <number>15</number>
-                      </property>
-                      <property name="textVisible">
-                       <bool>false</bool>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <widget class="QLabel" name="lblMiniPct3">
-                      <property name="text">
-                       <string>15%</string>
-                      </property>
-                      <property name="alignment">
-                       <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter</set>
-                      </property>
-                     </widget>
-                    </item>
-                   </layout>
-                  </item>
-                 </layout>
-                </widget>
-               </item>
               </layout>
              </widget>
-            </widget>
-           </item>
-          </layout>
-         </widget>
              <widget class="QWidget" name="page_Maint_Ajout">
               <layout class="QVBoxLayout" name="vl_page_Maint_Ajout">
                <property name="spacing">
@@ -6201,90 +5434,26 @@ Chef d'Atelier</string>
                </item>
                <item>
                 <layout class="QVBoxLayout" name="vlAjoutRoot">
-               <item>
-                <widget class="QScrollArea" name="scrollArea_MaintAjout">
-                 <property name="widgetResizable">
-                  <bool>true</bool>
-                 </property>
-                 <property name="frameShape">
-                  <enum>QFrame::NoFrame</enum>
-                 </property>
-                 <widget class="QWidget" name="scrollContent_MaintAjout">
-                  <property name="geometry">
-                   <rect>
-                    <x>0</x>
-                    <y>0</y>
-                    <width>800</width>
-                    <height>1000</height>
-                   </rect>
-                  </property>
-                  <layout class="QVBoxLayout" name="vlScrollMaintAjout">
-                   <property name="leftMargin">
-                    <number>20</number>
-                   </property>
-                   <property name="rightMargin">
-                    <number>20</number>
-                   </property>
-                   <property name="bottomMargin">
-                    <number>20</number>
-                   </property>
                  <item>
                   <widget class="QPushButton" name="btnBack_Ajout">
-                   <property name="visible">
-                    <bool>false</bool>
-                   </property>
                    <property name="styleSheet">
                     <string>background-color: #e67e22; color: white; font-weight: bold; border-radius: 5px; padding: 8px;</string>
                    </property>
                    <property name="text">
                     <string>? Retour au Tableau de Bord</string>
                    </property>
-                   <property name="maximumSize">
-                    <size>
-                     <width>0</width>
-                     <height>0</height>
-                    </size>
-                   </property>
                   </widget>
                  </item>
                  <item>
                   <widget class="QFrame" name="cardAdd">
                    <layout class="QVBoxLayout" name="vlCardAdd">
-                    <property name="leftMargin">
-                     <number>32</number>
-                    </property>
-                    <property name="topMargin">
-                     <number>28</number>
-                    </property>
-                    <property name="rightMargin">
-                     <number>32</number>
-                    </property>
-                    <property name="bottomMargin">
-                     <number>28</number>
-                    </property>
-                    <property name="spacing">
-                     <number>14</number>
-                    </property>
                     <item>
                      <widget class="QLabel" name="lblTitreFormAdd">
-                      <property name="minimumSize">
-                       <size>
-                        <width>0</width>
-                        <height>50</height>
-                       </size>
-                      </property>
                       <property name="text">
                        <string>Nouvelle Intervention</string>
                       </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <widget class="QFrame" name="sepMaintAdd1">
-                      <property name="frameShape">
-                       <enum>QFrame::Shape::HLine</enum>
-                      </property>
-                      <property name="frameShadow">
-                       <enum>QFrame::Shadow::Sunken</enum>
+                      <property name="class" stdset="0">
+                       <string>formLabel</string>
                       </property>
                      </widget>
                     </item>
@@ -6451,16 +5620,6 @@ Chef d'Atelier</string>
                      </layout>
                     </item>
                     <item>
-                     <widget class="QFrame" name="sepMaintAdd2">
-                      <property name="frameShape">
-                       <enum>QFrame::Shape::HLine</enum>
-                      </property>
-                      <property name="frameShadow">
-                       <enum>QFrame::Shadow::Sunken</enum>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
                      <layout class="QHBoxLayout" name="hlTechAddrAdd">
                       <item>
                        <layout class="QVBoxLayout">
@@ -6507,16 +5666,6 @@ Chef d'Atelier</string>
                      </layout>
                     </item>
                     <item>
-                     <widget class="QFrame" name="sepMaintAdd3">
-                      <property name="frameShape">
-                       <enum>QFrame::Shape::HLine</enum>
-                      </property>
-                      <property name="frameShadow">
-                       <enum>QFrame::Shadow::Sunken</enum>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
                      <layout class="QVBoxLayout" name="vlDescAdd">
                       <item>
                        <widget class="QLabel" name="lblDescAdd">
@@ -6530,18 +5679,6 @@ Chef d'Atelier</string>
                       </item>
                       <item>
                        <widget class="QTextEdit" name="txtDescAdd">
-                        <property name="minimumSize">
-                         <size>
-                          <width>0</width>
-                          <height>80</height>
-                         </size>
-                        </property>
-                        <property name="maximumSize">
-                         <size>
-                          <width>16777215</width>
-                          <height>120</height>
-                         </size>
-                        </property>
                         <property name="placeholderText">
                          <string>Inspection du systeme de capteurs et reset du compacteur...</string>
                         </property>
@@ -6550,20 +5687,7 @@ Chef d'Atelier</string>
                      </layout>
                     </item>
                     <item>
-                     <widget class="QFrame" name="sepMaintAdd4">
-                      <property name="frameShape">
-                       <enum>QFrame::Shape::HLine</enum>
-                      </property>
-                      <property name="frameShadow">
-                       <enum>QFrame::Shadow::Sunken</enum>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
                      <layout class="QHBoxLayout" name="hlPhotosAdd">
-                      <property name="spacing">
-                       <number>16</number>
-                      </property>
                       <item>
                        <layout class="QVBoxLayout">
                         <item>
@@ -6571,24 +5695,24 @@ Chef d'Atelier</string>
                           <property name="text">
                            <string>Photos Avant</string>
                           </property>
+                          <property name="class" stdset="0">
+                           <string>formLabel</string>
+                          </property>
                          </widget>
                         </item>
                         <item>
                          <widget class="QLabel" name="lblImgPreview_Add">
                           <property name="minimumSize">
                            <size>
-                            <width>0</width>
-                            <height>150</height>
+                            <width>200</width>
+                            <height>100</height>
                            </size>
                           </property>
                           <property name="text">
-                           <string>Cliquez ou déposez vos images ici pour les télécharger</string>
+                           <string>Drag &amp; drop / Parcourir</string>
                           </property>
                           <property name="alignment">
                            <set>Qt::AlignmentFlag::AlignCenter</set>
-                          </property>
-                          <property name="wordWrap">
-                           <bool>true</bool>
                           </property>
                          </widget>
                         </item>
@@ -6599,7 +5723,10 @@ Chef d'Atelier</string>
                         <item>
                          <widget class="QLabel" name="lblPhotosApresAdd">
                           <property name="text">
-                           <string>Photos Après</string>
+                           <string>Photos Apres</string>
+                          </property>
+                          <property name="class" stdset="0">
+                           <string>formLabel</string>
                           </property>
                          </widget>
                         </item>
@@ -6607,18 +5734,15 @@ Chef d'Atelier</string>
                          <widget class="QLabel" name="lblImgPreview2_Add">
                           <property name="minimumSize">
                            <size>
-                            <width>0</width>
-                            <height>150</height>
+                            <width>200</width>
+                            <height>100</height>
                            </size>
                           </property>
                           <property name="text">
-                           <string>Cliquez ou déposez vos images ici pour les télécharger</string>
+                           <string>Drag &amp; drop / Parcourir</string>
                           </property>
                           <property name="alignment">
                            <set>Qt::AlignmentFlag::AlignCenter</set>
-                          </property>
-                          <property name="wordWrap">
-                           <bool>true</bool>
                           </property>
                          </widget>
                         </item>
@@ -6626,69 +5750,60 @@ Chef d'Atelier</string>
                       </item>
                      </layout>
                     </item>
+                    <item>
+                     <spacer name="verticalSpacerButtonsAdd">
+                      <property name="orientation">
+                       <enum>Qt::Orientation::Vertical</enum>
+                      </property>
+                      <property name="sizeType">
+                       <enum>QSizePolicy::Policy::Expanding</enum>
+                      </property>
+                      <property name="sizeHint" stdset="0">
+                       <size>
+                        <width>20</width>
+                        <height>40</height>
+                       </size>
+                      </property>
+                     </spacer>
+                    </item>
+                    <item>
+                     <layout class="QHBoxLayout" name="hlButtonsAdd">
+                      <item>
+                       <spacer>
+                        <property name="orientation">
+                         <enum>Qt::Orientation::Horizontal</enum>
+                        </property>
+                        <property name="sizeHint" stdset="0">
+                         <size>
+                          <width>40</width>
+                          <height>20</height>
+                         </size>
+                        </property>
+                       </spacer>
+                      </item>
+                      <item>
+                       <widget class="QPushButton" name="btnCancel_Add">
+                        <property name="text">
+                         <string>Annuler</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QPushButton" name="btnSave_Add">
+                        <property name="text">
+                         <string>Enregistrer</string>
+                        </property>
+                       </widget>
+                      </item>
+                     </layout>
+                    </item>
                    </layout>
                   </widget>
                  </item>
-                 <item>
-                  <layout class="QHBoxLayout" name="hlButtonsAdd">
-                   <property name="spacing">
-                    <number>16</number>
-                   </property>
-                   <item>
-                    <spacer>
-                     <property name="orientation">
-                      <enum>Qt::Orientation::Horizontal</enum>
-                     </property>
-                     <property name="sizeHint" stdset="0">
-                      <size>
-                       <width>40</width>
-                       <height>20</height>
-                      </size>
-                     </property>
-                    </spacer>
-                   </item>
-                   <item>
-                    <widget class="QPushButton" name="btnCancel_Add">
-                     <property name="minimumSize">
-                      <size>
-                       <width>160</width>
-                       <height>48</height>
-                      </size>
-                     </property>
-                     <property name="text">
-                      <string>❌  Annuler</string>
-                     </property>
-                     <property name="cursor">
-                      <cursorShape>PointingHandCursor</cursorShape>
-                     </property>
-                    </widget>
-                   </item>
-                   <item>
-                    <widget class="QPushButton" name="btnSave_Add">
-                     <property name="minimumSize">
-                      <size>
-                       <width>160</width>
-                       <height>48</height>
-                      </size>
-                     </property>
-                     <property name="text">
-                      <string>✅  Enregistrer</string>
-                     </property>
-                     <property name="cursor">
-                      <cursorShape>PointingHandCursor</cursorShape>
-                     </property>
-                    </widget>
-                   </item>
-                  </layout>
-                 </item>
                 </layout>
-               </widget>
-              </widget>
-             </item>
-            </layout>
-           </item>
-          </layout>
-         </widget>
+               </item>
+              </layout>
+             </widget>
              <widget class="QWidget" name="page_Maint_Modif">
               <layout class="QVBoxLayout" name="vl_page_Maint_Modif">
                <property name="spacing">
@@ -6745,87 +5860,26 @@ Chef d'Atelier</string>
                </item>
                <item>
                 <layout class="QVBoxLayout" name="vlModRoot">
-               <item>
-                <widget class="QScrollArea" name="scrollArea_MaintModif">
-                 <property name="widgetResizable">
-                  <bool>true</bool>
-                 </property>
-                 <property name="frameShape">
-                  <enum>QFrame::NoFrame</enum>
-                 </property>
-                 <widget class="QWidget" name="scrollContent_MaintModif">
-                  <property name="geometry">
-                   <rect>
-                    <x>0</x>
-                    <y>0</y>
-                    <width>800</width>
-                    <height>900</height>
-                   </rect>
-                  </property>
-                  <layout class="QVBoxLayout" name="vlScrollMaintModif">
-                   <property name="leftMargin">
-                    <number>20</number>
-                   </property>
-                   <property name="rightMargin">
-                    <number>20</number>
-                   </property>
-                   <property name="bottomMargin">
-                    <number>20</number>
-                   </property>
                  <item>
                   <widget class="QPushButton" name="btnBack_Modif">
-                   <property name="visible">
-                    <bool>false</bool>
-                   </property>
                    <property name="styleSheet">
                     <string>background-color: #e67e22; color: white; font-weight: bold; border-radius: 5px; padding: 8px;</string>
                    </property>
                    <property name="text">
                     <string>? Retour au Tableau de Bord</string>
                    </property>
-                   <property name="maximumSize">
-                    <size>
-                     <width>0</width>
-                     <height>0</height>
-                    </size>
-                   </property>
                   </widget>
                  </item>
                  <item>
                   <widget class="QFrame" name="cardMod">
                    <layout class="QVBoxLayout" name="vlCardMod">
-                    <property name="spacing">
-                     <number>14</number>
-                    </property>
-                    <property name="leftMargin">
-                     <number>32</number>
-                    </property>
-                    <property name="topMargin">
-                     <number>28</number>
-                    </property>
-                    <property name="rightMargin">
-                     <number>32</number>
-                    </property>
-                    <property name="bottomMargin">
-                     <number>28</number>
-                    </property>
                     <item>
                      <widget class="QLabel" name="lblTitreFormMod">
                       <property name="text">
-                       <string>✏️  Modifier Intervention</string>
+                       <string>Modifier Intervention</string>
                       </property>
                       <property name="class" stdset="0">
                        <string>formLabel</string>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <widget class="QFrame" name="sepMaintMod1">
-                      <property name="frameShape">
-                       <enum>QFrame::HLine</enum>
-                      </property>
-                      <property name="frameShadow">
-                       <enum>QFrame::Sunken</enum>
                       </property>
                      </widget>
                     </item>
@@ -6992,23 +6046,6 @@ Chef d'Atelier</string>
                      </layout>
                     </item>
                     <item>
-                     <widget class="QFrame" name="sepMaintMod2">
-                      <property name="frameShape">
-                       <enum>QFrame::HLine</enum>
-                      </property>
-                      <property name="frameShadow">
-                       <enum>QFrame::Sunken</enum>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <widget class="QLabel" name="lblSecTechMod">
-                      <property name="text">
-                       <string>👤  Technicien &amp; Localisation</string>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
                      <layout class="QHBoxLayout" name="hlTechAddrMod">
                       <item>
                        <layout class="QVBoxLayout">
@@ -7055,23 +6092,6 @@ Chef d'Atelier</string>
                      </layout>
                     </item>
                     <item>
-                     <widget class="QFrame" name="sepMaintMod3">
-                      <property name="frameShape">
-                       <enum>QFrame::HLine</enum>
-                      </property>
-                      <property name="frameShadow">
-                       <enum>QFrame::Sunken</enum>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <widget class="QLabel" name="lblSecDescMod">
-                      <property name="text">
-                       <string>📝  Description</string>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
                      <layout class="QVBoxLayout" name="vlDescMod">
                       <item>
                        <widget class="QLabel" name="lblDescMod">
@@ -7081,54 +6101,16 @@ Chef d'Atelier</string>
                         <property name="class" stdset="0">
                          <string>formLabel</string>
                         </property>
-                        <property name="visible">
-                         <bool>false</bool>
-                        </property>
-                        <property name="maximumSize">
-                         <size>
-                          <width>0</width>
-                          <height>0</height>
-                         </size>
-                        </property>
                        </widget>
                       </item>
                       <item>
                        <widget class="QTextEdit" name="txtDescMod">
-                        <property name="minimumSize">
-                         <size>
-                          <width>0</width>
-                          <height>80</height>
-                         </size>
-                        </property>
-                        <property name="maximumSize">
-                         <size>
-                          <width>16777215</width>
-                          <height>120</height>
-                         </size>
-                        </property>
                         <property name="placeholderText">
                          <string>Remplacement de la batterie apres detection de faible charge...</string>
                         </property>
                        </widget>
                       </item>
                      </layout>
-                    </item>
-                    <item>
-                     <widget class="QFrame" name="sepMaintMod4">
-                      <property name="frameShape">
-                       <enum>QFrame::HLine</enum>
-                      </property>
-                      <property name="frameShadow">
-                       <enum>QFrame::Sunken</enum>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <widget class="QLabel" name="lblSecPhotoMod">
-                      <property name="text">
-                       <string>📷  Photos Avant / Après</string>
-                      </property>
-                     </widget>
                     </item>
                     <item>
                      <layout class="QHBoxLayout" name="hlPhotosMod">
@@ -7142,27 +6124,18 @@ Chef d'Atelier</string>
                           <property name="class" stdset="0">
                            <string>formLabel</string>
                           </property>
-                          <property name="visible">
-                           <bool>false</bool>
-                          </property>
-                          <property name="maximumSize">
-                           <size>
-                            <width>0</width>
-                            <height>0</height>
-                           </size>
-                          </property>
                          </widget>
                         </item>
                         <item>
                          <widget class="QLabel" name="lblImgPreview_Mod">
                           <property name="minimumSize">
                            <size>
-                            <width>0</width>
-                            <height>160</height>
+                            <width>420</width>
+                            <height>140</height>
                            </size>
                           </property>
                           <property name="text">
-                           <string>📷  Déposez vos images AVANT / APRÈS ici</string>
+                           <string>Ici tes images AVANT / APR?S (maquette)</string>
                           </property>
                           <property name="alignment">
                            <set>Qt::AlignmentFlag::AlignCenter</set>
@@ -7180,69 +6153,60 @@ Chef d'Atelier</string>
                       </property>
                      </widget>
                     </item>
+                    <item>
+                     <spacer name="verticalSpacerButtonsMod">
+                      <property name="orientation">
+                       <enum>Qt::Orientation::Vertical</enum>
+                      </property>
+                      <property name="sizeType">
+                       <enum>QSizePolicy::Policy::Expanding</enum>
+                      </property>
+                      <property name="sizeHint" stdset="0">
+                       <size>
+                        <width>20</width>
+                        <height>40</height>
+                       </size>
+                      </property>
+                     </spacer>
+                    </item>
+                    <item>
+                     <layout class="QHBoxLayout" name="hlButtonsMod">
+                      <item>
+                       <spacer>
+                        <property name="orientation">
+                         <enum>Qt::Orientation::Horizontal</enum>
+                        </property>
+                        <property name="sizeHint" stdset="0">
+                         <size>
+                          <width>40</width>
+                          <height>20</height>
+                         </size>
+                        </property>
+                       </spacer>
+                      </item>
+                      <item>
+                       <widget class="QPushButton" name="btnCancel_Mod">
+                        <property name="text">
+                         <string>Annuler</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QPushButton" name="btnSave_Mod">
+                        <property name="text">
+                         <string>Enregistrer</string>
+                        </property>
+                       </widget>
+                      </item>
+                     </layout>
+                    </item>
                    </layout>
                   </widget>
                  </item>
-                 <item>
-                  <layout class="QHBoxLayout" name="hlButtonsMod">
-                   <property name="spacing">
-                    <number>16</number>
-                   </property>
-                   <item>
-                    <spacer>
-                     <property name="orientation">
-                      <enum>Qt::Orientation::Horizontal</enum>
-                     </property>
-                     <property name="sizeHint" stdset="0">
-                      <size>
-                       <width>40</width>
-                       <height>20</height>
-                      </size>
-                     </property>
-                    </spacer>
-                   </item>
-                   <item>
-                    <widget class="QPushButton" name="btnCancel_Mod">
-                     <property name="minimumSize">
-                      <size>
-                       <width>160</width>
-                       <height>48</height>
-                      </size>
-                     </property>
-                     <property name="text">
-                      <string>❌  Annuler</string>
-                     </property>
-                     <property name="cursor">
-                      <cursorShape>PointingHandCursor</cursorShape>
-                     </property>
-                    </widget>
-                   </item>
-                   <item>
-                    <widget class="QPushButton" name="btnSave_Mod">
-                     <property name="minimumSize">
-                      <size>
-                       <width>160</width>
-                       <height>48</height>
-                      </size>
-                     </property>
-                     <property name="text">
-                      <string>✅  Enregistrer</string>
-                     </property>
-                     <property name="cursor">
-                      <cursorShape>PointingHandCursor</cursorShape>
-                     </property>
-                    </widget>
-                   </item>
-                  </layout>
-                 </item>
-                  </layout>
-                 </widget>
-                </widget>
+                </layout>
                </item>
               </layout>
-             </item>
-            </layout>
-           </widget>
+             </widget>
             </widget>
            </item>
           </layout>
@@ -8324,7 +7288,7 @@ Chef d'Atelier</string>
                    </item>
                   </layout>
                  </item>
-                   </layout>
+                 <item>
                </widget>
                <widget class="QWidget" name="pageCommandes">
                 <layout class="QHBoxLayout" name="pageCommandesLayout">
@@ -8465,179 +7429,6 @@ Chef d'Atelier</string>
                    </item>
                   </layout>
                  </item>
-                  <item>
-                   <widget class="QFrame" name="rightSidebar_Commande">
-                    <property name="minimumSize">
-                     <size>
-                      <width>300</width>
-                      <height>0</height>
-                     </size>
-                    </property>
-                    <property name="maximumSize">
-                     <size>
-                      <width>350</width>
-                      <height>16777215</height>
-                     </size>
-                    </property>
-                    <layout class="QVBoxLayout" name="rightLayout_Cmd">
-                     <property name="spacing">
-                      <number>10</number>
-                     </property>
-                     <property name="leftMargin">
-                      <number>0</number>
-                     </property>
-                     <property name="topMargin">
-                      <number>0</number>
-                     </property>
-                     <property name="rightMargin">
-                      <number>0</number>
-                     </property>
-                     <property name="bottomMargin">
-                      <number>0</number>
-                     </property>
-                     <item>
-                      <widget class="QLabel" name="lblFunc_Cmd">
-                       <property name="text">
-                        <string>INFOS GLOBALES</string>
-                       </property>
-                      </widget>
-                     </item>
-                     <item>
-                      <widget class="QFrame" name="stat1_Cmd">
-                       <property name="class" stdset="0">
-                        <string>statCard</string>
-                       </property>
-                       <layout class="QVBoxLayout">
-                        <item>
-                         <widget class="QLabel" name="st_val1_Cmd">
-                          <property name="text">
-                           <string>1,245</string>
-                          </property>
-                          <property name="class" stdset="0">
-                           <string>statValue</string>
-                          </property>
-                         </widget>
-                        </item>
-                        <item>
-                         <widget class="QLabel" name="st_lbl1_Cmd">
-                          <property name="text">
-                           <string>Total des Commandes</string>
-                          </property>
-                          <property name="class" stdset="0">
-                           <string>statLabel</string>
-                          </property>
-                         </widget>
-                        </item>
-                       </layout>
-                      </widget>
-                     </item>
-                     <item>
-                      <widget class="QFrame" name="stat2_Cmd">
-                       <property name="class" stdset="0">
-                        <string>statCard</string>
-                       </property>
-                       <layout class="QVBoxLayout">
-                        <item>
-                         <widget class="QLabel" name="st_val2_Cmd">
-                          <property name="text">
-                           <string>85,400 TND</string>
-                          </property>
-                          <property name="class" stdset="0">
-                           <string>statValue</string>
-                          </property>
-                         </widget>
-                        </item>
-                        <item>
-                         <widget class="QLabel" name="st_lbl2_Cmd">
-                          <property name="text">
-                           <string>Chiffre d'Affaire</string>
-                          </property>
-                          <property name="class" stdset="0">
-                           <string>statLabel</string>
-                          </property>
-                         </widget>
-                        </item>
-                       </layout>
-                      </widget>
-                     </item>
-                     <item>
-                      <widget class="QFrame" name="stat3_Cmd">
-                       <property name="class" stdset="0">
-                        <string>statCard</string>
-                       </property>
-                       <layout class="QVBoxLayout">
-                        <item>
-                         <widget class="QLabel" name="st_val3_Cmd">
-                          <property name="text">
-                           <string>3</string>
-                          </property>
-                          <property name="class" stdset="0">
-                           <string>statValue</string>
-                          </property>
-                         </widget>
-                        </item>
-                        <item>
-                         <widget class="QLabel" name="st_lbl3_Cmd">
-                          <property name="text">
-                           <string>Bacs Vendus</string>
-                          </property>
-                          <property name="class" stdset="0">
-                           <string>statLabel</string>
-                          </property>
-                         </widget>
-                        </item>
-                       </layout>
-                      </widget>
-                     </item>
-                     <item>
-                      <spacer>
-                       <property name="orientation">
-                        <enum>Qt::Orientation::Vertical</enum>
-                       </property>
-                       <property name="sizeType">
-                        <enum>QSizePolicy::Policy::Fixed</enum>
-                       </property>
-                       <property name="sizeHint" stdset="0">
-                        <size>
-                         <width>0</width>
-                         <height>8</height>
-                        </size>
-                       </property>
-                      </spacer>
-                     </item>
-                     <item>
-                      <widget class="QPushButton" name="btnGoStats_Cmd">
-                       <property name="text">
-                        <string>Statistiques</string>
-                       </property>
-                      </widget>
-                     </item>
-                     <item>
-                      <widget class="QLabel" name="lblExport_Cmd">
-                       <property name="visible">
-                        <bool>false</bool>
-                       </property>
-                       <property name="maximumSize">
-                        <size>
-                         <width>0</width>
-                         <height>0</height>
-                        </size>
-                       </property>
-                       <property name="text">
-                        <string>EXPORTER</string>
-                       </property>
-                      </widget>
-                     </item>
-                     <item>
-                      <widget class="QPushButton" name="btnPdf_Cmd">
-                       <property name="text">
-                        <string>Rapport PDF Commandes</string>
-                       </property>
-                      </widget>
-                     </item>
-                    </layout>
-                   </widget>
-                  </item>
                 </layout>
                </widget>
               </widget>
@@ -8755,37 +7546,9 @@ Chef d'Atelier</string>
               </layout>
              </item>
              <item>
-              <widget class="QScrollArea" name="scrollArea_CmdAjout">
-               <property name="widgetResizable">
-                <bool>true</bool>
-               </property>
-               <property name="frameShape">
-                <enum>QFrame::NoFrame</enum>
-               </property>
-               <widget class="QWidget" name="scrollContent_CmdAjout">
-                <property name="geometry">
-                 <rect>
-                  <x>0</x>
-                  <y>0</y>
-                  <width>800</width>
-                  <height>700</height>
-                 </rect>
-                </property>
               <layout class="QHBoxLayout" name="hl_mod_split_3">
                <property name="spacing">
-                <number>0</number>
-               </property>
-               <property name="leftMargin">
-                <number>40</number>
-               </property>
-               <property name="topMargin">
-                <number>25</number>
-               </property>
-               <property name="rightMargin">
-                <number>40</number>
-               </property>
-               <property name="bottomMargin">
-                <number>30</number>
+                <number>20</number>
                </property>
                <item>
                 <widget class="QFrame" name="cardMod_3">
@@ -8794,47 +7557,35 @@ Chef d'Atelier</string>
                  </property>
                  <layout class="QVBoxLayout" name="verticalLayout_Mod_3">
                   <property name="spacing">
-                   <number>16</number>
+                   <number>3</number>
                   </property>
                   <property name="leftMargin">
-                   <number>32</number>
+                   <number>14</number>
                   </property>
                   <property name="topMargin">
-                   <number>24</number>
+                   <number>8</number>
                   </property>
                   <property name="rightMargin">
-                   <number>32</number>
+                   <number>14</number>
                   </property>
                   <property name="bottomMargin">
-                   <number>28</number>
+                   <number>8</number>
                   </property>
                   <item>
                    <widget class="QLabel" name="lblTitleMod_3">
                     <property name="sizePolicy">
-                     <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                     <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                       <horstretch>0</horstretch>
                       <verstretch>0</verstretch>
                      </sizepolicy>
                     </property>
-                    <property name="minimumSize">
-                     <size>
-                      <width>0</width>
-                      <height>50</height>
-                     </size>
-                    </property>
                     <property name="text">
-                     <string>📋  Ajouter Une Commande</string>
+                     <string>Ajouter Une Commande</string>
                     </property>
                    </widget>
                   </item>
                   <item>
                    <layout class="QGridLayout" name="gl_inputs_4">
-                    <property name="horizontalSpacing">
-                     <number>20</number>
-                    </property>
-                    <property name="verticalSpacing">
-                     <number>20</number>
-                    </property>
                     <item row="1" column="1">
                      <widget class="QDoubleSpinBox" name="dsb_price_add_4">
                       <property name="maximum">
@@ -8943,47 +7694,11 @@ Chef d'Atelier</string>
                    </layout>
                   </item>
                   <item>
-                   <spacer name="spacerBeforeDates">
-                    <property name="orientation">
-                     <enum>Qt::Vertical</enum>
-                    </property>
-                    <property name="sizeType">
-                     <enum>QSizePolicy::Fixed</enum>
-                    </property>
-                    <property name="sizeHint" stdset="0">
-                     <size>
-                      <width>20</width>
-                      <height>8</height>
-                     </size>
-                    </property>
-                   </spacer>
-                  </item>
-                  <item>
-                   <widget class="QFrame" name="separatorLine1">
-                    <property name="frameShape">
-                     <enum>QFrame::HLine</enum>
-                    </property>
-                    <property name="frameShadow">
-                     <enum>QFrame::Sunken</enum>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QLabel" name="lblSectionDates">
-                    <property name="text">
-                     <string>📅  Dates</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
                    <layout class="QHBoxLayout" name="horizontalLayout_10">
-                    <property name="spacing">
-                     <number>12</number>
-                    </property>
                     <item>
                      <widget class="QLabel" name="label_27">
                       <property name="text">
-                       <string>📆  Date Demande :</string>
+                       <string>Date Demande :</string>
                       </property>
                      </widget>
                     </item>
@@ -9039,13 +7754,10 @@ Chef d'Atelier</string>
                   </item>
                   <item>
                    <layout class="QHBoxLayout" name="horizontalLayout_11">
-                    <property name="spacing">
-                     <number>12</number>
-                    </property>
                     <item>
                      <widget class="QLabel" name="label_31">
                       <property name="text">
-                       <string>📦  Date Livraison :</string>
+                       <string>Date Livraison :</string>
                       </property>
                      </widget>
                     </item>
@@ -9100,39 +7812,6 @@ Chef d'Atelier</string>
                    </layout>
                   </item>
                   <item>
-                   <spacer name="spacerBeforeAdresse">
-                    <property name="orientation">
-                     <enum>Qt::Vertical</enum>
-                    </property>
-                    <property name="sizeType">
-                     <enum>QSizePolicy::Fixed</enum>
-                    </property>
-                    <property name="sizeHint" stdset="0">
-                     <size>
-                      <width>20</width>
-                      <height>8</height>
-                     </size>
-                    </property>
-                   </spacer>
-                  </item>
-                  <item>
-                   <widget class="QFrame" name="separatorLine2">
-                    <property name="frameShape">
-                     <enum>QFrame::HLine</enum>
-                    </property>
-                    <property name="frameShadow">
-                     <enum>QFrame::Sunken</enum>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QLabel" name="lblSectionAdresse">
-                    <property name="text">
-                     <string>📍  Adresse de Livraison</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
                    <layout class="QHBoxLayout" name="horizontalLayout">
                     <item>
                      <widget class="QLabel" name="label">
@@ -9142,81 +7821,41 @@ Chef d'Atelier</string>
                         <verstretch>0</verstretch>
                        </sizepolicy>
                       </property>
-                      <property name="maximumSize">
-                       <size>
-                        <width>0</width>
-                        <height>0</height>
-                       </size>
-                      </property>
                       <property name="text">
                        <string>Adresse de livraison</string>
-                      </property>
-                      <property name="visible">
-                       <bool>false</bool>
                       </property>
                      </widget>
                     </item>
                     <item>
                      <widget class="QTextEdit" name="textEdit">
                       <property name="sizePolicy">
-                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                       <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
                         <horstretch>0</horstretch>
                         <verstretch>0</verstretch>
                        </sizepolicy>
                       </property>
-                      <property name="minimumSize">
-                       <size>
-                        <width>0</width>
-                        <height>80</height>
-                       </size>
-                      </property>
                       <property name="maximumSize">
                        <size>
                         <width>16777215</width>
-                        <height>100</height>
+                        <height>28</height>
                        </size>
                       </property>
                       <property name="autoFillBackground">
                        <bool>false</bool>
                       </property>
-                      <property name="placeholderText">
-                       <string>Entrez l'adresse de livraison...</string>
+                      <property name="styleSheet">
+                       <string notr="true">background: transparent;
+color: #2f3f52;
+border: none;
+border-bottom: 2px solid #8f99a3;
+border-radius: 0px;</string>
                       </property>
                      </widget>
                     </item>
                    </layout>
                   </item>
                   <item>
-                   <spacer name="spacerBeforeBtns">
-                    <property name="orientation">
-                     <enum>Qt::Vertical</enum>
-                    </property>
-                    <property name="sizeType">
-                     <enum>QSizePolicy::Fixed</enum>
-                    </property>
-                    <property name="sizeHint" stdset="0">
-                     <size>
-                      <width>20</width>
-                      <height>12</height>
-                     </size>
-                    </property>
-                   </spacer>
-                  </item>
-                  <item>
-                   <widget class="QFrame" name="separatorLine3">
-                    <property name="frameShape">
-                     <enum>QFrame::HLine</enum>
-                    </property>
-                    <property name="frameShadow">
-                     <enum>QFrame::Sunken</enum>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
                    <layout class="QHBoxLayout" name="btns_mod_3">
-                    <property name="spacing">
-                     <number>16</number>
-                    </property>
                     <item>
                      <widget class="QPushButton" name="btnSave_Mod_3">
                       <property name="sizePolicy">
@@ -9228,14 +7867,11 @@ Chef d'Atelier</string>
                       <property name="minimumSize">
                        <size>
                         <width>0</width>
-                        <height>50</height>
+                        <height>34</height>
                        </size>
                       </property>
                       <property name="text">
-                       <string>✅  Sauvegarder</string>
-                      </property>
-                      <property name="cursor">
-                       <cursorShape>PointingHandCursor</cursorShape>
+                       <string>Sauvegarder</string>
                       </property>
                      </widget>
                     </item>
@@ -9250,14 +7886,11 @@ Chef d'Atelier</string>
                       <property name="minimumSize">
                        <size>
                         <width>0</width>
-                        <height>50</height>
+                        <height>34</height>
                        </size>
                       </property>
                       <property name="text">
-                       <string>❌  Annuler</string>
-                      </property>
-                      <property name="cursor">
-                       <cursorShape>PointingHandCursor</cursorShape>
+                       <string>Annuler</string>
                       </property>
                      </widget>
                     </item>
@@ -9267,8 +7900,6 @@ Chef d'Atelier</string>
                 </widget>
                </item>
               </layout>
-               </widget>
-              </widget>
              </item>
             </layout>
            </item>
@@ -9383,37 +8014,9 @@ Chef d'Atelier</string>
               </layout>
              </item>
              <item>
-              <widget class="QScrollArea" name="scrollArea_CmdModif">
-               <property name="widgetResizable">
-                <bool>true</bool>
-               </property>
-               <property name="frameShape">
-                <enum>QFrame::NoFrame</enum>
-               </property>
-               <widget class="QWidget" name="scrollContent_CmdModif">
-                <property name="geometry">
-                 <rect>
-                  <x>0</x>
-                  <y>0</y>
-                  <width>800</width>
-                  <height>700</height>
-                 </rect>
-                </property>
               <layout class="QHBoxLayout" name="hl_mod_split">
                <property name="spacing">
-                <number>0</number>
-               </property>
-               <property name="leftMargin">
-                <number>40</number>
-               </property>
-               <property name="topMargin">
-                <number>25</number>
-               </property>
-               <property name="rightMargin">
-                <number>40</number>
-               </property>
-               <property name="bottomMargin">
-                <number>30</number>
+                <number>20</number>
                </property>
                <item>
                 <widget class="QFrame" name="cardMod">
@@ -9422,47 +8025,35 @@ Chef d'Atelier</string>
                  </property>
                  <layout class="QVBoxLayout" name="verticalLayout_Mod">
                   <property name="spacing">
-                   <number>16</number>
+                   <number>3</number>
                   </property>
                   <property name="leftMargin">
-                   <number>32</number>
+                   <number>14</number>
                   </property>
                   <property name="topMargin">
-                   <number>24</number>
+                   <number>8</number>
                   </property>
                   <property name="rightMargin">
-                   <number>32</number>
+                   <number>14</number>
                   </property>
                   <property name="bottomMargin">
-                   <number>28</number>
+                   <number>8</number>
                   </property>
                   <item>
                    <widget class="QLabel" name="lblTitleMod">
                     <property name="sizePolicy">
-                     <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                     <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                       <horstretch>0</horstretch>
                       <verstretch>0</verstretch>
                      </sizepolicy>
                     </property>
-                    <property name="minimumSize">
-                     <size>
-                      <width>0</width>
-                      <height>50</height>
-                     </size>
-                    </property>
                     <property name="text">
-                     <string>✏️  Modifier Une Commande</string>
+                     <string>Modifier Une Commande</string>
                     </property>
                    </widget>
                   </item>
                   <item>
                    <layout class="QGridLayout" name="gl_inputs_2">
-                    <property name="horizontalSpacing">
-                     <number>20</number>
-                    </property>
-                    <property name="verticalSpacing">
-                     <number>20</number>
-                    </property>
                     <item row="1" column="1">
                      <widget class="QDoubleSpinBox" name="dsb_price_add_2">
                       <property name="maximum">
@@ -9571,47 +8162,11 @@ Chef d'Atelier</string>
                    </layout>
                   </item>
                   <item>
-                   <spacer name="spacerBeforeDatesMod">
-                    <property name="orientation">
-                     <enum>Qt::Vertical</enum>
-                    </property>
-                    <property name="sizeType">
-                     <enum>QSizePolicy::Fixed</enum>
-                    </property>
-                    <property name="sizeHint" stdset="0">
-                     <size>
-                      <width>20</width>
-                      <height>8</height>
-                     </size>
-                    </property>
-                   </spacer>
-                  </item>
-                  <item>
-                   <widget class="QFrame" name="sepLineMod1">
-                    <property name="frameShape">
-                     <enum>QFrame::HLine</enum>
-                    </property>
-                    <property name="frameShadow">
-                     <enum>QFrame::Sunken</enum>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QLabel" name="lblSectionDates_Mod">
-                    <property name="text">
-                     <string>📅  Dates</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
                    <layout class="QHBoxLayout" name="horizontalLayout_5">
-                    <property name="spacing">
-                     <number>12</number>
-                    </property>
                     <item>
                      <widget class="QLabel" name="label_11">
                       <property name="text">
-                       <string>📆  Date Demande :</string>
+                       <string>Date Demande :</string>
                       </property>
                      </widget>
                     </item>
@@ -9667,13 +8222,10 @@ Chef d'Atelier</string>
                   </item>
                   <item>
                    <layout class="QHBoxLayout" name="horizontalLayout_7">
-                    <property name="spacing">
-                     <number>12</number>
-                    </property>
                     <item>
                      <widget class="QLabel" name="label_19">
                       <property name="text">
-                       <string>📦  Date Livraison :</string>
+                       <string>Date Livraison :</string>
                       </property>
                      </widget>
                     </item>
@@ -9728,39 +8280,6 @@ Chef d'Atelier</string>
                    </layout>
                   </item>
                   <item>
-                   <spacer name="spacerBeforeAdresseMod">
-                    <property name="orientation">
-                     <enum>Qt::Vertical</enum>
-                    </property>
-                    <property name="sizeType">
-                     <enum>QSizePolicy::Fixed</enum>
-                    </property>
-                    <property name="sizeHint" stdset="0">
-                     <size>
-                      <width>20</width>
-                      <height>8</height>
-                     </size>
-                    </property>
-                   </spacer>
-                  </item>
-                  <item>
-                   <widget class="QFrame" name="sepLineMod2">
-                    <property name="frameShape">
-                     <enum>QFrame::HLine</enum>
-                    </property>
-                    <property name="frameShadow">
-                     <enum>QFrame::Sunken</enum>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QLabel" name="lblSectionAdresse_Mod">
-                    <property name="text">
-                     <string>📍  Adresse de Livraison</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
                    <layout class="QHBoxLayout" name="horizontalLayout_12">
                     <item>
                      <widget class="QLabel" name="label_6">
@@ -9770,81 +8289,41 @@ Chef d'Atelier</string>
                         <verstretch>0</verstretch>
                        </sizepolicy>
                       </property>
-                      <property name="maximumSize">
-                       <size>
-                        <width>0</width>
-                        <height>0</height>
-                       </size>
-                      </property>
                       <property name="text">
                        <string>Adresse de livraison</string>
-                      </property>
-                      <property name="visible">
-                       <bool>false</bool>
                       </property>
                      </widget>
                     </item>
                     <item>
                      <widget class="QTextEdit" name="textEdit_2">
                       <property name="sizePolicy">
-                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                       <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
                         <horstretch>0</horstretch>
                         <verstretch>0</verstretch>
                        </sizepolicy>
                       </property>
-                      <property name="minimumSize">
-                       <size>
-                        <width>0</width>
-                        <height>80</height>
-                       </size>
-                      </property>
                       <property name="maximumSize">
                        <size>
                         <width>16777215</width>
-                        <height>100</height>
+                        <height>28</height>
                        </size>
                       </property>
                       <property name="autoFillBackground">
                        <bool>false</bool>
                       </property>
-                      <property name="placeholderText">
-                       <string>Entrez l'adresse de livraison...</string>
+                      <property name="styleSheet">
+                       <string notr="true">background: transparent;
+color: #2f3f52;
+border: none;
+border-bottom: 2px solid #8f99a3;
+border-radius: 0px;</string>
                       </property>
                      </widget>
                     </item>
                    </layout>
                   </item>
                   <item>
-                   <spacer name="spacerBeforeBtnsMod">
-                    <property name="orientation">
-                     <enum>Qt::Vertical</enum>
-                    </property>
-                    <property name="sizeType">
-                     <enum>QSizePolicy::Fixed</enum>
-                    </property>
-                    <property name="sizeHint" stdset="0">
-                     <size>
-                      <width>20</width>
-                      <height>12</height>
-                     </size>
-                    </property>
-                   </spacer>
-                  </item>
-                  <item>
-                   <widget class="QFrame" name="sepLineMod3">
-                    <property name="frameShape">
-                     <enum>QFrame::HLine</enum>
-                    </property>
-                    <property name="frameShadow">
-                     <enum>QFrame::Sunken</enum>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
                    <layout class="QHBoxLayout" name="btns_mod">
-                    <property name="spacing">
-                     <number>16</number>
-                    </property>
                     <item>
                      <widget class="QPushButton" name="btnSave_Mod">
                       <property name="sizePolicy">
@@ -9856,28 +8335,24 @@ Chef d'Atelier</string>
                       <property name="minimumSize">
                        <size>
                         <width>0</width>
-                        <height>50</height>
+                        <height>34</height>
                        </size>
                       </property>
                       <property name="styleSheet">
                        <string notr="true">QPushButton {
-    background-color: #38a169;
+    background-color: #49b14f;
     color: white;
     border: none;
-    border-radius: 12px;
-    padding: 14px 20px;
-    font-size: 15px;
+    border-radius: 6px;
+    padding: 8px 14px;
     font-weight: 700;
 }
 QPushButton:hover {
-    background-color: #2f855a;
+    background-color: #3ea445;
 }</string>
                       </property>
                       <property name="text">
-                       <string>✅  Sauvegarder</string>
-                      </property>
-                      <property name="cursor">
-                       <cursorShape>PointingHandCursor</cursorShape>
+                       <string>Sauvegarder</string>
                       </property>
                      </widget>
                     </item>
@@ -9892,30 +8367,24 @@ QPushButton:hover {
                       <property name="minimumSize">
                        <size>
                         <width>0</width>
-                        <height>50</height>
+                        <height>34</height>
                        </size>
                       </property>
                       <property name="styleSheet">
                        <string notr="true">QPushButton {
-    background-color: #edf2f7;
-    color: #4a5568;
-    border: 1.5px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 14px 20px;
-    font-size: 15px;
+    background-color: #a9b8c3;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 14px;
     font-weight: 700;
 }
 QPushButton:hover {
-    background-color: #e2e8f0;
-    border-color: #cbd5e0;
-    color: #2d3748;
+    background-color: #96a7b4;
 }</string>
                       </property>
                       <property name="text">
-                       <string>❌  Annuler</string>
-                      </property>
-                      <property name="cursor">
-                       <cursorShape>PointingHandCursor</cursorShape>
+                       <string>Annuler</string>
                       </property>
                      </widget>
                     </item>
@@ -9925,8 +8394,6 @@ QPushButton:hover {
                 </widget>
                </item>
               </layout>
-               </widget>
-              </widget>
              </item>
             </layout>
            </item>
