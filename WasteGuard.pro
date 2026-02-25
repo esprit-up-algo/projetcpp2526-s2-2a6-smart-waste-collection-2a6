@@ -1,8 +1,10 @@
 QT       += core gui
+QT       += sql
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++17
+CONFIG += console
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
@@ -10,19 +12,13 @@ CONFIG += c++17
 
 SOURCES += \
     main.cpp \
-    mainwindow.cpp \
-    ajouterclient.cpp \
-    modifierclient.cpp
+    mainwindow.cpp
 
 HEADERS += \
-    mainwindow.h \
-    ajouterclient.h \
-    modifierclient.h
+    mainwindow.h
 
 FORMS += \
-    mainwindow.ui \
-    ajouterclient.ui \
-    modifierclient.ui
+    mainwindow.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

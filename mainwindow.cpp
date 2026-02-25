@@ -12,13 +12,9 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
-    // Initialize windows as null
-    ajouterClientWindow = nullptr;
-    modifierClientWindow = nullptr;
-
     // --- SETUP TABLE COLUMNS ---
-    QStringList headers = { "Matricule", "Nom", "Email", "Bacs", "Score", "Paiement", "Actions" };
     ui->tableWidget->setColumnCount(7);
+    QStringList headers = { "Matricule", "Nom", "Email", "Bacs", "Score", "Paiement", "Actions" };
     ui->tableWidget->setHorizontalHeaderLabels(headers);
 
     // --- TABLE STYLING ---
@@ -50,140 +46,86 @@ MainWindow::MainWindow(QWidget *parent)
         "}"
     );
 
-    // Enable alternating row colors
     ui->tableWidget->setAlternatingRowColors(true);
-
-    // Adjust column widths
     ui->tableWidget->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
-
-    // Set default row height for more spacing
     ui->tableWidget->verticalHeader()->setDefaultSectionSize(40);
-
-    // Hide vertical header (row numbers)
     ui->tableWidget->verticalHeader()->setVisible(false);
-
-    // Selection behavior
     ui->tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
     ui->tableWidget->setSelectionMode(QAbstractItemView::SingleSelection);
 
-    // --- Add action buttons to any pre-existing rows from the .ui file ---
+    // Connect form buttons
+    connect(ui->btn_save_ajouter, &QPushButton::clicked, this, &MainWindow::on_btn_ajouter_clicked);
+    connect(ui->btn_annuler_ajouter, &QPushButton::clicked, this, &MainWindow::on_btn_annuler_clicked);
+    connect(ui->btn_save_modifier, &QPushButton::clicked, this, &MainWindow::on_btn_modifier_clicked);
+    connect(ui->btn_annuler_modifier, &QPushButton::clicked, this, &MainWindow::on_btn_annuler_clicked);
+
+    // Ensure we start on repertoire page
+    ui->stackedWidget->setCurrentIndex(0);
+
+
+    // --- Add action buttons to any pre-existing rows ---
     for (int i = 0; i < ui->tableWidget->rowCount(); i++) {
-        if (ui->tableWidget->cellWidget(i, 6) == nullptr) {
-            addActionButtons(i);
-        }
+        addActionButtons(i);
     }
 }
 
 MainWindow::~MainWindow()
 {
     delete ui;
-    if(ajouterClientWindow) delete ajouterClientWindow;
-    if(modifierClientWindow) delete modifierClientWindow;
 }
 
 void MainWindow::on_btnNouveau_clicked()
 {
-    if(ajouterClientWindow == nullptr) {
-        ajouterClientWindow = new AjouterClient();
-        connect(ajouterClientWindow, &AjouterClient::clientAdded, this, &MainWindow::onClientAdded);
-    }
-    ajouterClientWindow->show();
+    // Clear inputs and switch to add page
+    ui->input_matricule_ajouter->clear();
+    ui->input_nom_ajouter->clear();
+    ui->input_email_ajouter->clear();
+    ui->input_bacs_ajouter->setValue(0);
+    ui->input_score_ajouter->setValue(0);
+    
+    ui->stackedWidget->setCurrentIndex(1); // Page 1: Ajouter
 }
 
-// Helper: find which row a button belongs to
-int MainWindow::getRowForWidget(QWidget *widget)
+void MainWindow::on_btn_annuler_clicked()
 {
-    for (int i = 0; i < ui->tableWidget->rowCount(); i++) {
-        if (ui->tableWidget->cellWidget(i, 6) == widget) {
-            return i;
-        }
-    }
-    return -1;
+    ui->stackedWidget->setCurrentIndex(0); // Back to repertoire
 }
 
-// Helper: add Modifier + Supprimer buttons to a given row
-void MainWindow::addActionButtons(int row)
+void MainWindow::on_btn_ajouter_clicked()
 {
-    QWidget* actionWidget = new QWidget();
-    QHBoxLayout* layout = new QHBoxLayout(actionWidget);
-    layout->setContentsMargins(4, 2, 4, 2);
-    layout->setSpacing(6);
+    if(ui->input_matricule_ajouter->text().isEmpty() || ui->input_nom_ajouter->text().isEmpty()) {
+         QMessageBox::warning(this, "Champs Manquants", "Veuillez remplir au moins le Matricule et le Nom.");
+         return;
+    }
 
-    QPushButton* btnEdit = new QPushButton("✏️");
-    btnEdit->setToolTip("Modifier");
-    btnEdit->setCursor(Qt::PointingHandCursor);
-    btnEdit->setFixedSize(32, 32);
-    btnEdit->setStyleSheet(
-        "QPushButton {"
-        "   background-color: #f39c12;"
-        "   color: white;"
-        "   border: none;"
-        "   border-radius: 4px;"
-        "   font-size: 14px;"
-        "}"
-        "QPushButton:hover {"
-        "   background-color: #e67e22;"
-        "}"
-    );
+    onClientAdded(ui->input_matricule_ajouter->text(), 
+                  ui->input_nom_ajouter->text(), 
+                  ui->input_email_ajouter->text(), 
+                  QString::number(ui->input_bacs_ajouter->value()),
+                  QString::number(ui->input_score_ajouter->value()), 
+                  ui->input_paiement_ajouter->currentText());
 
-    QPushButton* btnDelete = new QPushButton("🗑️");
-    btnDelete->setToolTip("Supprimer");
-    btnDelete->setCursor(Qt::PointingHandCursor);
-    btnDelete->setFixedSize(32, 32);
-    btnDelete->setStyleSheet(
-        "QPushButton {"
-        "   background-color: #e74c3c;"
-        "   color: white;"
-        "   border: none;"
-        "   border-radius: 4px;"
-        "   font-size: 14px;"
-        "}"
-        "QPushButton:hover {"
-        "   background-color: #c0392b;"
-        "}"
-    );
+    QMessageBox::information(this, "Succès", "Client ajouté avec succès.");
+    ui->stackedWidget->setCurrentIndex(0);
+}
 
-    layout->addWidget(btnEdit);
-    layout->addWidget(btnDelete);
-    layout->addStretch();
+void MainWindow::on_btn_modifier_clicked()
+{
+    if(ui->input_matricule_modifier->text().isEmpty() || ui->input_nom_modifier->text().isEmpty()) {
+         QMessageBox::warning(this, "Champs Manquants", "Veuillez remplir au moins le Matricule et le Nom.");
+         return;
+    }
 
-    ui->tableWidget->setCellWidget(row, 6, actionWidget);
+    onClientModified(currentRow,
+                     ui->input_matricule_modifier->text(), 
+                     ui->input_nom_modifier->text(), 
+                     ui->input_email_modifier->text(), 
+                     QString::number(ui->input_bacs_modifier->value()),
+                     QString::number(ui->input_score_modifier->value()), 
+                     ui->input_paiement_modifier->currentText());
 
-    // Connect Edit button — dynamically finds the correct row
-    connect(btnEdit, &QPushButton::clicked, this, [this, actionWidget](){
-        int currentRow = getRowForWidget(actionWidget);
-        if (currentRow < 0) return;
-
-        if(modifierClientWindow == nullptr) {
-            modifierClientWindow = new ModifierClient();
-            connect(modifierClientWindow, &ModifierClient::clientModified, this, &MainWindow::onClientModified);
-        }
-
-        // Get data from row
-        QString m = ui->tableWidget->item(currentRow, 0)->text();
-        QString n = ui->tableWidget->item(currentRow, 1)->text();
-        QString e = ui->tableWidget->item(currentRow, 2)->text();
-        QString b = ui->tableWidget->item(currentRow, 3)->text();
-        QString s = ui->tableWidget->item(currentRow, 4)->text();
-        QString p = ui->tableWidget->item(currentRow, 5)->text();
-
-        modifierClientWindow->setClientData(m, n, e, b, s, p, currentRow);
-        modifierClientWindow->show();
-    });
-
-    // Connect Delete button — dynamically finds the correct row
-    connect(btnDelete, &QPushButton::clicked, this, [this, actionWidget](){
-        int currentRow = getRowForWidget(actionWidget);
-        if (currentRow < 0) return;
-
-        QMessageBox::StandardButton reply;
-        reply = QMessageBox::question(this, "Confirmer Suppression",
-                                      "Voulez-vous vraiment supprimer ce client ?",
-                                      QMessageBox::Yes | QMessageBox::No);
-        if (reply == QMessageBox::Yes) {
-            ui->tableWidget->removeRow(currentRow);
-        }
-    });
+    QMessageBox::information(this, "Succès", "Informations du client modifiées avec succès.");
+    ui->stackedWidget->setCurrentIndex(0);
 }
 
 void MainWindow::onClientAdded(QString matricule, QString nom, QString email, QString bacs, QString score, QString paiement)
@@ -198,10 +140,6 @@ void MainWindow::onClientAdded(QString matricule, QString nom, QString email, QS
     ui->tableWidget->setItem(row, 4, new QTableWidgetItem(score));
     ui->tableWidget->setItem(row, 5, new QTableWidgetItem(paiement));
 
-    // Set row height
-    ui->tableWidget->setRowHeight(row, 40);
-
-    // Add action buttons
     addActionButtons(row);
 }
 
@@ -216,3 +154,55 @@ void MainWindow::onClientModified(int row, QString matricule, QString nom, QStri
         ui->tableWidget->item(row, 5)->setText(paiement);
     }
 }
+
+void MainWindow::addActionButtons(int row)
+{
+    QWidget* actionWidget = new QWidget();
+    QHBoxLayout* layout = new QHBoxLayout(actionWidget);
+    layout->setContentsMargins(4, 2, 4, 2);
+    layout->setSpacing(6);
+
+    QPushButton* btnEdit = new QPushButton("✏️");
+    btnEdit->setStyleSheet("background-color: #f39c12; color: white; border-radius: 4px; padding: 4px;");
+    
+    QPushButton* btnDelete = new QPushButton("🗑️");
+    btnDelete->setStyleSheet("background-color: #e74c3c; color: white; border-radius: 4px; padding: 4px;");
+
+    layout->addWidget(btnEdit);
+    layout->addWidget(btnDelete);
+    layout->addStretch();
+
+    ui->tableWidget->setCellWidget(row, 6, actionWidget);
+
+    connect(btnEdit, &QPushButton::clicked, this, [this, actionWidget](){
+        int r = getRowForWidget(actionWidget);
+        if (r < 0) return;
+        
+        currentRow = r;
+        ui->input_matricule_modifier->setText(ui->tableWidget->item(r, 0)->text());
+        ui->input_nom_modifier->setText(ui->tableWidget->item(r, 1)->text());
+        ui->input_email_modifier->setText(ui->tableWidget->item(r, 2)->text());
+        ui->input_bacs_modifier->setValue(ui->tableWidget->item(r, 3)->text().toInt());
+        ui->input_score_modifier->setValue(ui->tableWidget->item(r, 4)->text().toInt());
+        ui->input_paiement_modifier->setCurrentText(ui->tableWidget->item(r, 5)->text());
+        
+        ui->stackedWidget->setCurrentIndex(2); // Page 2: Modifier
+    });
+
+    connect(btnDelete, &QPushButton::clicked, this, [this, actionWidget](){
+        int r = getRowForWidget(actionWidget);
+        if (r < 0) return;
+        if (QMessageBox::question(this, "Supprimer", "Voulez-vous supprimer ce client ?") == QMessageBox::Yes) {
+            ui->tableWidget->removeRow(r);
+        }
+    });
+}
+
+int MainWindow::getRowForWidget(QWidget *widget)
+{
+    for (int i = 0; i < ui->tableWidget->rowCount(); i++) {
+        if (ui->tableWidget->cellWidget(i, 6) == widget) return i;
+    }
+    return -1;
+}
+

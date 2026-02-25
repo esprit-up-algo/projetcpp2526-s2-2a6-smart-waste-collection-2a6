@@ -2,8 +2,6 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include "ajouterclient.h"
-#include "modifierclient.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -21,15 +19,18 @@ public:
 
 private slots:
     void on_btnNouveau_clicked();
+    void on_btn_ajouter_clicked();
+    void on_btn_modifier_clicked();
+    void on_btn_annuler_clicked();
     void onClientAdded(QString matricule, QString nom, QString email, QString bacs, QString score, QString paiement);
     void onClientModified(int row, QString matricule, QString nom, QString email, QString bacs, QString score, QString paiement);
 
 private:
     Ui::MainWindow *ui;
-    AjouterClient *ajouterClientWindow;
-    ModifierClient *modifierClientWindow;
+    int currentRow; // To track which row is being modified
 
     void addActionButtons(int row);
     int getRowForWidget(QWidget *widget);
 };
 #endif // MAINWINDOW_H
+
