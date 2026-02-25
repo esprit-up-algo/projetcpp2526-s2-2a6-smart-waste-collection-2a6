@@ -2,7 +2,15 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+<<<<<<< HEAD
 #include <QButtonGroup>
+=======
+<<<<<<< HEAD
+#include <QButtonGroup> // AJOUTÉ
+=======
+#include <QButtonGroup>
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
 
 #include <QtCharts>
 #include <QChartView>
@@ -16,10 +24,19 @@ QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> origin/gestion-employee
 class QStackedWidget;
 class QTableWidget;
 class QWidget;
 
+<<<<<<< HEAD
+=======
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -29,7 +46,11 @@ public:
     ~MainWindow();
 
 private slots:
+<<<<<<< HEAD
     // Employe
+=======
+<<<<<<< HEAD
+>>>>>>> origin/gestion-employee
     void on_btnNouveau_clicked();
     void on_btnAjouter_clicked();
     void on_btnAnnuler_Ajout_clicked();
@@ -114,10 +135,63 @@ private:
     void showDashboardHome();
     void showEmployesPage();
     void updateTaskChart(const QString &projectName);
+<<<<<<< HEAD
     void installEmployeActionButtonsForRow(int row);
     void refreshEmployeActionButtons();
     Employe Etmp;
     void refreshEmployes();
+=======
+=======
+    // Employe
+    void on_btnNouveau_clicked();
+    void on_btnAjouter_clicked();
+    void on_btnAnnuler_Ajout_clicked();
+    void on_btnModifier_clicked();
+    void on_btnSave_clicked();
+    void on_btnAnalyser_clicked();
+    void on_btnSimulerBadge_clicked();
+    void on_btnSupprimer_clicked();
+    void on_cbProjetStats_currentIndexChanged(const QString &arg1);
+    void on_btnFichePaie_clicked();
+    void on_btnCommsSend_clicked();
+
+    // Client module slots (from mainwindowcl)
+    void on_btnClient_clicked();
+    void on_btn_ajouter_client_clicked();
+    void on_btn_modifier_client_clicked();
+    void on_btn_annuler_client_clicked();
+    void on_btnNouveau_client_clicked();
+    void onClientAdded(QString matricule, QString nom, QString email, QString bacs, QString score, QString paiement);
+    void onClientModified(int row, QString matricule, QString nom, QString email, QString bacs, QString score, QString paiement);
+
+    // Maintenance
+    void on_btnSave_Add_clicked();
+    void on_btnSave_Mod_clicked();
+    void handleMaintEditClicked();
+    void handleMaintDeleteClicked();
+
+    // Produit
+    void goAffichage();
+    void goAjout();
+    void goModification();
+    void goStatistiques();
+
+    void handleEditClicked();
+    void handleDeleteClicked();
+
+private:
+    // Employe
+    void setupStatistics();
+    void setupAccueilDashboard();
+    void setupDashboardCharts();
+    void applyUnifiedTopBarStyle();
+    void showDashboardHome();
+    void showEmployesPage();
+    void updateTaskChart(const QString &projectName);
+    void installEmployeActionButtonsForRow(int row);
+    void refreshEmployeActionButtons();
+
+>>>>>>> origin/gestion-employee
     // Produit
     void setupProduitModule();
     void applyStyleFix();
@@ -128,6 +202,7 @@ private:
     void ensureProduitModuleVisible();
     QString productStyleSheet() const;
 
+<<<<<<< HEAD
     // Card View implementation (Produit)
     void setupCardViewContainer();
     void refreshCardView();
@@ -139,11 +214,14 @@ private:
     QWidget* createEmployeeCard(int row);
     void setupEmployeModule();
 
+=======
+>>>>>>> origin/gestion-employee
     // Stock Module
     void setupStockModule();
     void setupStockTableData();
     void applyStockFilterAndSort();
 
+<<<<<<< HEAD
     // Stock Card View implementation
     void setupStockCardViewContainer();
     void refreshStockCardView();
@@ -164,18 +242,23 @@ private:
     void refreshCmdCardView();
     QWidget* createCmdCard(int row);
 
+=======
+>>>>>>> origin/gestion-employee
     // Maintenance Module
     void setupMaintenanceModule();
     void refreshMaintActionButtons();
     void installMaintActionButtonsForRow(int row);
     QTableWidget* maintenanceTable() const;
 
+<<<<<<< HEAD
     // Commande Module
     void setupCommandesModule();
     void refreshCmdStats();
     void on_btnPdf_Cmd_clicked();
 
 
+=======
+>>>>>>> origin/gestion-employee
     // Helpers for merged UI
     QStackedWidget *mainStacked() const;
     QWidget *produitRoot() const;
@@ -194,6 +277,7 @@ private:
     void addClientActionButtons(int row);
     int getRowForClientWidget(QWidget *widget);
     void forceApplySidebarStyles();
+<<<<<<< HEAD
 
     // Card View state (Produit)
     bool m_isCardView = false;
@@ -237,6 +321,9 @@ private slots:
 private:
    bool m_sidebarExpanded;
    void updateSidebarState();
+=======
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
 };
 
 #endif // MAINWINDOW_H

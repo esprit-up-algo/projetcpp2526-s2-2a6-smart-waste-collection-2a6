@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Qt Creator / IDE
 *.pro.user
 .qtcreator/
@@ -11,8 +12,26 @@ debug/
 release/
 
 # Object/binary
+=======
+build/
+*.pro.user*
+*.qtc_clangd/
+.qtc_clangd/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+
+# Compiled
+>>>>>>> origin/gestion-employee
 *.o
 *.obj
 *.exe
 *.dll
+<<<<<<< HEAD
 *.so
+=======
+*.a
+*.so
+*.log
+*.tmp
+>>>>>>> origin/gestion-employee

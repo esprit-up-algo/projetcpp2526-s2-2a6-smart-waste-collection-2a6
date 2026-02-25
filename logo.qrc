@@ -1,14 +1,28 @@
 <RCC>
     <qresource prefix="/">
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+        <file>Gemini_Generated_Image_8k5i7p8k5i7p8k5i-removebg-preview (2).png</file>
+<<<<<<< HEAD
+=======
+>>>>>>> origin/gestion-employee
         <file>login_logo.png</file>
         <file>wasteguard_logo.png</file>
         <file>logo1.png</file>
         <file>logo2.png</file>
         <file>WASTEGUARD (1) (1).png</file>
         <file>WASTEGUARD (1).png</file>
+<<<<<<< HEAD
         <file>assets/bin.png</file>
         <file>assets/sensor.png</file>
         <file>assets/compactor.png</file>
         <file>assets/landscape_bin.png</file>
+=======
+>>>>>>> 2a1db57 (atelier connexion)
+=======
+        <file>login_logo.png</file>
+>>>>>>> a6aef5d (Ajout de l'interface de login et corrections)
+>>>>>>> origin/gestion-employee
     </qresource>
 </RCC>

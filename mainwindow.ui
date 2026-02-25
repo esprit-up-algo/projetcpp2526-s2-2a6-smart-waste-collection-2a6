@@ -6,12 +6,30 @@
    <rect>
     <x>0</x>
     <y>0</y>
+<<<<<<< HEAD
     <width>1235</width>
     <height>1030</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>WasteGuard - Gestion des Employes</string>
+=======
+<<<<<<< HEAD
+    <width>1100</width>
+    <height>804</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>WasteGuard - Gestion des Employés</string>
+=======
+    <width>1235</width>
+    <height>1030</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>WasteGuard - Gestion des Employes</string>
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
   </property>
   <property name="styleSheet">
    <string notr="true">
@@ -54,13 +72,74 @@ QFrame#sidebar QPushButton:hover, QFrame#sidebar QPushButton:checked {
     border-left: 3px solid #3498db;
 }
 
+<<<<<<< HEAD
 QFrame#statCard, QFrame#statCard_2, QFrame#statCard_3, QFrame#actionCard, QFrame#cardFrame, QFrame#cardFrame_2 { 
     background-color: #f4f6f9;
+=======
+<<<<<<< HEAD
+/* STAT CARDS BASE */
+QFrame#statCard, QFrame#statCard_2, QFrame#statCard_3, QFrame#actionCard, QFrame#cardFrame, QFrame#cardFrame_2 { 
+    background-color: #ffffff;
+=======
+QFrame#statCard, QFrame#statCard_2, QFrame#statCard_3, QFrame#actionCard, QFrame#cardFrame, QFrame#cardFrame_2 { 
+    background-color: #f4f6f9;
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
     border-radius: 12px;
     border: 1px solid #dce1e6;
     border-bottom: 2px solid #dce1e6;
 }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+/* 1. Total Employés (BLUE) */
+QFrame#statCard {
+    background-color: #e3f2fd;
+    border: 1px solid #90caf9;
+}
+QFrame#statCard QLabel {
+    color: #1565c0 !important;
+}
+>>>>>>> origin/gestion-employee
+QLabel#lblStatNumber {
+    font-size: 24px;
+    font-weight: bold;
+    color: #0f2b4c !important;
+}
+
+<<<<<<< HEAD
+QPushButton#btnExport, QPushButton#btnFichePaie {
+=======
+/* 3. Disponibilité (GREEN) */
+QFrame#statCard_3 {
+    background-color: #e8f5e9;
+    border: 1px solid #a5d6a7;
+}
+QFrame#statCard_3 QLabel {
+    color: #2e7d32 !important;
+}
+QLabel#lblStatAvailability {
+    color: #1b5e20 !important;
+    font-weight: bold;
+    font-size: 24px;
+}
+
+/* 4. Actions Rapides (WHITE/CLEAN) */
+QFrame#actionCard {
+    background-color: #ffffff;
+    border: 1px solid #dce1e6;
+}
+QFrame#actionCard QLabel#label_Actions {
+    color: #37474f;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+
+
+QPushButton#btnExport, QPushButton#btnFichePaie, QPushButton#btnGoMission, QPushButton#btnGoPointage, QPushButton#btnGoStats {
+=======
 QLabel#lblStatNumber {
     font-size: 24px;
     font-weight: bold;
@@ -68,6 +147,8 @@ QLabel#lblStatNumber {
 }
 
 QPushButton#btnExport, QPushButton#btnFichePaie {
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
     background-color: #ffffff;
     color: #333333 !important;
     border: 1px solid #cccccc;
@@ -78,7 +159,15 @@ QPushButton#btnExport, QPushButton#btnFichePaie {
     font-size: 13px;
     margin-top: 5px;
 }
+<<<<<<< HEAD
 QPushButton#btnExport:hover, QPushButton#btnFichePaie:hover {
+=======
+<<<<<<< HEAD
+QPushButton#btnExport:hover, QPushButton#btnFichePaie:hover, QPushButton#btnGoMission:hover, QPushButton#btnGoPointage:hover, QPushButton#btnGoStats:hover {
+=======
+QPushButton#btnExport:hover, QPushButton#btnFichePaie:hover {
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
     background-color: #e3f2fd;
     border: 1px solid #3498db;
     color: #0f2b4c !important;
@@ -227,7 +316,15 @@ QLabel#lblUserRole, QLabel#lblUserRole_Modif, QLabel#lblUserRole_Ajout {
     margin-top: -2px;
 }
 
+<<<<<<< HEAD
 /* Style Sp?cifique pour l'onglet Mission */
+=======
+<<<<<<< HEAD
+/* Style Spécifique pour l'onglet Mission */
+=======
+/* Style Sp?cifique pour l'onglet Mission */
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
 QPushButton#btnAnalyser {
     background-color: #6c5ce7;
     color: white;
@@ -285,12 +382,33 @@ QSlider::handle:horizontal {
     border-radius: 9px;
 }
 /* ======================================================= */
+<<<<<<< HEAD
 /* STYLE UNIFI? POUR LES 5 BOUTONS PRINCIPAUX              */
+=======
+<<<<<<< HEAD
+/* STYLE UNIFIÉ POUR LES 5 BOUTONS PRINCIPAUX              */
+=======
+/* STYLE UNIFI? POUR LES 5 BOUTONS PRINCIPAUX              */
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
 /* ======================================================= */
 
 /* 1. Style de base pour les deux boutons du haut ET les trois du bas */
 QPushButton#btnFichePaie, QPushButton#btnExport,
 QPushButton#btnGoMission, QPushButton#btnGoPointage, QPushButton#btnGoStats {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+    background-color: #ffffff;  /* Fond blanc */
+    color: #333333;             /* Texte gris foncé (le standard pro) */
+    border: 1px solid #dcdcdc;  /* Bordure grise subtile */
+    border-radius: 8px;         /* Coins joliment arrondis */
+    padding: 15px 20px;         /* Espace intérieur confortable */
+    font-size: 14px;            /* Taille de texte lisible */
+    font-weight: bold;          /* Texte en gras pour l'importance */
+    text-align: left;           /* Alignement du texte */
+=======
+>>>>>>> origin/gestion-employee
     background-color: #ffffff;
     color: #333333;
     border: 1px solid #dcdcdc;
@@ -299,46 +417,121 @@ QPushButton#btnGoMission, QPushButton#btnGoPointage, QPushButton#btnGoStats {
     font-size: 14px;
     font-weight: bold;
     text-align: left;
+<<<<<<< HEAD
+=======
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
 }
 
 /* 2. Effet quand la souris passe dessus (Hover) pour les 5 boutons */
 QPushButton#btnFichePaie:hover, QPushButton#btnExport:hover,
 QPushButton#btnGoMission:hover, QPushButton#btnGoPointage:hover, QPushButton#btnGoStats:hover {
+<<<<<<< HEAD
     background-color: #f0f8ff;
     border: 1px solid #3498db;
     color: #000000 !important;
+=======
+<<<<<<< HEAD
+    background-color: #f0f8ff;  /* Fond bleu très pâle au survol */
+    border: 1px solid #3498db;  /* La bordure devient bleue */
+    color: #000000;             /* Le texte devient noir pur */
+=======
+    background-color: #f0f8ff;
+    border: 1px solid #3498db;
+    color: #000000 !important;
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
 }
 
 /* 3. Effet quand on clique dessus (Pressed) pour les 5 boutons */
 QPushButton#btnFichePaie:pressed, QPushButton#btnExport:pressed,
 QPushButton#btnGoMission:pressed, QPushButton#btnGoPointage:pressed, QPushButton#btnGoStats:pressed {
+<<<<<<< HEAD
     background-color: #e1ecf4;
+=======
+<<<<<<< HEAD
+    background-color: #e1ecf4;  /* Fond un peu plus foncé au clic */
+=======
+    background-color: #e1ecf4;
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
     border: 1px solid #2980b9;
 }
 /* Style pour les boutons de RETOUR dans les pages Mission, Pointage et Stats */
 QPushButton#btnAnnulerMission, 
 QPushButton#btnAnnulerPointage, 
 QPushButton#btnAnnulerStats {
+<<<<<<< HEAD
     background-color: #6c757d;  
     color: white;               
+=======
+<<<<<<< HEAD
+    background-color: #6c757d;  /* Gris foncé standard pour &quot;Annuler/Retour&quot; */
+    color: white;               /* Texte blanc */
+=======
+    background-color: #6c757d;  
+    color: white;               
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
     border: none;
     border-radius: 5px;
     padding: 10px 20px;
     font-weight: bold;
     font-size: 14px;
+<<<<<<< HEAD
     min-width: 200px;           
     margin-top: 20px;           
+=======
+<<<<<<< HEAD
+    min-width: 200px;           /* Largeur minimale pour être bien visible */
+    margin-top: 20px;           /* Un peu d'espace au-dessus */
+=======
+    min-width: 200px;           
+    margin-top: 20px;           
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
 }
 
 /* Effet au survol */
 QPushButton#btnAnnulerMission:hover, 
 QPushButton#btnAnnulerPointage:hover, 
 QPushButton#btnAnnulerStats:hover {
+<<<<<<< HEAD
     background-color: #5a6268;  
+=======
+<<<<<<< HEAD
+    background-color: #5a6268;  /* Gris un peu plus foncé */
+=======
+    background-color: #5a6268;  
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
 }
 /* ======================================================= */
 /* 1. CORRECTION DES BOUTONS DE RETOUR (Pages internes)    */
 /* ======================================================= */
+<<<<<<< HEAD
+/* Cela rendra les boutons &quot;Retour&quot; bien visibles en gris fonc? */
+=======
+<<<<<<< HEAD
+/* Cela rendra les boutons &quot;Retour&quot; bien visibles en gris foncé */
+>>>>>>> origin/gestion-employee
+QPushButton#btnAnnulerMission, 
+QPushButton#btnAnnulerPointage, 
+QPushButton#btnAnnulerStats {
+    background-color: #6c757d;  
+    color: white !important;    
+    border: none;
+    border-radius: 6px;
+    padding: 10px 25px;         
+    font-weight: bold;
+    font-size: 14px;
+<<<<<<< HEAD
+    margin-top: 15px;           
+    min-width: 150px;           
+=======
+    margin-top: 50px;           /* Espace au dessus (Augmenté) */
+    min-width: 150px;           /* Largeur minimale */
+=======
 /* Cela rendra les boutons &quot;Retour&quot; bien visibles en gris fonc? */
 QPushButton#btnAnnulerMission, 
 QPushButton#btnAnnulerPointage, 
@@ -352,22 +545,53 @@ QPushButton#btnAnnulerStats {
     font-size: 14px;
     margin-top: 15px;           
     min-width: 150px;           
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
 }
 
 QPushButton#btnAnnulerMission:hover, 
 QPushButton#btnAnnulerPointage:hover, 
 QPushButton#btnAnnulerStats:hover {
+<<<<<<< HEAD
     background-color: #5a6268;  
+=======
+<<<<<<< HEAD
+    background-color: #5a6268;  /* Gris plus foncé au survol */
+=======
+    background-color: #5a6268;  
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
 }
 
 /* ======================================================= */
 /* 2. CORRECTION DE LA BOITE DE DIALOGUE (Supprimer)       */
 /* ======================================================= */
+<<<<<<< HEAD
 QPushButton#msgBoxYes, QPushButton#msgBoxNo {
     background-color: #0f2b4c;
     color: white !important;
     border-radius: 5px;
     padding: 6px 20px;
+=======
+<<<<<<< HEAD
+/* Cela corrige les boutons &quot;Yes/No&quot; illisibles */
+QMessageBox {
+    background-color: white;
+}
+
+QMessageBox QPushButton {
+    background-color: #0f2b4c;  /* Bleu foncé */
+    color: white !important;    /* Texte blanc */
+    border-radius: 5px;
+    padding: 6px 20px;
+    min-width: 80px;            /* Taille correcte */
+=======
+QPushButton#msgBoxYes, QPushButton#msgBoxNo {
+    background-color: #0f2b4c;
+    color: white !important;
+    border-radius: 5px;
+    padding: 6px 20px;
+>>>>>>> origin/gestion-employee
     min-width: 80px;
     font-weight: bold;
 }
@@ -377,26 +601,61 @@ QMessageBox QPushButton {
     border-radius: 5px;
     padding: 6px 20px;
     min-width: 80px;
+<<<<<<< HEAD
+=======
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
     font-weight: bold;
 }
 
 QMessageBox QPushButton:hover {
+<<<<<<< HEAD
     background-color: #1a4270;
+=======
+<<<<<<< HEAD
+    background-color: #1a4270;  /* Bleu plus clair au survol */
+=======
+    background-color: #1a4270;
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
 }
 
 /* ======================================================= */
 /* 3. UNIFICATION DES 5 BOUTONS DU DASHBOARD (Accueil)     */
 /* ======================================================= */
+<<<<<<< HEAD
 QPushButton#btnFichePaie, QPushButton#btnExport,
 QPushButton#btnGoMission, QPushButton#btnGoPointage, QPushButton#btnGoStats {
     background-color: #ffffff;
     color: #333333 !important;
+=======
+<<<<<<< HEAD
+/* Pour que les 3 boutons du bas ressemblent à ceux du haut */
+QPushButton#btnFichePaie, QPushButton#btnExport,
+QPushButton#btnGoMission, QPushButton#btnGoPointage, QPushButton#btnGoStats {
+    background-color: #ffffff;
+    color: #333333 !important;  /* Gris foncé lisible */
+=======
+QPushButton#btnFichePaie, QPushButton#btnExport,
+QPushButton#btnGoMission, QPushButton#btnGoPointage, QPushButton#btnGoStats {
+    background-color: #ffffff;
+    color: #333333 !important;
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
     border: 1px solid #dcdcdc;
     border-radius: 8px;
     padding: 15px;
     font-size: 14px;
     font-weight: bold;
+<<<<<<< HEAD
     text-align: center;
+=======
+<<<<<<< HEAD
+    text-align: center;         /* Centré ou left selon préférence */
+=======
+    text-align: center;
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
 }
 
 QPushButton#btnFichePaie:hover, QPushButton#btnExport:hover,
@@ -404,6 +663,11 @@ QPushButton#btnGoMission:hover, QPushButton#btnGoPointage:hover, QPushButton#btn
     background-color: #e3f2fd;
     border: 1px solid #3498db;
     color: #000000 !important;
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> origin/gestion-employee
 }
 /* STYLE MAINTENANCE (AJOUTE)                              */
 /* ======================================================= */
@@ -699,7 +963,10 @@ QPushButton#btnprofil_3, QPushButton#btnprofil_5 {
 /* --- Unified right sidebars (Employees reference) --- */
 QFrame#sidePanel_Employe,
 QFrame#rightSidebar,
+<<<<<<< HEAD
 QFrame#rightSidebar_Commande,
+=======
+>>>>>>> origin/gestion-employee
 QWidget#sidepanel,
 QFrame#prod_rightSidebar {
     background: transparent;
@@ -707,13 +974,18 @@ QFrame#prod_rightSidebar {
 }
 
 QFrame#statCard, QFrame#statCard_2, QFrame#statCard_3, QFrame#actionCard,
+<<<<<<< HEAD
 QFrame#statsBox, QFrame#orderBox,
+=======
+QFrame#stat1, QFrame#stat2, QFrame#stat3, QFrame#statsBox, QFrame#orderBox,
+>>>>>>> origin/gestion-employee
 QWidget#growthWidget {
     background-color: #ffffff;
     border: 1px solid #dce1e6;
     border-radius: 12px;
 }
 
+<<<<<<< HEAD
 QFrame#stat1, QFrame#stat2, QFrame#stat3,
 QFrame#stat1_Cmd, QFrame#stat2_Cmd, QFrame#stat3_Cmd {
     background-color: #ffffff;
@@ -729,11 +1001,15 @@ QFrame#stat1_Cmd:hover, QFrame#stat2_Cmd:hover, QFrame#stat3_Cmd:hover {
 }
 
 QLabel#lblFunc, QLabel#lblFunc_Cmd, QLabel#pilotage, QLabel#lblStatsTitle, QLabel#lblOrderTitle, QLabel#label_Actions {
+=======
+QLabel#lblFunc, QLabel#pilotage, QLabel#lblStatsTitle, QLabel#lblOrderTitle, QLabel#label_Actions {
+>>>>>>> origin/gestion-employee
     color: #1f2d3d;
     font-size: 15px;
     font-weight: 700;
 }
 
+<<<<<<< HEAD
 QLabel#st_icon1, QLabel#st_icon2, QLabel#st_icon3,
 QLabel#st_icon1_Cmd, QLabel#st_icon2_Cmd, QLabel#st_icon3_Cmd {
     font-size: 28px;
@@ -792,6 +1068,8 @@ QLabel#lblMiniPct1, QLabel#lblMiniPct2, QLabel#lblMiniPct3 {
     min-width: 32px;
 }
 
+=======
+>>>>>>> origin/gestion-employee
 QPushButton#btnFichePaie, QPushButton#btnGoMission, QPushButton#btnGoPointage, QPushButton#btnGoStats, QPushButton#btnExport,
 QPushButton#btnOrder, QPushButton#btnPrediction, QPushButton#btnAlerts,
 QPushButton#facture, QPushButton#score, QPushButton#exportclient,
@@ -816,6 +1094,7 @@ QPushButton#prod_btnPdf:hover, QPushButton#prod_btnMap3D:hover, QPushButton#prod
     background-color: #e3f2fd;
     border: 1px solid #3498db;
     color: #0f2b4c;
+<<<<<<< HEAD
 }
 
 QPushButton#btnGoStats_Maint,
@@ -1325,6 +1604,9 @@ QLabel#userLabel_Aj {
     font-size: 13px;
     font-weight: 600;
     color: #4a5568;
+=======
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
 }</string>
   </property>
   <widget class="QWidget" name="centralwidget">
@@ -1394,6 +1676,13 @@ QLabel#userLabel_Aj {
         <widget class="QLabel" name="label_logo">
          <property name="minimumSize">
           <size>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+           <width>0</width>
+           <height>100</height>
+=======
+>>>>>>> origin/gestion-employee
            <width>200</width>
            <height>200</height>
           </size>
@@ -1402,16 +1691,30 @@ QLabel#userLabel_Aj {
           <size>
            <width>200</width>
            <height>200</height>
+<<<<<<< HEAD
+=======
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
           </size>
          </property>
          <property name="text">
           <string/>
          </property>
          <property name="pixmap">
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+          <pixmap resource="logo.qrc">:/Gemini_Generated_Image_8k5i7p8k5i7p8k5i-removebg-preview (2).png</pixmap>
+=======
+>>>>>>> origin/gestion-employee
           <pixmap resource="logo.qrc">:/WASTEGUARD (1).png</pixmap>
          </property>
          <property name="scaledContents">
           <bool>true</bool>
+<<<<<<< HEAD
+=======
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
          </property>
          <property name="alignment">
           <set>Qt::AlignmentFlag::AlignCenter</set>
@@ -1421,7 +1724,15 @@ QLabel#userLabel_Aj {
        <item>
         <widget class="QPushButton" name="btnAccueil">
          <property name="text">
+<<<<<<< HEAD
           <string>🏠 Accueils</string>
+=======
+<<<<<<< HEAD
+          <string>Accueil</string>
+=======
+          <string>Accueils</string>
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
          </property>
         </widget>
        </item>
@@ -1447,17 +1758,43 @@ QLabel#userLabel_Aj {
         </widget>
        </item>
        <item>
+<<<<<<< HEAD
         <widget class="QPushButton" name="btnEmployes">
          <property name="text">
+<<<<<<< HEAD
           <string>👷 Employes</string>
+=======
+          <string>Employés</string>
+=======
+        <widget class="QPushButton" name="btnClient">
+         <property name="text">
+          <string>Clients</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnEmployes">
+         <property name="text">
+          <string>Employes</string>
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
          </property>
         </widget>
        </item>
        <item>
         <widget class="QPushButton" name="btnStatistiques">
+<<<<<<< HEAD
          <property name="visible">
           <bool>false</bool>
          </property>
+=======
+<<<<<<< HEAD
+=======
+         <property name="visible">
+          <bool>false</bool>
+         </property>
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
          <property name="text">
           <string>📊 Statistiques</string>
          </property>
@@ -1466,7 +1803,14 @@ QLabel#userLabel_Aj {
        <item>
         <widget class="QPushButton" name="btnMaintenance">
          <property name="text">
+<<<<<<< HEAD
           <string>🔧 Maintenances</string>
+=======
+<<<<<<< HEAD
+          <string>Maintenance</string>
+=======
+          <string>Maintenances</string>
+>>>>>>> origin/gestion-employee
          </property>
         </widget>
        </item>
@@ -1483,7 +1827,12 @@ QLabel#userLabel_Aj {
        <item>
         <widget class="QPushButton" name="btnCommandes">
          <property name="text">
+<<<<<<< HEAD
           <string>📝 Commandes</string>
+=======
+          <string>Commandes</string>
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
          </property>
         </widget>
        </item>
@@ -1524,18 +1873,37 @@ QLabel#userLabel_Aj {
           </sizepolicy>
          </property>
          <property name="currentIndex">
+<<<<<<< HEAD
+          <number>9</number>
+=======
+<<<<<<< HEAD
+          <number>0</number>
+>>>>>>> origin/gestion-employee
+         </property>
+         <widget class="QWidget" name="affichage">
+          <layout class="QHBoxLayout" name="horizontalLayout_Split" stretch="3,0">
+           <item>
+            <layout class="QVBoxLayout" name="verticalLayout_Left">
+<<<<<<< HEAD
+=======
+=======
           <number>9</number>
          </property>
          <widget class="QWidget" name="affichage">
           <layout class="QHBoxLayout" name="horizontalLayout_Split" stretch="3,0">
            <item>
             <layout class="QVBoxLayout" name="verticalLayout_Left">
+>>>>>>> origin/gestion-employee
              <property name="leftMargin">
               <number>20</number>
              </property>
              <property name="rightMargin">
               <number>20</number>
              </property>
+<<<<<<< HEAD
+=======
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
              <item>
               <layout class="QHBoxLayout" name="horizontalLayout_Header">
                <item>
@@ -1569,6 +1937,28 @@ QLabel#userLabel_Aj {
                 </spacer>
                </item>
                <item>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+                <widget class="QPushButton" name="btnNouveau">
+                 <property name="minimumSize">
+                  <size>
+                   <width>0</width>
+                   <height>40</height>
+                  </size>
+                 </property>
+                 <property name="cursor">
+                  <cursorShape>PointingHandCursor</cursorShape>
+                 </property>
+                 <property name="text">
+                  <string>+ Nouvel Employé</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+=======
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
                 <spacer name="horizontalSpacer_User">
                  <property name="orientation">
                   <enum>Qt::Orientation::Horizontal</enum>
@@ -1591,7 +1981,15 @@ QLabel#userLabel_Aj {
                  </property>
                  <layout class="QVBoxLayout" name="verticalLayout_User">
                   <property name="spacing">
+<<<<<<< HEAD
                    <number>0</number>
+=======
+<<<<<<< HEAD
+                   <number>2</number>
+=======
+                   <number>0</number>
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
                   </property>
                   <property name="leftMargin">
                    <number>0</number>
@@ -1606,10 +2004,37 @@ QLabel#userLabel_Aj {
                    <number>0</number>
                   </property>
                   <item>
+<<<<<<< HEAD
                    <layout class="QHBoxLayout" name="horizontalLayout_UserHeader">
                     <property name="spacing">
                      <number>10</number>
                     </property>
+=======
+<<<<<<< HEAD
+                   <widget class="QLabel" name="lblUserName">
+                    <property name="text">
+                     <string>Admin System</string>
+                    </property>
+                    <property name="alignment">
+                     <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="lblUserRole">
+                    <property name="text">
+                     <string>Chef d'Atelier</string>
+                    </property>
+                    <property name="alignment">
+                     <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+                    </property>
+                   </widget>
+=======
+                   <layout class="QHBoxLayout" name="horizontalLayout_UserHeader">
+                    <property name="spacing">
+                     <number>10</number>
+                    </property>
+>>>>>>> origin/gestion-employee
                     <item>
                      <layout class="QVBoxLayout" name="verticalLayout_UserText">
                       <property name="spacing">
@@ -1654,6 +2079,10 @@ QLabel#userLabel_Aj {
                      </widget>
                     </item>
                    </layout>
+<<<<<<< HEAD
+=======
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
                   </item>
                  </layout>
                 </widget>
@@ -1667,11 +2096,27 @@ QLabel#userLabel_Aj {
                  <property name="minimumSize">
                   <size>
                    <width>0</width>
+<<<<<<< HEAD
                    <height>34</height>
                   </size>
                  </property>
                  <property name="placeholderText">
                   <string>Rechercher un employé par matricule</string>
+=======
+<<<<<<< HEAD
+                   <height>40</height>
+                  </size>
+                 </property>
+                 <property name="placeholderText">
+                  <string>🔍 Rechercher un employé...</string>
+=======
+                   <height>34</height>
+                  </size>
+                 </property>
+                 <property name="placeholderText">
+                  <string>Rechercher un employé par matricule</string>
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
                  </property>
                 </widget>
                </item>
@@ -1685,7 +2130,15 @@ QLabel#userLabel_Aj {
                  </property>
                  <item>
                   <property name="text">
+<<<<<<< HEAD
                    <string>Trier par: Specialite</string>
+=======
+<<<<<<< HEAD
+                   <string>Trier par: Spécialité</string>
+=======
+                   <string>Trier par: Specialite</string>
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
                   </property>
                  </item>
                  <item>
@@ -1768,12 +2221,20 @@ QLabel#userLabel_Aj {
                </column>
                <column>
                 <property name="text">
+<<<<<<< HEAD
                  <string>SPÉCIALITÉ</string>
+=======
+                 <string>SP?CIALIT?</string>
+>>>>>>> 2a1db57 (atelier connexion)
                 </property>
                </column>
                <column>
                 <property name="text">
+<<<<<<< HEAD
                  <string>DISPONIBILITÉ</string>
+=======
+                 <string>DISPONIBILIT?</string>
+>>>>>>> 2a1db57 (atelier connexion)
                 </property>
                </column>
                <column>
@@ -1793,7 +2254,11 @@ QLabel#userLabel_Aj {
                </item>
                <item row="0" column="2">
                 <property name="text">
+<<<<<<< HEAD
                  <string>Mécanicien</string>
+=======
+                 <string>M?canicien</string>
+>>>>>>> 2a1db57 (atelier connexion)
                 </property>
                </item>
                <item row="0" column="3">
@@ -1803,7 +2268,11 @@ QLabel#userLabel_Aj {
                </item>
                <item row="0" column="4">
                 <property name="text">
+<<<<<<< HEAD
                  <string>✏️ | 🗑️</string>
+=======
+                 <string>?? | ???</string>
+>>>>>>> 2a1db57 (atelier connexion)
                 </property>
                 <property name="textAlignment">
                  <set>AlignCenter</set>
@@ -1831,7 +2300,11 @@ QLabel#userLabel_Aj {
                </item>
                <item row="1" column="4">
                 <property name="text">
+<<<<<<< HEAD
                  <string>✏️ | 🗑️</string>
+=======
+                 <string>?? | ???</string>
+>>>>>>> 2a1db57 (atelier connexion)
                 </property>
                 <property name="textAlignment">
                  <set>AlignCenter</set>
@@ -1849,17 +2322,33 @@ QLabel#userLabel_Aj {
                </item>
                <item row="2" column="2">
                 <property name="text">
+<<<<<<< HEAD
                  <string>Électronicien</string>
+=======
+                 <string>?lectronicien</string>
+>>>>>>> 2a1db57 (atelier connexion)
                 </property>
                </item>
                <item row="2" column="3">
                 <property name="text">
+<<<<<<< HEAD
                  <string>Conge</string>
+=======
+<<<<<<< HEAD
+                 <string>Congé</string>
+=======
+                 <string>Conge</string>
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
                 </property>
                </item>
                <item row="2" column="4">
                 <property name="text">
+<<<<<<< HEAD
                  <string>✏️ | 🗑️</string>
+=======
+                 <string>?? | ???</string>
+>>>>>>> 2a1db57 (atelier connexion)
                 </property>
                 <property name="textAlignment">
                  <set>AlignCenter</set>
@@ -1887,7 +2376,11 @@ QLabel#userLabel_Aj {
                </item>
                <item row="3" column="4">
                 <property name="text">
+<<<<<<< HEAD
                  <string>✏️ | 🗑️</string>
+=======
+                 <string>?? | ???</string>
+>>>>>>> 2a1db57 (atelier connexion)
                 </property>
                 <property name="textAlignment">
                  <set>AlignCenter</set>
@@ -1898,6 +2391,118 @@ QLabel#userLabel_Aj {
             </layout>
            </item>
            <item>
+<<<<<<< HEAD
+            <widget class="QFrame" name="sidePanel_Employe">
+             <property name="minimumSize">
+              <size>
+               <width>300</width>
+               <height>0</height>
+              </size>
+=======
+<<<<<<< HEAD
+            <layout class="QVBoxLayout" name="verticalLayout_Right">
+             <property name="spacing">
+              <number>20</number>
+>>>>>>> origin/gestion-employee
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>350</width>
+               <height>16777215</height>
+              </size>
+             </property>
+             <layout class="QVBoxLayout" name="verticalLayout_Right">
+              <property name="spacing">
+               <number>20</number>
+              </property>
+              <property name="leftMargin">
+               <number>15</number>
+              </property>
+              <property name="topMargin">
+               <number>20</number>
+              </property>
+              <item>
+               <widget class="QFrame" name="statCard">
+                <property name="frameShape">
+                 <enum>QFrame::Shape::StyledPanel</enum>
+                </property>
+<<<<<<< HEAD
+=======
+                <item>
+                 <widget class="QLabel" name="label_Actions">
+                  <property name="font">
+                   <font>
+                    <family>Segoe UI</family>
+                    <pointsize>-1</pointsize>
+                    <bold>true</bold>
+                   </font>
+                  </property>
+                  <property name="text">
+                   <string>Actions Rapides</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="btnFichePaie">
+                  <property name="cursor">
+                   <cursorShape>PointingHandCursor</cursorShape>
+                  </property>
+                  <property name="text">
+                   <string>💰  Générer Fiche de Paie</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="btnGoMission">
+                  <property name="cursor">
+                   <cursorShape>PointingHandCursor</cursorShape>
+                  </property>
+                  <property name="text">
+                   <string>🤖  Affectation IA</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="btnGoPointage">
+                  <property name="cursor">
+                   <cursorShape>PointingHandCursor</cursorShape>
+                  </property>
+                  <property name="text">
+                   <string>⏱️  Pointage</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="btnGoStats">
+                  <property name="cursor">
+                   <cursorShape>PointingHandCursor</cursorShape>
+                  </property>
+                  <property name="text">
+                   <string>📊  Statistiques</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </item>
+             <item>
+              <spacer name="verticalSpacer_Right">
+               <property name="orientation">
+                <enum>Qt::Orientation::Vertical</enum>
+               </property>
+               <property name="sizeType">
+                <enum>QSizePolicy::Policy::Expanding</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>20</width>
+                 <height>40</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+            </layout>
+=======
             <widget class="QFrame" name="sidePanel_Employe">
              <property name="minimumSize">
               <size>
@@ -1926,6 +2531,7 @@ QLabel#userLabel_Aj {
                 <property name="frameShape">
                  <enum>QFrame::Shape::StyledPanel</enum>
                 </property>
+>>>>>>> origin/gestion-employee
                 <layout class="QVBoxLayout" name="vl_stat1">
                  <item>
                   <widget class="QLabel" name="label_Stat1_Title">
@@ -2071,6 +2677,10 @@ QLabel#userLabel_Aj {
               </item>
              </layout>
             </widget>
+<<<<<<< HEAD
+=======
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
            </item>
           </layout>
          </widget>
@@ -2176,7 +2786,11 @@ QLabel#userLabel_Aj {
                    <cursorShape>PointingHandCursor</cursorShape>
                   </property>
                   <property name="text">
+<<<<<<< HEAD
                    <string>📷 Charger une photo</string>
+=======
+                   <string>?? Charger une photo</string>
+>>>>>>> 2a1db57 (atelier connexion)
                   </property>
                  </widget>
                 </item>
@@ -2235,7 +2849,15 @@ QLabel#userLabel_Aj {
                   <item row="3" column="0">
                    <widget class="QLabel" name="lblSpecialite">
                     <property name="text">
+<<<<<<< HEAD
                      <string>Specialite</string>
+=======
+<<<<<<< HEAD
+                     <string>Spécialité</string>
+=======
+                     <string>Specialite</string>
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
                     </property>
                    </widget>
                   </item>
@@ -2243,7 +2865,11 @@ QLabel#userLabel_Aj {
                    <widget class="QComboBox" name="cbSpecialite">
                     <item>
                      <property name="text">
+<<<<<<< HEAD
                       <string>Mécanicien</string>
+=======
+                      <string>M?canicien</string>
+>>>>>>> 2a1db57 (atelier connexion)
                      </property>
                     </item>
                     <item>
@@ -2253,7 +2879,11 @@ QLabel#userLabel_Aj {
                     </item>
                     <item>
                      <property name="text">
+<<<<<<< HEAD
                       <string>Électronicien</string>
+=======
+                      <string>?lectronicien</string>
+>>>>>>> 2a1db57 (atelier connexion)
                      </property>
                     </item>
                    </widget>
@@ -2279,7 +2909,15 @@ QLabel#userLabel_Aj {
                     </item>
                     <item>
                      <property name="text">
+<<<<<<< HEAD
                       <string>Conge</string>
+=======
+<<<<<<< HEAD
+                      <string>Congé</string>
+=======
+                      <string>Conge</string>
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
                      </property>
                     </item>
                    </widget>
@@ -2335,6 +2973,11 @@ QLabel#userLabel_Aj {
                     </property>
                    </widget>
                   </item>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> origin/gestion-employee
                   <item row="6" column="0">
                    <widget class="QLabel" name="lblCIN_Modif">
                     <property name="text">
@@ -2349,6 +2992,10 @@ QLabel#userLabel_Aj {
                     </property>
                    </widget>
                   </item>
+<<<<<<< HEAD
+=======
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
                   <item row="1" column="1">
                    <widget class="QLineEdit" name="txtEmailModif">
                     <property name="placeholderText">
@@ -2524,7 +3171,11 @@ QLabel#userLabel_Aj {
                    <cursorShape>PointingHandCursor</cursorShape>
                   </property>
                   <property name="text">
+<<<<<<< HEAD
                    <string>📷 Charger une photo</string>
+=======
+                   <string>?? Charger une photo</string>
+>>>>>>> 2a1db57 (atelier connexion)
                   </property>
                  </widget>
                 </item>
@@ -2566,7 +3217,15 @@ QLabel#userLabel_Aj {
                   <item row="2" column="0">
                    <widget class="QLabel" name="label_8">
                     <property name="text">
+<<<<<<< HEAD
                      <string>Specialite</string>
+=======
+<<<<<<< HEAD
+                     <string>Spécialité</string>
+=======
+                     <string>Specialite</string>
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
                     </property>
                    </widget>
                   </item>
@@ -2574,7 +3233,11 @@ QLabel#userLabel_Aj {
                    <widget class="QComboBox" name="cbSpecialite_Ajout">
                     <item>
                      <property name="text">
+<<<<<<< HEAD
                       <string>Mécanicien</string>
+=======
+                      <string>M?canicien</string>
+>>>>>>> 2a1db57 (atelier connexion)
                      </property>
                     </item>
                     <item>
@@ -2669,6 +3332,11 @@ QLabel#userLabel_Aj {
                     </property>
                    </widget>
                   </item>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> origin/gestion-employee
                   <item row="5" column="0">
                    <widget class="QLabel" name="lblCIN_Ajout">
                     <property name="text">
@@ -2683,6 +3351,10 @@ QLabel#userLabel_Aj {
                     </property>
                    </widget>
                   </item>
+<<<<<<< HEAD
+=======
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
                  </layout>
                 </item>
                 <item>
@@ -2747,17 +3419,35 @@ QLabel#userLabel_Aj {
            <item>
             <widget class="QLabel" name="lblTitreMission">
              <property name="text">
+<<<<<<< HEAD
               <string>📢 Définition de la Mission</string>
+=======
+              <string>?? D?finition de la Mission</string>
+>>>>>>> 2a1db57 (atelier connexion)
              </property>
             </widget>
            </item>
            <item>
             <widget class="QLineEdit" name="txtMission">
              <property name="text">
+<<<<<<< HEAD
               <string>Reparation Moteur bac Zone Nord - Urgent</string>
              </property>
              <property name="placeholderText">
               <string>Ex: Reparation Moteur bac Urgent...</string>
+=======
+<<<<<<< HEAD
+              <string>Réparation Moteur bac Zone Nord - Urgent</string>
+             </property>
+             <property name="placeholderText">
+              <string>Ex: Réparation Moteur bac Urgent...</string>
+=======
+              <string>Reparation Moteur bac Zone Nord - Urgent</string>
+             </property>
+             <property name="placeholderText">
+              <string>Ex: Reparation Moteur bac Urgent...</string>
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
              </property>
             </widget>
            </item>
@@ -2767,14 +3457,22 @@ QLabel#userLabel_Aj {
               <cursorShape>PointingHandCursor</cursorShape>
              </property>
              <property name="text">
+<<<<<<< HEAD
               <string>🤖 Lancer l'Analyse IA &amp; Trouver l'Équipe</string>
+=======
+              <string>?? Lancer l'Analyse IA &amp; Trouver l'?quipe</string>
+>>>>>>> 2a1db57 (atelier connexion)
              </property>
             </widget>
            </item>
            <item>
             <widget class="QLabel" name="lblResultat">
              <property name="text">
+<<<<<<< HEAD
               <string>✅ Équipe Optimale Recommandée (Score: 98%)</string>
+=======
+              <string>? ?quipe Optimale Recommand?e (Score: 98%)</string>
+>>>>>>> 2a1db57 (atelier connexion)
              </property>
             </widget>
            </item>
@@ -2801,7 +3499,15 @@ QLabel#userLabel_Aj {
              </column>
              <column>
               <property name="text">
+<<<<<<< HEAD
                <string>Competence Cle</string>
+=======
+<<<<<<< HEAD
+               <string>Compétence Clé</string>
+=======
+               <string>Competence Cle</string>
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
               </property>
              </column>
              <column>
@@ -2841,14 +3547,22 @@ QLabel#userLabel_Aj {
            <item>
             <widget class="QLabel" name="lblTitrePointage">
              <property name="text">
+<<<<<<< HEAD
               <string>État du Lecteur RFID :</string>
+=======
+              <string>?tat du Lecteur RFID :</string>
+>>>>>>> 2a1db57 (atelier connexion)
              </property>
             </widget>
            </item>
            <item>
             <widget class="QLabel" name="lblStatutRFID">
              <property name="text">
+<<<<<<< HEAD
               <string>🕒 EN ATTENTE DE BADGE...</string>
+=======
+              <string>?? EN ATTENTE DE BADGE...</string>
+>>>>>>> 2a1db57 (atelier connexion)
              </property>
              <property name="alignment">
               <set>Qt::AlignmentFlag::AlignCenter</set>
@@ -2861,14 +3575,22 @@ QLabel#userLabel_Aj {
               <cursorShape>PointingHandCursor</cursorShape>
              </property>
              <property name="text">
+<<<<<<< HEAD
               <string>🔮 Simuler un passage de badge (Démo)</string>
+=======
+              <string>?? Simuler un passage de badge (Demo)</string>
+>>>>>>> 2a1db57 (atelier connexion)
              </property>
             </widget>
            </item>
            <item>
             <widget class="QLabel" name="lblLog">
              <property name="text">
+<<<<<<< HEAD
               <string>📋 Historique des Entrées / Sorties (Aujourd'hui)</string>
+=======
+              <string>?? Historique des Entr?es / Sorties (Aujourd'hui)</string>
+>>>>>>> 2a1db57 (atelier connexion)
              </property>
             </widget>
            </item>
@@ -2895,7 +3617,15 @@ QLabel#userLabel_Aj {
              </column>
              <column>
               <property name="text">
+<<<<<<< HEAD
                <string>Employe</string>
+=======
+<<<<<<< HEAD
+               <string>Employé</string>
+=======
+               <string>Employe</string>
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
               </property>
              </column>
              <column>
@@ -2934,9 +3664,21 @@ QLabel#userLabel_Aj {
           <layout class="QVBoxLayout" name="verticalLayout_StatsPage">
            <item>
             <layout class="QHBoxLayout" name="horizontalLayout_Stats">
+<<<<<<< HEAD
              <property name="spacing">
               <number>20</number>
              </property>
+=======
+<<<<<<< HEAD
+              <property name="spacing">
+               <number>20</number>
+              </property>
+=======
+             <property name="spacing">
+              <number>20</number>
+             </property>
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
              <item>
               <widget class="QChartView" name="chartViewAbsence">
                <property name="minimumSize">
@@ -2972,7 +3714,15 @@ QLabel#userLabel_Aj {
            <item>
             <widget class="QComboBox" name="cbProjetStats">
              <property name="placeholderText">
+<<<<<<< HEAD
               <string>Selectionnez un projet...</string>
+=======
+<<<<<<< HEAD
+              <string>Sélectionnez un projet...</string>
+=======
+              <string>Selectionnez un projet...</string>
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
              </property>
              <item>
               <property name="text">
@@ -3016,6 +3766,11 @@ QLabel#userLabel_Aj {
            </item>
           </layout>
          </widget>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> origin/gestion-employee
          <widget class="QWidget" name="pageProduit">
           <layout class="QVBoxLayout" name="verticalLayout_ProduitPage">
            <property name="spacing">
@@ -3408,6 +4163,7 @@ QLabel#userLabel_Aj {
                                </item>
                               </widget>
                              </item>
+<<<<<<< HEAD
                              <item>
                               <widget class="QPushButton" name="prod_btnToggleView">
                                <property name="minimumSize">
@@ -3563,6 +4319,67 @@ QLabel#userLabel_Aj {
                                </item>
                               </layout>
                              </widget>
+=======
+                            </layout>
+                           </item>
+                           <item>
+                            <widget class="QTableWidget" name="prod_tableProduits">
+                             <property name="sizePolicy">
+                              <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                               <horstretch>0</horstretch>
+                               <verstretch>0</verstretch>
+                              </sizepolicy>
+                             </property>
+                             <property name="rowCount">
+                              <number>0</number>
+                             </property>
+                             <property name="columnCount">
+                              <number>8</number>
+                             </property>
+                             <attribute name="verticalHeaderVisible">
+                              <bool>false</bool>
+                             </attribute>
+                             <column>
+                              <property name="text">
+                               <string>Reference</string>
+                              </property>
+                             </column>
+                             <column>
+                              <property name="text">
+                               <string>Modele</string>
+                              </property>
+                             </column>
+                             <column>
+                              <property name="text">
+                               <string>Type</string>
+                              </property>
+                             </column>
+                             <column>
+                              <property name="text">
+                               <string>Capacite</string>
+                              </property>
+                             </column>
+                             <column>
+                              <property name="text">
+                               <string>Prix (TND)</string>
+                              </property>
+                             </column>
+                             <column>
+                              <property name="text">
+                               <string>Stock</string>
+                              </property>
+                             </column>
+                             <column>
+                              <property name="text">
+                               <string>?tat</string>
+                              </property>
+                             </column>
+                             <column>
+                              <property name="text">
+                               <string>Actions</string>
+                              </property>
+                             </column>
+>>>>>>> origin/gestion-employee
                             </widget>
                            </item>
                           </layout>
@@ -3675,7 +4492,11 @@ QLabel#userLabel_Aj {
                                <item>
                                 <widget class="QLabel" name="prod_st_lbl3">
                                  <property name="text">
+<<<<<<< HEAD
                                   <string>Équipements en Panne</string>
+=======
+                                  <string>�quipements en Panne</string>
+>>>>>>> origin/gestion-employee
                                  </property>
                                  <property name="class" stdset="0">
                                   <string>statLabel</string>
@@ -3983,7 +4804,11 @@ text-align: center;</string>
                                <item>
                                 <widget class="QPushButton" name="prod_btnUpload_Add">
                                  <property name="text">
+<<<<<<< HEAD
                                   <string>📤 Importer Image</string>
+=======
+                                  <string>?? Importer Image</string>
+>>>>>>> origin/gestion-employee
                                  </property>
                                 </widget>
                                </item>
@@ -4240,37 +5065,65 @@ text-align: center;</string>
                                      </property>
                                      <item>
                                       <property name="text">
+<<<<<<< HEAD
                                        <string>📍 GPS Tracking</string>
+=======
+                                       <string>?? GPS Tracking</string>
+>>>>>>> origin/gestion-employee
                                       </property>
                                      </item>
                                      <item>
                                       <property name="text">
+<<<<<<< HEAD
                                        <string>📡 Capteur Ultrason</string>
+=======
+                                       <string>?? Capteur Ultrason</string>
+>>>>>>> origin/gestion-employee
                                       </property>
                                      </item>
                                      <item>
                                       <property name="text">
+<<<<<<< HEAD
                                        <string>☀️ Compacteur Solaire</string>
+=======
+                                       <string>?? Compacteur Solaire</string>
+>>>>>>> origin/gestion-employee
                                       </property>
                                      </item>
                                      <item>
                                       <property name="text">
+<<<<<<< HEAD
                                        <string>🔥 Détecteur de Flamme</string>
+=======
+                                       <string>?? Detecteur de Flamme</string>
+>>>>>>> origin/gestion-employee
                                       </property>
                                      </item>
                                      <item>
                                       <property name="text">
+<<<<<<< HEAD
                                        <string>🔒 Verrouillage Auto</string>
+=======
+                                       <string>?? Verrouillage Auto</string>
+>>>>>>> origin/gestion-employee
                                       </property>
                                      </item>
                                      <item>
                                       <property name="text">
+<<<<<<< HEAD
                                        <string>🌐 Intégration IoT</string>
+=======
+                                       <string>?? Integration IoT</string>
+>>>>>>> origin/gestion-employee
                                       </property>
                                      </item>
                                      <item>
                                       <property name="text">
+<<<<<<< HEAD
                                        <string>🌬️ Anti-Odeur</string>
+=======
+                                       <string>??? Anti-Odeur</string>
+>>>>>>> origin/gestion-employee
                                       </property>
                                      </item>
                                     </widget>
@@ -4602,37 +5455,65 @@ text-align: center;</string>
                                      </property>
                                      <item>
                                       <property name="text">
+<<<<<<< HEAD
                                        <string>📍 GPS Tracking</string>
+=======
+                                       <string>?? GPS Tracking</string>
+>>>>>>> origin/gestion-employee
                                       </property>
                                      </item>
                                      <item>
                                       <property name="text">
+<<<<<<< HEAD
                                        <string>📡 Capteur Ultrason</string>
+=======
+                                       <string>?? Capteur Ultrason</string>
+>>>>>>> origin/gestion-employee
                                       </property>
                                      </item>
                                      <item>
                                       <property name="text">
+<<<<<<< HEAD
                                        <string>☀️ Compacteur Solaire</string>
+=======
+                                       <string>?? Compacteur Solaire</string>
+>>>>>>> origin/gestion-employee
                                       </property>
                                      </item>
                                      <item>
                                       <property name="text">
+<<<<<<< HEAD
                                        <string>🔥 Détecteur de Flamme</string>
+=======
+                                       <string>?? Detecteur de Flamme</string>
+>>>>>>> origin/gestion-employee
                                       </property>
                                      </item>
                                      <item>
                                       <property name="text">
+<<<<<<< HEAD
                                        <string>🔒 Verrouillage Auto</string>
+=======
+                                       <string>?? Verrouillage Auto</string>
+>>>>>>> origin/gestion-employee
                                       </property>
                                      </item>
                                      <item>
                                       <property name="text">
+<<<<<<< HEAD
                                        <string>🌐 Intégration IoT</string>
+=======
+                                       <string>?? Integration IoT</string>
+>>>>>>> origin/gestion-employee
                                       </property>
                                      </item>
                                      <item>
                                       <property name="text">
+<<<<<<< HEAD
                                        <string>🌬️ Anti-Odeur</string>
+=======
+                                       <string>??? Anti-Odeur</string>
+>>>>>>> origin/gestion-employee
                                       </property>
                                      </item>
                                     </widget>
@@ -4716,7 +5597,11 @@ text-align: center;</string>
                      </string>
                              </property>
                              <property name="text">
+<<<<<<< HEAD
                               <string>⬅️ Retour</string>
+=======
+                              <string>a?? Retour</string>
+>>>>>>> origin/gestion-employee
                              </property>
                             </widget>
                            </item>
@@ -4745,7 +5630,11 @@ text-align: center;</string>
                          <item>
                           <widget class="QLabel" name="prod_lblStatsSub">
                            <property name="text">
+<<<<<<< HEAD
                             <string>(Données exemple — graphiques généraux)</string>
+=======
+                            <string>(Donnees exemple a?? graphiques generaux)</string>
+>>>>>>> origin/gestion-employee
                            </property>
                           </widget>
                          </item>
@@ -4796,7 +5685,11 @@ text-align: center;</string>
                               <item>
                                <widget class="QLabel" name="prod_graphFrame1Title">
                                 <property name="text">
+<<<<<<< HEAD
                                  <string>Graphique 1 — Répartition (exemple)</string>
+=======
+                                 <string>Graphique 1 a?? Repartition (exemple)</string>
+>>>>>>> origin/gestion-employee
                                 </property>
                                </widget>
                               </item>
@@ -4873,7 +5766,11 @@ text-align: center;</string>
                               <item>
                                <widget class="QLabel" name="prod_graphFrame2Title">
                                 <property name="text">
+<<<<<<< HEAD
                                  <string>Graphique 2 — Évolution (exemple)</string>
+=======
+                                 <string>Graphique 2 ? ?volution (exemple)</string>
+>>>>>>> origin/gestion-employee
                                 </property>
                                </widget>
                               </item>
@@ -5566,15 +6463,23 @@ text-align: center;</string>
              <widget class="QWidget" name="page_Maint_Dash">
               <layout class="QVBoxLayout" name="vl_page_Maint_Dash">
                <property name="spacing">
+<<<<<<< HEAD
                 <number>0</number>
                </property>
                <property name="leftMargin">
                 <number>0</number>
+=======
+                <number>20</number>
+               </property>
+               <property name="leftMargin">
+                <number>20</number>
+>>>>>>> origin/gestion-employee
                </property>
                <property name="topMargin">
                 <number>0</number>
                </property>
                <property name="rightMargin">
+<<<<<<< HEAD
                 <number>0</number>
                </property>
                <property name="bottomMargin">
@@ -5606,6 +6511,14 @@ text-align: center;</string>
                     <number>20</number>
                    </property>
                    <item>
+=======
+                <number>20</number>
+               </property>
+               <property name="bottomMargin">
+                <number>20</number>
+               </property>
+               <item>
+>>>>>>> origin/gestion-employee
                 <layout class="QHBoxLayout" name="horizontalLayout_1">
                  <property name="leftMargin">
                   <number>20</number>
@@ -5660,14 +6573,22 @@ Chef d'Atelier</string>
                     <item>
                      <widget class="QPushButton" name="btnNotif">
                       <property name="text">
+<<<<<<< HEAD
                        <string>🔔</string>
+=======
+                       <string>??</string>
+>>>>>>> origin/gestion-employee
                       </property>
                      </widget>
                     </item>
                     <item>
                      <widget class="QPushButton" name="btnProfil">
                       <property name="text">
+<<<<<<< HEAD
                        <string>👤</string>
+=======
+                       <string>??</string>
+>>>>>>> origin/gestion-employee
                       </property>
                      </widget>
                     </item>
@@ -5726,11 +6647,14 @@ Chef d'Atelier</string>
                          <string>Quantite</string>
                         </property>
                        </item>
+<<<<<<< HEAD
                        <item>
                         <property name="text">
                          <string>Priorite</string>
                         </property>
                        </item>
+=======
+>>>>>>> origin/gestion-employee
                       </widget>
                      </item>
                      <item>
@@ -5828,6 +6752,7 @@ Chef d'Atelier</string>
                    </property>
                    <layout class="QVBoxLayout" name="rightLayout_1">
                     <property name="spacing">
+<<<<<<< HEAD
                      <number>14</number>
                     </property>
                     <property name="leftMargin">
@@ -5841,6 +6766,21 @@ Chef d'Atelier</string>
                     </property>
                     <property name="bottomMargin">
                      <number>8</number>
+=======
+                     <number>10</number>
+                    </property>
+                    <property name="leftMargin">
+                     <number>0</number>
+                    </property>
+                    <property name="topMargin">
+                     <number>0</number>
+                    </property>
+                    <property name="rightMargin">
+                     <number>0</number>
+                    </property>
+                    <property name="bottomMargin">
+                     <number>0</number>
+>>>>>>> origin/gestion-employee
                     </property>
                     <item>
                      <widget class="QLabel" name="lblFunc">
@@ -5851,6 +6791,7 @@ Chef d'Atelier</string>
                     </item>
                     <item>
                      <widget class="QFrame" name="stat1">
+<<<<<<< HEAD
                       <layout class="QVBoxLayout" name="vlStat1">
                        <property name="spacing">
                         <number>4</number>
@@ -5862,17 +6803,36 @@ Chef d'Atelier</string>
                          </property>
                         </widget>
                        </item>
+=======
+                      <property name="class" stdset="0">
+                       <string>statCard</string>
+                      </property>
+                      <layout class="QVBoxLayout">
+>>>>>>> origin/gestion-employee
                        <item>
                         <widget class="QLabel" name="st_val1">
                          <property name="text">
                           <string>1,245</string>
                          </property>
+<<<<<<< HEAD
+=======
+                         <property name="class" stdset="0">
+                          <string>statValue</string>
+                         </property>
+>>>>>>> origin/gestion-employee
                         </widget>
                        </item>
                        <item>
                         <widget class="QLabel" name="st_lbl1">
                          <property name="text">
+<<<<<<< HEAD
                           <string>TOTAL INTERVENTIONS</string>
+=======
+                          <string>Total Interventions</string>
+                         </property>
+                         <property name="class" stdset="0">
+                          <string>statLabel</string>
+>>>>>>> origin/gestion-employee
                          </property>
                         </widget>
                        </item>
@@ -5881,6 +6841,7 @@ Chef d'Atelier</string>
                     </item>
                     <item>
                      <widget class="QFrame" name="stat2">
+<<<<<<< HEAD
                       <layout class="QVBoxLayout" name="vlStat2">
                        <property name="spacing">
                         <number>4</number>
@@ -5892,17 +6853,36 @@ Chef d'Atelier</string>
                          </property>
                         </widget>
                        </item>
+=======
+                      <property name="class" stdset="0">
+                       <string>statCard</string>
+                      </property>
+                      <layout class="QVBoxLayout">
+>>>>>>> origin/gestion-employee
                        <item>
                         <widget class="QLabel" name="st_val2">
                          <property name="text">
                           <string>85,400 TND</string>
                          </property>
+<<<<<<< HEAD
+=======
+                         <property name="class" stdset="0">
+                          <string>statValue</string>
+                         </property>
+>>>>>>> origin/gestion-employee
                         </widget>
                        </item>
                        <item>
                         <widget class="QLabel" name="st_lbl2">
                          <property name="text">
+<<<<<<< HEAD
                           <string>TOTAL COUT</string>
+=======
+                          <string>Total Coût</string>
+                         </property>
+                         <property name="class" stdset="0">
+                          <string>statLabel</string>
+>>>>>>> origin/gestion-employee
                          </property>
                         </widget>
                        </item>
@@ -5911,6 +6891,7 @@ Chef d'Atelier</string>
                     </item>
                     <item>
                      <widget class="QFrame" name="stat3">
+<<<<<<< HEAD
                       <layout class="QVBoxLayout" name="vlStat3">
                        <property name="spacing">
                         <number>4</number>
@@ -5922,17 +6903,36 @@ Chef d'Atelier</string>
                          </property>
                         </widget>
                        </item>
+=======
+                      <property name="class" stdset="0">
+                       <string>statCard</string>
+                      </property>
+                      <layout class="QVBoxLayout">
+>>>>>>> origin/gestion-employee
                        <item>
                         <widget class="QLabel" name="st_val3">
                          <property name="text">
                           <string>0</string>
                          </property>
+<<<<<<< HEAD
+=======
+                         <property name="class" stdset="0">
+                          <string>statValue</string>
+                         </property>
+>>>>>>> origin/gestion-employee
                         </widget>
                        </item>
                        <item>
                         <widget class="QLabel" name="st_lbl3">
                          <property name="text">
+<<<<<<< HEAD
                           <string>HEURES DE MAINTENANCE</string>
+=======
+                          <string>Nombre des heures de maintenance</string>
+                         </property>
+                         <property name="class" stdset="0">
+                          <string>statLabel</string>
+>>>>>>> origin/gestion-employee
                          </property>
                         </widget>
                        </item>
@@ -5950,7 +6950,11 @@ Chef d'Atelier</string>
                       <property name="sizeHint" stdset="0">
                        <size>
                         <width>0</width>
+<<<<<<< HEAD
                         <height>6</height>
+=======
+                        <height>8</height>
+>>>>>>> origin/gestion-employee
                        </size>
                       </property>
                      </spacer>
@@ -5964,6 +6968,7 @@ Chef d'Atelier</string>
                     </item>
                     <item>
                      <widget class="QLabel" name="lblExport">
+<<<<<<< HEAD
                       <property name="visible">
                        <bool>false</bool>
                       </property>
@@ -5973,6 +6978,8 @@ Chef d'Atelier</string>
                         <height>0</height>
                        </size>
                       </property>
+=======
+>>>>>>> origin/gestion-employee
                       <property name="text">
                        <string>EXPORTER</string>
                       </property>
@@ -5980,11 +6987,25 @@ Chef d'Atelier</string>
                     </item>
                     <item>
                      <widget class="QPushButton" name="btnPdf">
+<<<<<<< HEAD
+=======
+                      <property name="styleSheet">
+                       <string notr="true">background-color: #ffffff;
+color: #1f2d3d;
+border: 1px solid #dce1e6;
+border-radius: 10px;
+padding: 12px 16px;
+font-size: 14px;
+font-weight: 700;
+text-align: center;</string>
+                      </property>
+>>>>>>> origin/gestion-employee
                       <property name="text">
                        <string>Rapport PDF</string>
                       </property>
                      </widget>
                     </item>
+<<<<<<< HEAD
                     <item>
                      <spacer name="vSpacerBottom_Maint">
                       <property name="orientation">
@@ -5998,11 +7019,14 @@ Chef d'Atelier</string>
                       </property>
                      </spacer>
                     </item>
+=======
+>>>>>>> origin/gestion-employee
                    </layout>
                   </widget>
                  </item>
                 </layout>
                </item>
+<<<<<<< HEAD
                <item>
                 <widget class="QFrame" name="miniChartFrame">
                  <layout class="QVBoxLayout" name="vlMiniChart">
@@ -6145,6 +7169,10 @@ Chef d'Atelier</string>
            </item>
           </layout>
          </widget>
+=======
+              </layout>
+             </widget>
+>>>>>>> origin/gestion-employee
              <widget class="QWidget" name="page_Maint_Ajout">
               <layout class="QVBoxLayout" name="vl_page_Maint_Ajout">
                <property name="spacing">
@@ -6201,6 +7229,7 @@ Chef d'Atelier</string>
                </item>
                <item>
                 <layout class="QVBoxLayout" name="vlAjoutRoot">
+<<<<<<< HEAD
                <item>
                 <widget class="QScrollArea" name="scrollArea_MaintAjout">
                  <property name="widgetResizable">
@@ -6233,10 +7262,15 @@ Chef d'Atelier</string>
                    <property name="visible">
                     <bool>false</bool>
                    </property>
+=======
+                 <item>
+                  <widget class="QPushButton" name="btnBack_Ajout">
+>>>>>>> origin/gestion-employee
                    <property name="styleSheet">
                     <string>background-color: #e67e22; color: white; font-weight: bold; border-radius: 5px; padding: 8px;</string>
                    </property>
                    <property name="text">
+<<<<<<< HEAD
                     <string>⬅️ Retour au Tableau de Bord</string>
                    </property>
                    <property name="maximumSize">
@@ -6244,12 +7278,16 @@ Chef d'Atelier</string>
                      <width>0</width>
                      <height>0</height>
                     </size>
+=======
+                    <string>? Retour au Tableau de Bord</string>
+>>>>>>> origin/gestion-employee
                    </property>
                   </widget>
                  </item>
                  <item>
                   <widget class="QFrame" name="cardAdd">
                    <layout class="QVBoxLayout" name="vlCardAdd">
+<<<<<<< HEAD
                     <property name="leftMargin">
                      <number>32</number>
                     </property>
@@ -6285,6 +7323,15 @@ Chef d'Atelier</string>
                       </property>
                       <property name="frameShadow">
                        <enum>QFrame::Shadow::Sunken</enum>
+=======
+                    <item>
+                     <widget class="QLabel" name="lblTitreFormAdd">
+                      <property name="text">
+                       <string>Nouvelle Intervention</string>
+                      </property>
+                      <property name="class" stdset="0">
+                       <string>formLabel</string>
+>>>>>>> origin/gestion-employee
                       </property>
                      </widget>
                     </item>
@@ -6403,7 +7450,11 @@ Chef d'Atelier</string>
                           <item>
                            <widget class="QLabel" name="lblEuroAdd">
                             <property name="text">
+<<<<<<< HEAD
                              <string>€</string>
+=======
+                             <string>?</string>
+>>>>>>> origin/gestion-employee
                             </property>
                            </widget>
                           </item>
@@ -6451,6 +7502,7 @@ Chef d'Atelier</string>
                      </layout>
                     </item>
                     <item>
+<<<<<<< HEAD
                      <widget class="QFrame" name="sepMaintAdd2">
                       <property name="frameShape">
                        <enum>QFrame::Shape::HLine</enum>
@@ -6461,6 +7513,8 @@ Chef d'Atelier</string>
                      </widget>
                     </item>
                     <item>
+=======
+>>>>>>> origin/gestion-employee
                      <layout class="QHBoxLayout" name="hlTechAddrAdd">
                       <item>
                        <layout class="QVBoxLayout">
@@ -6507,6 +7561,7 @@ Chef d'Atelier</string>
                      </layout>
                     </item>
                     <item>
+<<<<<<< HEAD
                      <widget class="QFrame" name="sepMaintAdd3">
                       <property name="frameShape">
                        <enum>QFrame::Shape::HLine</enum>
@@ -6517,6 +7572,8 @@ Chef d'Atelier</string>
                      </widget>
                     </item>
                     <item>
+=======
+>>>>>>> origin/gestion-employee
                      <layout class="QVBoxLayout" name="vlDescAdd">
                       <item>
                        <widget class="QLabel" name="lblDescAdd">
@@ -6530,6 +7587,7 @@ Chef d'Atelier</string>
                       </item>
                       <item>
                        <widget class="QTextEdit" name="txtDescAdd">
+<<<<<<< HEAD
                         <property name="minimumSize">
                          <size>
                           <width>0</width>
@@ -6542,6 +7600,8 @@ Chef d'Atelier</string>
                           <height>120</height>
                          </size>
                         </property>
+=======
+>>>>>>> origin/gestion-employee
                         <property name="placeholderText">
                          <string>Inspection du systeme de capteurs et reset du compacteur...</string>
                         </property>
@@ -6550,6 +7610,7 @@ Chef d'Atelier</string>
                      </layout>
                     </item>
                     <item>
+<<<<<<< HEAD
                      <widget class="QFrame" name="sepMaintAdd4">
                       <property name="frameShape">
                        <enum>QFrame::Shape::HLine</enum>
@@ -6564,6 +7625,9 @@ Chef d'Atelier</string>
                       <property name="spacing">
                        <number>16</number>
                       </property>
+=======
+                     <layout class="QHBoxLayout" name="hlPhotosAdd">
+>>>>>>> origin/gestion-employee
                       <item>
                        <layout class="QVBoxLayout">
                         <item>
@@ -6571,25 +7635,43 @@ Chef d'Atelier</string>
                           <property name="text">
                            <string>Photos Avant</string>
                           </property>
+<<<<<<< HEAD
+=======
+                          <property name="class" stdset="0">
+                           <string>formLabel</string>
+                          </property>
+>>>>>>> origin/gestion-employee
                          </widget>
                         </item>
                         <item>
                          <widget class="QLabel" name="lblImgPreview_Add">
                           <property name="minimumSize">
                            <size>
+<<<<<<< HEAD
                             <width>0</width>
                             <height>150</height>
                            </size>
                           </property>
                           <property name="text">
                            <string>Cliquez ou déposez vos images ici pour les télécharger</string>
+=======
+                            <width>200</width>
+                            <height>100</height>
+                           </size>
+                          </property>
+                          <property name="text">
+                           <string>Drag &amp; drop / Parcourir</string>
+>>>>>>> origin/gestion-employee
                           </property>
                           <property name="alignment">
                            <set>Qt::AlignmentFlag::AlignCenter</set>
                           </property>
+<<<<<<< HEAD
                           <property name="wordWrap">
                            <bool>true</bool>
                           </property>
+=======
+>>>>>>> origin/gestion-employee
                          </widget>
                         </item>
                        </layout>
@@ -6599,7 +7681,14 @@ Chef d'Atelier</string>
                         <item>
                          <widget class="QLabel" name="lblPhotosApresAdd">
                           <property name="text">
+<<<<<<< HEAD
                            <string>Photos Après</string>
+=======
+                           <string>Photos Apres</string>
+                          </property>
+                          <property name="class" stdset="0">
+                           <string>formLabel</string>
+>>>>>>> origin/gestion-employee
                           </property>
                          </widget>
                         </item>
@@ -6607,25 +7696,38 @@ Chef d'Atelier</string>
                          <widget class="QLabel" name="lblImgPreview2_Add">
                           <property name="minimumSize">
                            <size>
+<<<<<<< HEAD
                             <width>0</width>
                             <height>150</height>
                            </size>
                           </property>
                           <property name="text">
                            <string>Cliquez ou déposez vos images ici pour les télécharger</string>
+=======
+                            <width>200</width>
+                            <height>100</height>
+                           </size>
+                          </property>
+                          <property name="text">
+                           <string>Drag &amp; drop / Parcourir</string>
+>>>>>>> origin/gestion-employee
                           </property>
                           <property name="alignment">
                            <set>Qt::AlignmentFlag::AlignCenter</set>
                           </property>
+<<<<<<< HEAD
                           <property name="wordWrap">
                            <bool>true</bool>
                           </property>
+=======
+>>>>>>> origin/gestion-employee
                          </widget>
                         </item>
                        </layout>
                       </item>
                      </layout>
                     </item>
+<<<<<<< HEAD
                    </layout>
                   </widget>
                  </item>
@@ -6689,6 +7791,62 @@ Chef d'Atelier</string>
            </item>
           </layout>
          </widget>
+=======
+                    <item>
+                     <spacer name="verticalSpacerButtonsAdd">
+                      <property name="orientation">
+                       <enum>Qt::Orientation::Vertical</enum>
+                      </property>
+                      <property name="sizeType">
+                       <enum>QSizePolicy::Policy::Expanding</enum>
+                      </property>
+                      <property name="sizeHint" stdset="0">
+                       <size>
+                        <width>20</width>
+                        <height>40</height>
+                       </size>
+                      </property>
+                     </spacer>
+                    </item>
+                    <item>
+                     <layout class="QHBoxLayout" name="hlButtonsAdd">
+                      <item>
+                       <spacer>
+                        <property name="orientation">
+                         <enum>Qt::Orientation::Horizontal</enum>
+                        </property>
+                        <property name="sizeHint" stdset="0">
+                         <size>
+                          <width>40</width>
+                          <height>20</height>
+                         </size>
+                        </property>
+                       </spacer>
+                      </item>
+                      <item>
+                       <widget class="QPushButton" name="btnCancel_Add">
+                        <property name="text">
+                         <string>Annuler</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QPushButton" name="btnSave_Add">
+                        <property name="text">
+                         <string>Enregistrer</string>
+                        </property>
+                       </widget>
+                      </item>
+                     </layout>
+                    </item>
+                   </layout>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
+              </layout>
+             </widget>
+>>>>>>> origin/gestion-employee
              <widget class="QWidget" name="page_Maint_Modif">
               <layout class="QVBoxLayout" name="vl_page_Maint_Modif">
                <property name="spacing">
@@ -6745,6 +7903,7 @@ Chef d'Atelier</string>
                </item>
                <item>
                 <layout class="QVBoxLayout" name="vlModRoot">
+<<<<<<< HEAD
                <item>
                 <widget class="QScrollArea" name="scrollArea_MaintModif">
                  <property name="widgetResizable">
@@ -6777,10 +7936,15 @@ Chef d'Atelier</string>
                    <property name="visible">
                     <bool>false</bool>
                    </property>
+=======
+                 <item>
+                  <widget class="QPushButton" name="btnBack_Modif">
+>>>>>>> origin/gestion-employee
                    <property name="styleSheet">
                     <string>background-color: #e67e22; color: white; font-weight: bold; border-radius: 5px; padding: 8px;</string>
                    </property>
                    <property name="text">
+<<<<<<< HEAD
                     <string>⬅️ Retour au Tableau de Bord</string>
                    </property>
                    <property name="maximumSize">
@@ -6788,12 +7952,16 @@ Chef d'Atelier</string>
                      <width>0</width>
                      <height>0</height>
                     </size>
+=======
+                    <string>? Retour au Tableau de Bord</string>
+>>>>>>> origin/gestion-employee
                    </property>
                   </widget>
                  </item>
                  <item>
                   <widget class="QFrame" name="cardMod">
                    <layout class="QVBoxLayout" name="vlCardMod">
+<<<<<<< HEAD
                     <property name="spacing">
                      <number>14</number>
                     </property>
@@ -6813,6 +7981,12 @@ Chef d'Atelier</string>
                      <widget class="QLabel" name="lblTitreFormMod">
                       <property name="text">
                        <string>✏️  Modifier Intervention</string>
+=======
+                    <item>
+                     <widget class="QLabel" name="lblTitreFormMod">
+                      <property name="text">
+                       <string>Modifier Intervention</string>
+>>>>>>> origin/gestion-employee
                       </property>
                       <property name="class" stdset="0">
                        <string>formLabel</string>
@@ -6820,6 +7994,7 @@ Chef d'Atelier</string>
                      </widget>
                     </item>
                     <item>
+<<<<<<< HEAD
                      <widget class="QFrame" name="sepMaintMod1">
                       <property name="frameShape">
                        <enum>QFrame::HLine</enum>
@@ -6830,6 +8005,8 @@ Chef d'Atelier</string>
                      </widget>
                     </item>
                     <item>
+=======
+>>>>>>> origin/gestion-employee
                      <layout class="QHBoxLayout" name="hlRefMod">
                       <item>
                        <layout class="QVBoxLayout">
@@ -6944,7 +8121,11 @@ Chef d'Atelier</string>
                           <item>
                            <widget class="QLabel" name="lblEuroMod">
                             <property name="text">
+<<<<<<< HEAD
                              <string>€</string>
+=======
+                             <string>?</string>
+>>>>>>> origin/gestion-employee
                             </property>
                            </widget>
                           </item>
@@ -6992,6 +8173,7 @@ Chef d'Atelier</string>
                      </layout>
                     </item>
                     <item>
+<<<<<<< HEAD
                      <widget class="QFrame" name="sepMaintMod2">
                       <property name="frameShape">
                        <enum>QFrame::HLine</enum>
@@ -7009,6 +8191,8 @@ Chef d'Atelier</string>
                      </widget>
                     </item>
                     <item>
+=======
+>>>>>>> origin/gestion-employee
                      <layout class="QHBoxLayout" name="hlTechAddrMod">
                       <item>
                        <layout class="QVBoxLayout">
@@ -7055,6 +8239,7 @@ Chef d'Atelier</string>
                      </layout>
                     </item>
                     <item>
+<<<<<<< HEAD
                      <widget class="QFrame" name="sepMaintMod3">
                       <property name="frameShape">
                        <enum>QFrame::HLine</enum>
@@ -7072,6 +8257,8 @@ Chef d'Atelier</string>
                      </widget>
                     </item>
                     <item>
+=======
+>>>>>>> origin/gestion-employee
                      <layout class="QVBoxLayout" name="vlDescMod">
                       <item>
                        <widget class="QLabel" name="lblDescMod">
@@ -7081,6 +8268,7 @@ Chef d'Atelier</string>
                         <property name="class" stdset="0">
                          <string>formLabel</string>
                         </property>
+<<<<<<< HEAD
                         <property name="visible">
                          <bool>false</bool>
                         </property>
@@ -7090,10 +8278,13 @@ Chef d'Atelier</string>
                           <height>0</height>
                          </size>
                         </property>
+=======
+>>>>>>> origin/gestion-employee
                        </widget>
                       </item>
                       <item>
                        <widget class="QTextEdit" name="txtDescMod">
+<<<<<<< HEAD
                         <property name="minimumSize">
                          <size>
                           <width>0</width>
@@ -7106,6 +8297,8 @@ Chef d'Atelier</string>
                           <height>120</height>
                          </size>
                         </property>
+=======
+>>>>>>> origin/gestion-employee
                         <property name="placeholderText">
                          <string>Remplacement de la batterie apres detection de faible charge...</string>
                         </property>
@@ -7114,6 +8307,7 @@ Chef d'Atelier</string>
                      </layout>
                     </item>
                     <item>
+<<<<<<< HEAD
                      <widget class="QFrame" name="sepMaintMod4">
                       <property name="frameShape">
                        <enum>QFrame::HLine</enum>
@@ -7131,6 +8325,8 @@ Chef d'Atelier</string>
                      </widget>
                     </item>
                     <item>
+=======
+>>>>>>> origin/gestion-employee
                      <layout class="QHBoxLayout" name="hlPhotosMod">
                       <item>
                        <layout class="QVBoxLayout">
@@ -7142,6 +8338,7 @@ Chef d'Atelier</string>
                           <property name="class" stdset="0">
                            <string>formLabel</string>
                           </property>
+<<<<<<< HEAD
                           <property name="visible">
                            <bool>false</bool>
                           </property>
@@ -7151,18 +8348,29 @@ Chef d'Atelier</string>
                             <height>0</height>
                            </size>
                           </property>
+=======
+>>>>>>> origin/gestion-employee
                          </widget>
                         </item>
                         <item>
                          <widget class="QLabel" name="lblImgPreview_Mod">
                           <property name="minimumSize">
                            <size>
+<<<<<<< HEAD
                             <width>0</width>
                             <height>160</height>
                            </size>
                           </property>
                           <property name="text">
                            <string>📷  Déposez vos images AVANT / APRÈS ici</string>
+=======
+                            <width>420</width>
+                            <height>140</height>
+                           </size>
+                          </property>
+                          <property name="text">
+                           <string>Ici tes images AVANT / APR?S (maquette)</string>
+>>>>>>> origin/gestion-employee
                           </property>
                           <property name="alignment">
                            <set>Qt::AlignmentFlag::AlignCenter</set>
@@ -7180,6 +8388,7 @@ Chef d'Atelier</string>
                       </property>
                      </widget>
                     </item>
+<<<<<<< HEAD
                    </layout>
                   </widget>
                  </item>
@@ -7243,6 +8452,62 @@ Chef d'Atelier</string>
              </item>
             </layout>
            </widget>
+=======
+                    <item>
+                     <spacer name="verticalSpacerButtonsMod">
+                      <property name="orientation">
+                       <enum>Qt::Orientation::Vertical</enum>
+                      </property>
+                      <property name="sizeType">
+                       <enum>QSizePolicy::Policy::Expanding</enum>
+                      </property>
+                      <property name="sizeHint" stdset="0">
+                       <size>
+                        <width>20</width>
+                        <height>40</height>
+                       </size>
+                      </property>
+                     </spacer>
+                    </item>
+                    <item>
+                     <layout class="QHBoxLayout" name="hlButtonsMod">
+                      <item>
+                       <spacer>
+                        <property name="orientation">
+                         <enum>Qt::Orientation::Horizontal</enum>
+                        </property>
+                        <property name="sizeHint" stdset="0">
+                         <size>
+                          <width>40</width>
+                          <height>20</height>
+                         </size>
+                        </property>
+                       </spacer>
+                      </item>
+                      <item>
+                       <widget class="QPushButton" name="btnCancel_Mod">
+                        <property name="text">
+                         <string>Annuler</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QPushButton" name="btnSave_Mod">
+                        <property name="text">
+                         <string>Enregistrer</string>
+                        </property>
+                       </widget>
+                      </item>
+                     </layout>
+                    </item>
+                   </layout>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
+              </layout>
+             </widget>
+>>>>>>> origin/gestion-employee
             </widget>
            </item>
           </layout>
@@ -7763,7 +9028,11 @@ text-align: center;</string>
                      <widget class="QComboBox" name="input_paiement_ajouter">
                       <item>
                        <property name="text">
+<<<<<<< HEAD
                         <string>Payé</string>
+=======
+                        <string>Pay?</string>
+>>>>>>> origin/gestion-employee
                        </property>
                       </item>
                       <item>
@@ -7966,7 +9235,11 @@ text-align: center;</string>
                      <widget class="QComboBox" name="input_paiement_modifier">
                       <item>
                        <property name="text">
+<<<<<<< HEAD
                         <string>Payé</string>
+=======
+                        <string>Pay?</string>
+>>>>>>> origin/gestion-employee
                        </property>
                       </item>
                       <item>
@@ -8155,7 +9428,11 @@ Chef d'Atelier</string>
                   <bool>false</bool>
                  </property>
                  <property name="text">
+<<<<<<< HEAD
                   <string>🔔</string>
+=======
+                  <string>??</string>
+>>>>>>> origin/gestion-employee
                  </property>
                 </widget>
                </item>
@@ -8165,7 +9442,11 @@ Chef d'Atelier</string>
                   <bool>false</bool>
                  </property>
                  <property name="text">
+<<<<<<< HEAD
                   <string>👤</string>
+=======
+                  <string>??</string>
+>>>>>>> origin/gestion-employee
                  </property>
                 </widget>
                </item>
@@ -8324,6 +9605,7 @@ Chef d'Atelier</string>
                    </item>
                   </layout>
                  </item>
+<<<<<<< HEAD
                    </layout>
                </widget>
                <widget class="QWidget" name="pageCommandes">
@@ -8331,6 +9613,240 @@ Chef d'Atelier</string>
                  <item>
                   <layout class="QVBoxLayout" name="tableLayout_2">
                    <item>
+=======
+                 <item>
+                  <widget class="QFrame" name="rightSidebar_Commande">
+                   <property name="minimumSize">
+                    <size>
+                     <width>300</width>
+                     <height>0</height>
+                    </size>
+                   </property>
+                   <property name="maximumSize">
+                    <size>
+                     <width>350</width>
+                     <height>16777215</height>
+                    </size>
+                   </property>
+                   <layout class="QVBoxLayout" name="rightLayout_Cmd">
+                    <property name="spacing">
+                     <number>10</number>
+                    </property>
+                    <property name="leftMargin">
+                     <number>0</number>
+                    </property>
+                    <property name="topMargin">
+                     <number>0</number>
+                    </property>
+                    <property name="rightMargin">
+                     <number>0</number>
+                    </property>
+                    <property name="bottomMargin">
+                     <number>0</number>
+                    </property>
+                    <item>
+                     <widget class="QLabel" name="lblFunc_Cmd">
+                      <property name="text">
+                       <string>INFOS GLOBALES</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QFrame" name="stat1_Cmd">
+                      <property name="class" stdset="0">
+                       <string>statCard</string>
+                      </property>
+                      <layout class="QVBoxLayout">
+                       <item>
+                        <widget class="QLabel" name="st_val1_Cmd">
+                         <property name="text">
+                          <string>1,245</string>
+                         </property>
+                         <property name="class" stdset="0">
+                          <string>statValue</string>
+                         </property>
+                        </widget>
+                       </item>
+                       <item>
+                        <widget class="QLabel" name="st_lbl1_Cmd">
+                         <property name="text">
+                          <string>Total des Commandes</string>
+                         </property>
+                         <property name="class" stdset="0">
+                          <string>statLabel</string>
+                         </property>
+                        </widget>
+                       </item>
+                      </layout>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QFrame" name="stat2_Cmd">
+                      <property name="class" stdset="0">
+                       <string>statCard</string>
+                      </property>
+                      <layout class="QVBoxLayout">
+                       <item>
+                        <widget class="QLabel" name="st_val2_Cmd">
+                         <property name="text">
+                          <string>85,400 TND</string>
+                         </property>
+                         <property name="class" stdset="0">
+                          <string>statValue</string>
+                         </property>
+                        </widget>
+                       </item>
+                       <item>
+                        <widget class="QLabel" name="st_lbl2_Cmd">
+                         <property name="text">
+                          <string>Chiffre d'Affaire</string>
+                         </property>
+                         <property name="class" stdset="0">
+                          <string>statLabel</string>
+                         </property>
+                        </widget>
+                       </item>
+                      </layout>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QFrame" name="stat3_Cmd">
+                      <property name="class" stdset="0">
+                       <string>statCard</string>
+                      </property>
+                      <layout class="QVBoxLayout">
+                       <item>
+                        <widget class="QLabel" name="st_val3_Cmd">
+                         <property name="text">
+                          <string>3</string>
+                         </property>
+                         <property name="class" stdset="0">
+                          <string>statValue</string>
+                         </property>
+                        </widget>
+                       </item>
+                       <item>
+                        <widget class="QLabel" name="st_lbl3_Cmd">
+                         <property name="text">
+                          <string>Bacs Vendus</string>
+                         </property>
+                         <property name="class" stdset="0">
+                          <string>statLabel</string>
+                         </property>
+                        </widget>
+                       </item>
+                      </layout>
+                     </widget>
+                    </item>
+                    <item>
+                     <spacer>
+                      <property name="orientation">
+                       <enum>Qt::Orientation::Vertical</enum>
+                      </property>
+                      <property name="sizeType">
+                       <enum>QSizePolicy::Policy::Fixed</enum>
+                      </property>
+                      <property name="sizeHint" stdset="0">
+                       <size>
+                        <width>0</width>
+                        <height>8</height>
+                       </size>
+                      </property>
+                     </spacer>
+                    </item>
+                    <item>
+                     <widget class="QPushButton" name="btnGoStats_Cmd">
+                      <property name="text">
+                       <string>Statistiques</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QLabel" name="lblExport_Cmd">
+                      <property name="text">
+                       <string>EXPORTER</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QPushButton" name="btnPdf_Cmd">
+                      <property name="text">
+                       <string>Rapport PDF Commandes</string>
+                      </property>
+                     </widget>
+                    </item>
+                   </layout>
+                  </widget>
+                 </item>
+                </layout>
+               </widget>
+               <widget class="QWidget" name="pageCommandes">
+                <layout class="QVBoxLayout" name="pageCommandesLayout">
+                 <item>
+                  <layout class="QVBoxLayout" name="tableLayout_2">
+                   <item>
+                    <widget class="QTableWidget" name="tableProduits_2">
+                     <property name="minimumSize">
+                      <size>
+                       <width>900</width>
+                       <height>0</height>
+                      </size>
+                     </property>
+                     <property name="columnCount">
+                      <number>9</number>
+                     </property>
+                     <attribute name="verticalHeaderVisible">
+                      <bool>false</bool>
+                     </attribute>
+                     <column>
+                      <property name="text">
+                       <string>ID Commande</string>
+                      </property>
+                     </column>
+                     <column>
+                      <property name="text">
+                       <string>Quantit?</string>
+                      </property>
+                     </column>
+                     <column>
+                      <property name="text">
+                       <string>Priorit?</string>
+                      </property>
+                     </column>
+                     <column>
+                      <property name="text">
+                       <string>Status</string>
+                      </property>
+                     </column>
+                     <column>
+                      <property name="text">
+                       <string>Adresse</string>
+                      </property>
+                     </column>
+                     <column>
+                      <property name="text">
+                       <string>Date</string>
+                      </property>
+                     </column>
+                     <column>
+                      <property name="text">
+                       <string>Stock</string>
+                      </property>
+                     </column>
+                     <column>
+                      <property name="text">
+                       <string>Date Livraison</string>
+                      </property>
+                     </column>
+                     <column>
+                      <property name="text">
+                       <string>Prix Total</string>
+                      </property>
+                     </column>
+                    </widget>
+                   </item>
+                   <item>
+>>>>>>> origin/gestion-employee
                     <layout class="QHBoxLayout" name="searchRow_2">
                      <item>
                       <spacer>
@@ -8402,6 +9918,7 @@ Chef d'Atelier</string>
                      </item>
                     </layout>
                    </item>
+<<<<<<< HEAD
                     <item>
                     <widget class="QTableWidget" name="tableProduits_2">
                      <property name="minimumSize">
@@ -8638,6 +10155,10 @@ Chef d'Atelier</string>
                     </layout>
                    </widget>
                   </item>
+=======
+                  </layout>
+                 </item>
+>>>>>>> origin/gestion-employee
                 </layout>
                </widget>
               </widget>
@@ -8741,20 +10262,29 @@ Chef d'Atelier</string>
                <item>
                 <widget class="QPushButton" name="btnnotif_5">
                  <property name="text">
+<<<<<<< HEAD
                   <string>🔔</string>
+=======
+                  <string>??</string>
+>>>>>>> origin/gestion-employee
                  </property>
                 </widget>
                </item>
                <item>
                 <widget class="QPushButton" name="btnprofil_5">
                  <property name="text">
+<<<<<<< HEAD
                   <string>👤</string>
+=======
+                  <string>??</string>
+>>>>>>> origin/gestion-employee
                  </property>
                 </widget>
                </item>
               </layout>
              </item>
              <item>
+<<<<<<< HEAD
               <widget class="QScrollArea" name="scrollArea_CmdAjout">
                <property name="widgetResizable">
                 <bool>true</bool>
@@ -8786,6 +10316,11 @@ Chef d'Atelier</string>
                </property>
                <property name="bottomMargin">
                 <number>30</number>
+=======
+              <layout class="QHBoxLayout" name="hl_mod_split_3">
+               <property name="spacing">
+                <number>20</number>
+>>>>>>> origin/gestion-employee
                </property>
                <item>
                 <widget class="QFrame" name="cardMod_3">
@@ -8794,6 +10329,7 @@ Chef d'Atelier</string>
                  </property>
                  <layout class="QVBoxLayout" name="verticalLayout_Mod_3">
                   <property name="spacing">
+<<<<<<< HEAD
                    <number>16</number>
                   </property>
                   <property name="leftMargin">
@@ -8807,15 +10343,35 @@ Chef d'Atelier</string>
                   </property>
                   <property name="bottomMargin">
                    <number>28</number>
+=======
+                   <number>3</number>
+                  </property>
+                  <property name="leftMargin">
+                   <number>14</number>
+                  </property>
+                  <property name="topMargin">
+                   <number>8</number>
+                  </property>
+                  <property name="rightMargin">
+                   <number>14</number>
+                  </property>
+                  <property name="bottomMargin">
+                   <number>8</number>
+>>>>>>> origin/gestion-employee
                   </property>
                   <item>
                    <widget class="QLabel" name="lblTitleMod_3">
                     <property name="sizePolicy">
+<<<<<<< HEAD
                      <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+=======
+                     <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+>>>>>>> origin/gestion-employee
                       <horstretch>0</horstretch>
                       <verstretch>0</verstretch>
                      </sizepolicy>
                     </property>
+<<<<<<< HEAD
                     <property name="minimumSize">
                      <size>
                       <width>0</width>
@@ -8824,17 +10380,24 @@ Chef d'Atelier</string>
                     </property>
                     <property name="text">
                      <string>📋  Ajouter Une Commande</string>
+=======
+                    <property name="text">
+                     <string>Ajouter Une Commande</string>
+>>>>>>> origin/gestion-employee
                     </property>
                    </widget>
                   </item>
                   <item>
                    <layout class="QGridLayout" name="gl_inputs_4">
+<<<<<<< HEAD
                     <property name="horizontalSpacing">
                      <number>20</number>
                     </property>
                     <property name="verticalSpacing">
                      <number>20</number>
                     </property>
+=======
+>>>>>>> origin/gestion-employee
                     <item row="1" column="1">
                      <widget class="QDoubleSpinBox" name="dsb_price_add_4">
                       <property name="maximum">
@@ -8943,6 +10506,7 @@ Chef d'Atelier</string>
                    </layout>
                   </item>
                   <item>
+<<<<<<< HEAD
                    <spacer name="spacerBeforeDates">
                     <property name="orientation">
                      <enum>Qt::Vertical</enum>
@@ -8984,6 +10548,13 @@ Chef d'Atelier</string>
                      <widget class="QLabel" name="label_27">
                       <property name="text">
                        <string>📆  Date Demande :</string>
+=======
+                   <layout class="QHBoxLayout" name="horizontalLayout_10">
+                    <item>
+                     <widget class="QLabel" name="label_27">
+                      <property name="text">
+                       <string>Date Demande :</string>
+>>>>>>> origin/gestion-employee
                       </property>
                      </widget>
                     </item>
@@ -9039,6 +10610,7 @@ Chef d'Atelier</string>
                   </item>
                   <item>
                    <layout class="QHBoxLayout" name="horizontalLayout_11">
+<<<<<<< HEAD
                     <property name="spacing">
                      <number>12</number>
                     </property>
@@ -9046,6 +10618,12 @@ Chef d'Atelier</string>
                      <widget class="QLabel" name="label_31">
                       <property name="text">
                        <string>📦  Date Livraison :</string>
+=======
+                    <item>
+                     <widget class="QLabel" name="label_31">
+                      <property name="text">
+                       <string>Date Livraison :</string>
+>>>>>>> origin/gestion-employee
                       </property>
                      </widget>
                     </item>
@@ -9100,6 +10678,7 @@ Chef d'Atelier</string>
                    </layout>
                   </item>
                   <item>
+<<<<<<< HEAD
                    <spacer name="spacerBeforeAdresse">
                     <property name="orientation">
                      <enum>Qt::Vertical</enum>
@@ -9133,6 +10712,8 @@ Chef d'Atelier</string>
                    </widget>
                   </item>
                   <item>
+=======
+>>>>>>> origin/gestion-employee
                    <layout class="QHBoxLayout" name="horizontalLayout">
                     <item>
                      <widget class="QLabel" name="label">
@@ -9142,6 +10723,7 @@ Chef d'Atelier</string>
                         <verstretch>0</verstretch>
                        </sizepolicy>
                       </property>
+<<<<<<< HEAD
                       <property name="maximumSize">
                        <size>
                         <width>0</width>
@@ -9154,16 +10736,26 @@ Chef d'Atelier</string>
                       <property name="visible">
                        <bool>false</bool>
                       </property>
+=======
+                      <property name="text">
+                       <string>Adresse de livraison</string>
+                      </property>
+>>>>>>> origin/gestion-employee
                      </widget>
                     </item>
                     <item>
                      <widget class="QTextEdit" name="textEdit">
                       <property name="sizePolicy">
+<<<<<<< HEAD
                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+=======
+                       <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+>>>>>>> origin/gestion-employee
                         <horstretch>0</horstretch>
                         <verstretch>0</verstretch>
                        </sizepolicy>
                       </property>
+<<<<<<< HEAD
                       <property name="minimumSize">
                        <size>
                         <width>0</width>
@@ -9174,19 +10766,35 @@ Chef d'Atelier</string>
                        <size>
                         <width>16777215</width>
                         <height>100</height>
+=======
+                      <property name="maximumSize">
+                       <size>
+                        <width>16777215</width>
+                        <height>28</height>
+>>>>>>> origin/gestion-employee
                        </size>
                       </property>
                       <property name="autoFillBackground">
                        <bool>false</bool>
                       </property>
+<<<<<<< HEAD
                       <property name="placeholderText">
                        <string>Entrez l'adresse de livraison...</string>
+=======
+                      <property name="styleSheet">
+                       <string notr="true">background: transparent;
+color: #2f3f52;
+border: none;
+border-bottom: 2px solid #8f99a3;
+border-radius: 0px;</string>
+>>>>>>> origin/gestion-employee
                       </property>
                      </widget>
                     </item>
                    </layout>
                   </item>
                   <item>
+<<<<<<< HEAD
                    <spacer name="spacerBeforeBtns">
                     <property name="orientation">
                      <enum>Qt::Vertical</enum>
@@ -9217,6 +10825,9 @@ Chef d'Atelier</string>
                     <property name="spacing">
                      <number>16</number>
                     </property>
+=======
+                   <layout class="QHBoxLayout" name="btns_mod_3">
+>>>>>>> origin/gestion-employee
                     <item>
                      <widget class="QPushButton" name="btnSave_Mod_3">
                       <property name="sizePolicy">
@@ -9228,6 +10839,7 @@ Chef d'Atelier</string>
                       <property name="minimumSize">
                        <size>
                         <width>0</width>
+<<<<<<< HEAD
                         <height>50</height>
                        </size>
                       </property>
@@ -9236,6 +10848,13 @@ Chef d'Atelier</string>
                       </property>
                       <property name="cursor">
                        <cursorShape>PointingHandCursor</cursorShape>
+=======
+                        <height>34</height>
+                       </size>
+                      </property>
+                      <property name="text">
+                       <string>Sauvegarder</string>
+>>>>>>> origin/gestion-employee
                       </property>
                      </widget>
                     </item>
@@ -9250,6 +10869,7 @@ Chef d'Atelier</string>
                       <property name="minimumSize">
                        <size>
                         <width>0</width>
+<<<<<<< HEAD
                         <height>50</height>
                        </size>
                       </property>
@@ -9258,6 +10878,13 @@ Chef d'Atelier</string>
                       </property>
                       <property name="cursor">
                        <cursorShape>PointingHandCursor</cursorShape>
+=======
+                        <height>34</height>
+                       </size>
+                      </property>
+                      <property name="text">
+                       <string>Annuler</string>
+>>>>>>> origin/gestion-employee
                       </property>
                      </widget>
                     </item>
@@ -9267,8 +10894,11 @@ Chef d'Atelier</string>
                 </widget>
                </item>
               </layout>
+<<<<<<< HEAD
                </widget>
               </widget>
+=======
+>>>>>>> origin/gestion-employee
              </item>
             </layout>
            </item>
@@ -9369,20 +10999,29 @@ Chef d'Atelier</string>
                <item>
                 <widget class="QPushButton" name="btnnotif_3">
                  <property name="text">
+<<<<<<< HEAD
                   <string>🔔</string>
+=======
+                  <string>??</string>
+>>>>>>> origin/gestion-employee
                  </property>
                 </widget>
                </item>
                <item>
                 <widget class="QPushButton" name="btnprofil_3">
                  <property name="text">
+<<<<<<< HEAD
                   <string>👤</string>
+=======
+                  <string>??</string>
+>>>>>>> origin/gestion-employee
                  </property>
                 </widget>
                </item>
               </layout>
              </item>
              <item>
+<<<<<<< HEAD
               <widget class="QScrollArea" name="scrollArea_CmdModif">
                <property name="widgetResizable">
                 <bool>true</bool>
@@ -9414,6 +11053,11 @@ Chef d'Atelier</string>
                </property>
                <property name="bottomMargin">
                 <number>30</number>
+=======
+              <layout class="QHBoxLayout" name="hl_mod_split">
+               <property name="spacing">
+                <number>20</number>
+>>>>>>> origin/gestion-employee
                </property>
                <item>
                 <widget class="QFrame" name="cardMod">
@@ -9422,6 +11066,7 @@ Chef d'Atelier</string>
                  </property>
                  <layout class="QVBoxLayout" name="verticalLayout_Mod">
                   <property name="spacing">
+<<<<<<< HEAD
                    <number>16</number>
                   </property>
                   <property name="leftMargin">
@@ -9435,15 +11080,35 @@ Chef d'Atelier</string>
                   </property>
                   <property name="bottomMargin">
                    <number>28</number>
+=======
+                   <number>3</number>
+                  </property>
+                  <property name="leftMargin">
+                   <number>14</number>
+                  </property>
+                  <property name="topMargin">
+                   <number>8</number>
+                  </property>
+                  <property name="rightMargin">
+                   <number>14</number>
+                  </property>
+                  <property name="bottomMargin">
+                   <number>8</number>
+>>>>>>> origin/gestion-employee
                   </property>
                   <item>
                    <widget class="QLabel" name="lblTitleMod">
                     <property name="sizePolicy">
+<<<<<<< HEAD
                      <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+=======
+                     <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+>>>>>>> origin/gestion-employee
                       <horstretch>0</horstretch>
                       <verstretch>0</verstretch>
                      </sizepolicy>
                     </property>
+<<<<<<< HEAD
                     <property name="minimumSize">
                      <size>
                       <width>0</width>
@@ -9452,17 +11117,24 @@ Chef d'Atelier</string>
                     </property>
                     <property name="text">
                      <string>✏️  Modifier Une Commande</string>
+=======
+                    <property name="text">
+                     <string>Modifier Une Commande</string>
+>>>>>>> origin/gestion-employee
                     </property>
                    </widget>
                   </item>
                   <item>
                    <layout class="QGridLayout" name="gl_inputs_2">
+<<<<<<< HEAD
                     <property name="horizontalSpacing">
                      <number>20</number>
                     </property>
                     <property name="verticalSpacing">
                      <number>20</number>
                     </property>
+=======
+>>>>>>> origin/gestion-employee
                     <item row="1" column="1">
                      <widget class="QDoubleSpinBox" name="dsb_price_add_2">
                       <property name="maximum">
@@ -9571,6 +11243,7 @@ Chef d'Atelier</string>
                    </layout>
                   </item>
                   <item>
+<<<<<<< HEAD
                    <spacer name="spacerBeforeDatesMod">
                     <property name="orientation">
                      <enum>Qt::Vertical</enum>
@@ -9612,6 +11285,13 @@ Chef d'Atelier</string>
                      <widget class="QLabel" name="label_11">
                       <property name="text">
                        <string>📆  Date Demande :</string>
+=======
+                   <layout class="QHBoxLayout" name="horizontalLayout_5">
+                    <item>
+                     <widget class="QLabel" name="label_11">
+                      <property name="text">
+                       <string>Date Demande :</string>
+>>>>>>> origin/gestion-employee
                       </property>
                      </widget>
                     </item>
@@ -9667,6 +11347,7 @@ Chef d'Atelier</string>
                   </item>
                   <item>
                    <layout class="QHBoxLayout" name="horizontalLayout_7">
+<<<<<<< HEAD
                     <property name="spacing">
                      <number>12</number>
                     </property>
@@ -9674,6 +11355,12 @@ Chef d'Atelier</string>
                      <widget class="QLabel" name="label_19">
                       <property name="text">
                        <string>📦  Date Livraison :</string>
+=======
+                    <item>
+                     <widget class="QLabel" name="label_19">
+                      <property name="text">
+                       <string>Date Livraison :</string>
+>>>>>>> origin/gestion-employee
                       </property>
                      </widget>
                     </item>
@@ -9728,6 +11415,7 @@ Chef d'Atelier</string>
                    </layout>
                   </item>
                   <item>
+<<<<<<< HEAD
                    <spacer name="spacerBeforeAdresseMod">
                     <property name="orientation">
                      <enum>Qt::Vertical</enum>
@@ -9761,6 +11449,8 @@ Chef d'Atelier</string>
                    </widget>
                   </item>
                   <item>
+=======
+>>>>>>> origin/gestion-employee
                    <layout class="QHBoxLayout" name="horizontalLayout_12">
                     <item>
                      <widget class="QLabel" name="label_6">
@@ -9770,6 +11460,7 @@ Chef d'Atelier</string>
                         <verstretch>0</verstretch>
                        </sizepolicy>
                       </property>
+<<<<<<< HEAD
                       <property name="maximumSize">
                        <size>
                         <width>0</width>
@@ -9782,16 +11473,26 @@ Chef d'Atelier</string>
                       <property name="visible">
                        <bool>false</bool>
                       </property>
+=======
+                      <property name="text">
+                       <string>Adresse de livraison</string>
+                      </property>
+>>>>>>> origin/gestion-employee
                      </widget>
                     </item>
                     <item>
                      <widget class="QTextEdit" name="textEdit_2">
                       <property name="sizePolicy">
+<<<<<<< HEAD
                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+=======
+                       <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+>>>>>>> origin/gestion-employee
                         <horstretch>0</horstretch>
                         <verstretch>0</verstretch>
                        </sizepolicy>
                       </property>
+<<<<<<< HEAD
                       <property name="minimumSize">
                        <size>
                         <width>0</width>
@@ -9802,19 +11503,35 @@ Chef d'Atelier</string>
                        <size>
                         <width>16777215</width>
                         <height>100</height>
+=======
+                      <property name="maximumSize">
+                       <size>
+                        <width>16777215</width>
+                        <height>28</height>
+>>>>>>> origin/gestion-employee
                        </size>
                       </property>
                       <property name="autoFillBackground">
                        <bool>false</bool>
                       </property>
+<<<<<<< HEAD
                       <property name="placeholderText">
                        <string>Entrez l'adresse de livraison...</string>
+=======
+                      <property name="styleSheet">
+                       <string notr="true">background: transparent;
+color: #2f3f52;
+border: none;
+border-bottom: 2px solid #8f99a3;
+border-radius: 0px;</string>
+>>>>>>> origin/gestion-employee
                       </property>
                      </widget>
                     </item>
                    </layout>
                   </item>
                   <item>
+<<<<<<< HEAD
                    <spacer name="spacerBeforeBtnsMod">
                     <property name="orientation">
                      <enum>Qt::Vertical</enum>
@@ -9845,6 +11562,9 @@ Chef d'Atelier</string>
                     <property name="spacing">
                      <number>16</number>
                     </property>
+=======
+                   <layout class="QHBoxLayout" name="btns_mod">
+>>>>>>> origin/gestion-employee
                     <item>
                      <widget class="QPushButton" name="btnSave_Mod">
                       <property name="sizePolicy">
@@ -9856,11 +11576,16 @@ Chef d'Atelier</string>
                       <property name="minimumSize">
                        <size>
                         <width>0</width>
+<<<<<<< HEAD
                         <height>50</height>
+=======
+                        <height>34</height>
+>>>>>>> origin/gestion-employee
                        </size>
                       </property>
                       <property name="styleSheet">
                        <string notr="true">QPushButton {
+<<<<<<< HEAD
     background-color: #38a169;
     color: white;
     border: none;
@@ -9878,6 +11603,21 @@ QPushButton:hover {
                       </property>
                       <property name="cursor">
                        <cursorShape>PointingHandCursor</cursorShape>
+=======
+    background-color: #49b14f;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-weight: 700;
+}
+QPushButton:hover {
+    background-color: #3ea445;
+}</string>
+                      </property>
+                      <property name="text">
+                       <string>Sauvegarder</string>
+>>>>>>> origin/gestion-employee
                       </property>
                      </widget>
                     </item>
@@ -9892,11 +11632,16 @@ QPushButton:hover {
                       <property name="minimumSize">
                        <size>
                         <width>0</width>
+<<<<<<< HEAD
                         <height>50</height>
+=======
+                        <height>34</height>
+>>>>>>> origin/gestion-employee
                        </size>
                       </property>
                       <property name="styleSheet">
                        <string notr="true">QPushButton {
+<<<<<<< HEAD
     background-color: #edf2f7;
     color: #4a5568;
     border: 1.5px solid #e2e8f0;
@@ -9916,6 +11661,21 @@ QPushButton:hover {
                       </property>
                       <property name="cursor">
                        <cursorShape>PointingHandCursor</cursorShape>
+=======
+    background-color: #a9b8c3;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-weight: 700;
+}
+QPushButton:hover {
+    background-color: #96a7b4;
+}</string>
+                      </property>
+                      <property name="text">
+                       <string>Annuler</string>
+>>>>>>> origin/gestion-employee
                       </property>
                      </widget>
                     </item>
@@ -9925,13 +11685,20 @@ QPushButton:hover {
                 </widget>
                </item>
               </layout>
+<<<<<<< HEAD
                </widget>
               </widget>
+=======
+>>>>>>> origin/gestion-employee
              </item>
             </layout>
            </item>
           </layout>
          </widget>
+<<<<<<< HEAD
+=======
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
         </widget>
        </item>
       </layout>
@@ -9944,7 +11711,15 @@ QPushButton:hover {
     <rect>
      <x>0</x>
      <y>0</y>
+<<<<<<< HEAD
      <width>1235</width>
+=======
+<<<<<<< HEAD
+     <width>1100</width>
+=======
+     <width>1235</width>
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
      <height>25</height>
     </rect>
    </property>
@@ -9961,6 +11736,12 @@ QPushButton:hover {
  <resources>
   <include location="logo.qrc"/>
  </resources>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+ <connections/>
+=======
+>>>>>>> origin/gestion-employee
  <connections>
   <connection>
    <sender>btnGotoAjout</sender>
@@ -10059,4 +11840,8 @@ QPushButton:hover {
    </hints>
   </connection>
  </connections>
+<<<<<<< HEAD
+=======
+>>>>>>> 2a1db57 (atelier connexion)
+>>>>>>> origin/gestion-employee
 </ui>
