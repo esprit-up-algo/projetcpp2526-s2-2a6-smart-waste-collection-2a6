@@ -1,0 +1,18 @@
+# Qt Creator / IDE
+*.pro.user
+.qtcreator/
+.qtc_clangd/
+*.user*
+*.autosave
+
+# Build folders
+build/
+debug/
+release/
+
+# Object/binary
+*.o
+*.obj
+*.exe
+*.dll
+*.so
