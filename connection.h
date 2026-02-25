@@ -1,17 +1,12 @@
 #ifndef CONNECTION_H
 #define CONNECTION_H
 
-<<<<<<< HEAD
 #include <QtSql/QSqlDatabase>
 #include <QSqlQuery>
-=======
-#include <QSqlDatabase>
->>>>>>> origin/gestion-employee
 
 class Connection
 {
 public:
-<<<<<<< HEAD
     static Connection* instance(); // Accès à l'instance unique
     bool createConnect(); // Méthode pour créer la connexion
     void closeConnection(); // Fermer la connexion
@@ -28,10 +23,3 @@ private:
 
 #endif // CONNECTION_H
 
-=======
-    Connection();
-    bool createConnection();
-};
-
-#endif // CONNECTION_H
->>>>>>> origin/gestion-employee
