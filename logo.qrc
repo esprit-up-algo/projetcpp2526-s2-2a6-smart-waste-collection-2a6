@@ -6,5 +6,9 @@
         <file>logo2.png</file>
         <file>WASTEGUARD (1) (1).png</file>
         <file>WASTEGUARD (1).png</file>
+        <file>assets/bin.png</file>
+        <file>assets/sensor.png</file>
+        <file>assets/compactor.png</file>
+        <file>assets/landscape_bin.png</file>
     </qresource>
 </RCC>

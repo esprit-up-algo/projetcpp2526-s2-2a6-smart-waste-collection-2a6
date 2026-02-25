@@ -28,6 +28,7 @@
 #include <QtWidgets/QMenuBar>
 #include <QtWidgets/QProgressBar>
 #include <QtWidgets/QPushButton>
+#include <QtWidgets/QScrollArea>
 #include <QtWidgets/QSlider>
 #include <QtWidgets/QSpacerItem>
 #include <QtWidgets/QSpinBox>
@@ -47,6 +48,7 @@ public:
     QHBoxLayout *horizontalLayout_Main;
     QFrame *sidebar;
     QVBoxLayout *verticalLayout_4;
+    QPushButton *btnToggleSidebar;
     QLabel *label_logo;
     QPushButton *btnAccueil;
     QPushButton *btnStock;
@@ -70,9 +72,11 @@ public:
     QSpacerItem *horizontalSpacer_User;
     QFrame *frameUser;
     QVBoxLayout *verticalLayout_User;
+    QHBoxLayout *horizontalLayout_UserHeader;
+    QVBoxLayout *verticalLayout_UserText;
     QLabel *lblUserName;
-    QPushButton *btnNouveau;
     QLabel *lblUserRole;
+    QPushButton *btnNouveau;
     QHBoxLayout *horizontalLayout_Search;
     QLineEdit *txtSearch;
     QComboBox *cbSort;
@@ -234,7 +238,16 @@ public:
     QHBoxLayout *prod_searchRow;
     QLineEdit *prod_searchInput;
     QComboBox *prod_cbSort;
+    QPushButton *prod_btnToggleView;
+    QStackedWidget *prod_viewStackedWidget;
+    QWidget *prod_tableViewPage;
+    QVBoxLayout *prod_tablePgLayout;
     QTableWidget *prod_tableProduits;
+    QWidget *prod_cardViewPage;
+    QVBoxLayout *prod_cardPgLayout;
+    QScrollArea *prod_cardViewScrollArea;
+    QWidget *prod_cardContainer;
+    QGridLayout *prod_cardLayout;
     QFrame *prod_rightSidebar;
     QVBoxLayout *prod_rightLayout;
     QLabel *prod_lblFunc;
@@ -267,7 +280,6 @@ public:
     QSpacerItem *spacerItem2;
     QLabel *prod_lblExport;
     QPushButton *prod_btnPdf;
-    QPushButton *prod_btnCsv;
     QSpacerItem *spacerItem3;
     QWidget *prod_ajout;
     QHBoxLayout *prod_ajout_hLayout;
@@ -306,20 +318,6 @@ public:
     QVBoxLayout *prod_vl_characteristics;
     QListWidget *prod_lstCharacteristics;
     QLabel *prod_l5;
-    QFrame *prod_mapFrame;
-    QGridLayout *prod_gl_map_add;
-    QLabel *prod_zoneA;
-    QPushButton *prod_btn_a1;
-    QPushButton *prod_btn_a2;
-    QPushButton *prod_btn_a3;
-    QLabel *prod_zoneB;
-    QPushButton *prod_btn_b1;
-    QPushButton *prod_btn_b2;
-    QPushButton *prod_btn_b3;
-    QLabel *prod_zoneC;
-    QPushButton *prod_btn_c2;
-    QPushButton *prod_btn_c3;
-    QPushButton *prod_btn_a2_2;
     QHBoxLayout *prod_btns_add;
     QPushButton *prod_btnSave_Add;
     QPushButton *prod_btnCancel_Add;
@@ -353,20 +351,6 @@ public:
     QVBoxLayout *prod_vl_characteristics_mod;
     QListWidget *prod_lstCharacteristics_mod;
     QLabel *prod_l5_m;
-    QFrame *prod_depotMapFrame_mod;
-    QGridLayout *prod_gl_map_mod;
-    QLabel *prod_zoneAm;
-    QPushButton *prod_btn_a1_m;
-    QPushButton *prod_btn_a3_m;
-    QLabel *prod_zoneBm;
-    QPushButton *prod_btn_b1_m;
-    QPushButton *prod_btn_b2_m;
-    QPushButton *prod_btn_b3_m;
-    QLabel *prod_zoneCm;
-    QPushButton *prod_btn_c1_m;
-    QPushButton *prod_btn_c2_m;
-    QPushButton *prod_btn_c3_m;
-    QPushButton *prod_btn_a2_3;
     QHBoxLayout *prod_btns_mod;
     QPushButton *prod_btnSave_Mod;
     QPushButton *prod_btnCancel_Mod;
@@ -399,6 +383,7 @@ public:
     QHBoxLayout *headerLayout;
     QLabel *headerTitle;
     QSpacerItem *horizontalSpacer_header;
+    QPushButton *btnNew;
     QLabel *user;
     QStackedWidget *stock_stackedWidget;
     QWidget *pageInventaire;
@@ -408,7 +393,9 @@ public:
     QHBoxLayout *tableHeaderActions;
     QLabel *lblTableTitle;
     QSpacerItem *horizontalSpacer_table;
-    QPushButton *btnNew;
+    QHBoxLayout *stockSearchSortRow;
+    QLineEdit *stock_searchInput;
+    QComboBox *stock_sortCombo;
     QTableWidget *tableWidget;
     QVBoxLayout *rightColumn;
     QFrame *statsBox;
@@ -423,6 +410,7 @@ public:
     QPushButton *btnOrder;
     QPushButton *btnPrediction;
     QPushButton *btnAlerts;
+    QPushButton *btnGoStats_Stock;
     QSpacerItem *verticalSpacer_right;
     QWidget *pageAjouter;
     QVBoxLayout *layoutAjouter;
@@ -464,23 +452,25 @@ public:
     QVBoxLayout *vl_Maint_Root;
     QStackedWidget *stackedWidget_Maintenance;
     QWidget *page_Maint_Dash;
-    QWidget *horizontalLayoutWidget_1;
+    QVBoxLayout *vl_page_Maint_Dash;
+    QScrollArea *scrollAreaMaint;
+    QWidget *scrollContentMaint;
+    QVBoxLayout *vlScrollMaint;
     QHBoxLayout *horizontalLayout_1;
     QFrame *topBar;
     QHBoxLayout *topLayout_1;
     QLabel *titleLabel;
     QSpacerItem *spacerItem6;
+    QPushButton *btnGotoAjout;
     QLabel *userLabel;
     QPushButton *btnNotif;
     QPushButton *btnProfil;
-    QWidget *contentArea_1;
     QHBoxLayout *contentLayout_1;
     QVBoxLayout *tableLayout;
     QHBoxLayout *searchRow;
     QLabel *lblSort;
     QComboBox *cbSort1;
     QLineEdit *searchInput;
-    QPushButton *btnGotoAjout;
     QPushButton *btnGotoModifier;
     QFrame *card;
     QVBoxLayout *vl_card_dash;
@@ -490,179 +480,210 @@ public:
     QVBoxLayout *rightLayout_1;
     QLabel *lblFunc;
     QFrame *stat1;
-    QVBoxLayout *vboxLayout3;
+    QVBoxLayout *vlStat1;
+    QLabel *st_icon1;
     QLabel *st_val1;
     QLabel *st_lbl1;
     QFrame *stat2;
-    QVBoxLayout *vboxLayout4;
+    QVBoxLayout *vlStat2;
+    QLabel *st_icon2;
     QLabel *st_val2;
     QLabel *st_lbl2;
     QFrame *stat3;
-    QVBoxLayout *vboxLayout5;
+    QVBoxLayout *vlStat3;
+    QLabel *st_icon3;
     QLabel *st_val3;
     QLabel *st_lbl3;
     QSpacerItem *spacerItem7;
+    QPushButton *btnGoStats_Maint;
     QLabel *lblExport;
     QPushButton *btnPdf;
-    QPushButton *btnCsv;
+    QSpacerItem *vSpacerBottom_Maint;
+    QFrame *miniChartFrame;
+    QVBoxLayout *vlMiniChart;
+    QLabel *lblMiniChartTitle;
+    QHBoxLayout *hlMiniBar1;
+    QLabel *lblMiniBar1;
+    QProgressBar *pbMini1;
+    QLabel *lblMiniPct1;
+    QHBoxLayout *hlMiniBar2;
+    QLabel *lblMiniBar2;
+    QProgressBar *pbMini2;
+    QLabel *lblMiniPct2;
+    QHBoxLayout *hlMiniBar3;
+    QLabel *lblMiniBar3;
+    QProgressBar *pbMini3;
+    QLabel *lblMiniPct3;
     QWidget *page_Maint_Ajout;
-    QWidget *topAjout;
+    QVBoxLayout *vl_page_Maint_Ajout;
     QHBoxLayout *hlTopAjout;
     QFrame *topBar_Aj;
     QHBoxLayout *hlTopInnerAjout;
     QLabel *titleLabel_Aj;
     QSpacerItem *spacerItem8;
     QLabel *userLabel_Aj;
-    QWidget *contentAjout;
     QVBoxLayout *vlAjoutRoot;
+    QScrollArea *scrollArea_MaintAjout;
+    QWidget *scrollContent_MaintAjout;
+    QVBoxLayout *vlScrollMaintAjout;
     QPushButton *btnBack_Ajout;
     QFrame *cardAdd;
     QVBoxLayout *vlCardAdd;
     QLabel *lblTitreFormAdd;
+    QFrame *sepMaintAdd1;
     QHBoxLayout *hlRefAdd;
-    QVBoxLayout *vboxLayout6;
+    QVBoxLayout *vboxLayout3;
     QLabel *lblRefAdd;
     QLineEdit *editRefAdd;
     QHBoxLayout *hlDateDureeAdd;
-    QVBoxLayout *vboxLayout7;
+    QVBoxLayout *vboxLayout4;
     QLabel *lblDateAdd;
     QDateEdit *dateAdd;
-    QVBoxLayout *vboxLayout8;
+    QVBoxLayout *vboxLayout5;
     QLabel *lblDurAdd;
     QComboBox *comboDurAdd;
     QHBoxLayout *hlCoutAdd;
-    QVBoxLayout *vboxLayout9;
+    QVBoxLayout *vboxLayout6;
     QLabel *lblCoutAdd;
     QHBoxLayout *hboxLayout;
     QDoubleSpinBox *spinCoutAdd;
     QLabel *lblEuroAdd;
     QHBoxLayout *hlPrioAdd;
-    QVBoxLayout *vboxLayout10;
+    QVBoxLayout *vboxLayout7;
     QLabel *lblPrioAdd;
     QComboBox *comboPrioAdd;
+    QFrame *sepMaintAdd2;
     QHBoxLayout *hlTechAddrAdd;
-    QVBoxLayout *vboxLayout11;
+    QVBoxLayout *vboxLayout8;
     QLabel *lblTechAdd;
     QLineEdit *editTechAdd;
-    QVBoxLayout *vboxLayout12;
+    QVBoxLayout *vboxLayout9;
     QLabel *lblAddrAdd;
     QLineEdit *editAddrAdd;
+    QFrame *sepMaintAdd3;
     QVBoxLayout *vlDescAdd;
     QLabel *lblDescAdd;
     QTextEdit *txtDescAdd;
+    QFrame *sepMaintAdd4;
     QHBoxLayout *hlPhotosAdd;
-    QVBoxLayout *vboxLayout13;
+    QVBoxLayout *vboxLayout10;
     QLabel *lblPhotosAvantAdd;
     QLabel *lblImgPreview_Add;
-    QVBoxLayout *vboxLayout14;
+    QVBoxLayout *vboxLayout11;
     QLabel *lblPhotosApresAdd;
     QLabel *lblImgPreview2_Add;
     QHBoxLayout *hlButtonsAdd;
     QSpacerItem *spacerItem9;
-    QPushButton *btnSave_Add;
     QPushButton *btnCancel_Add;
+    QPushButton *btnSave_Add;
     QWidget *page_Maint_Modif;
-    QWidget *topMod;
+    QVBoxLayout *vl_page_Maint_Modif;
     QHBoxLayout *hlTopMod;
     QFrame *topBar_Mod;
     QHBoxLayout *hlTopInnerMod;
     QLabel *titleLabel_Mod;
     QSpacerItem *spacerItem10;
     QLabel *userLabel_Mod;
-    QWidget *contentMod;
     QVBoxLayout *vlModRoot;
+    QScrollArea *scrollArea_MaintModif;
+    QWidget *scrollContent_MaintModif;
+    QVBoxLayout *vlScrollMaintModif;
     QPushButton *btnBack_Modif;
     QFrame *cardMod;
     QVBoxLayout *vlCardMod;
     QLabel *lblTitreFormMod;
+    QFrame *sepMaintMod1;
     QHBoxLayout *hlRefMod;
-    QVBoxLayout *vboxLayout15;
+    QVBoxLayout *vboxLayout12;
     QLabel *lblRefMod;
     QLineEdit *editRefMod;
     QHBoxLayout *hlDateDureeMod;
-    QVBoxLayout *vboxLayout16;
+    QVBoxLayout *vboxLayout13;
     QLabel *lblDateMod;
     QDateEdit *dateMod;
-    QVBoxLayout *vboxLayout17;
+    QVBoxLayout *vboxLayout14;
     QLabel *lblDurMod;
     QComboBox *comboDurMod;
     QHBoxLayout *hlCoutMod;
-    QVBoxLayout *vboxLayout18;
+    QVBoxLayout *vboxLayout15;
     QLabel *lblCoutMod;
     QHBoxLayout *hboxLayout1;
     QDoubleSpinBox *spinCoutMod;
     QLabel *lblEuroMod;
     QHBoxLayout *hlPrioMod;
-    QVBoxLayout *vboxLayout19;
+    QVBoxLayout *vboxLayout16;
     QLabel *lblPrioMod;
     QComboBox *comboPrioMod;
+    QFrame *sepMaintMod2;
+    QLabel *lblSecTechMod;
     QHBoxLayout *hlTechAddrMod;
-    QVBoxLayout *vboxLayout20;
+    QVBoxLayout *vboxLayout17;
     QLabel *lblTechMod;
     QLineEdit *editTechMod;
-    QVBoxLayout *vboxLayout21;
+    QVBoxLayout *vboxLayout18;
     QLabel *lblAddrMod;
     QLineEdit *editAddrMod;
+    QFrame *sepMaintMod3;
+    QLabel *lblSecDescMod;
     QVBoxLayout *vlDescMod;
     QLabel *lblDescMod;
     QTextEdit *txtDescMod;
+    QFrame *sepMaintMod4;
+    QLabel *lblSecPhotoMod;
     QHBoxLayout *hlPhotosMod;
-    QVBoxLayout *vboxLayout22;
+    QVBoxLayout *vboxLayout19;
     QLabel *lblPhotosAvantMod;
     QLabel *lblImgPreview_Mod;
     QLabel *lblLastUpdate;
     QHBoxLayout *hlButtonsMod;
     QSpacerItem *spacerItem11;
-    QPushButton *btnSave_Mod;
     QPushButton *btnCancel_Mod;
+    QPushButton *btnSave_Mod;
     QWidget *pageClient;
     QVBoxLayout *verticalLayout_ClientRoot;
     QWidget *header_Client;
     QHBoxLayout *horizontalLayout_header_Client;
     QLabel *wasteguardhead_Client;
     QSpacerItem *horizontalSpacer_h_Client;
+    QPushButton *btnNouveau_Client;
     QLabel *responsable_Client;
     QStackedWidget *stackedWidget_Client;
     QWidget *page_repertoire;
     QVBoxLayout *verticalLayout_repertoire;
     QHBoxLayout *horizontalLayout_filters;
-    QLabel *rep;
-    QSpacerItem *horizontalSpacer_f;
+    QLineEdit *recherche;
+    QSpacerItem *spacer_filter_gap;
     QLabel *lblTrier;
     QComboBox *cbTrier;
-    QLineEdit *recherche;
-    QPushButton *btnNouveau_Client;
+    QSpacerItem *horizontalSpacer_f;
     QHBoxLayout *horizontalLayout_table;
     QTableWidget *tableWidget_Client;
     QWidget *sidepanel;
     QVBoxLayout *verticalLayout_sidepanel;
     QLabel *pilotage;
     QWidget *growthWidget;
-    QVBoxLayout *vboxLayout23;
+    QVBoxLayout *vboxLayout20;
     QLabel *label1;
     QLabel *label2;
     QSpacerItem *spacerItem12;
-    QPushButton *facture;
-    QPushButton *score;
     QPushButton *exportclient;
+    QPushButton *btnGoStats_Client;
     QWidget *page_ajouter_client_wrapper;
     QVBoxLayout *verticalLayout_ajouter_client_wrapper;
     QSpacerItem *vs_a1_client;
     QFrame *formCard_ajouter;
-    QVBoxLayout *vboxLayout24;
+    QVBoxLayout *vboxLayout21;
     QLabel *label3;
     QGridLayout *grid_ajouter;
-    QLabel *label4;
+    QLabel *lbl_matricule_a;
     QLineEdit *input_matricule_ajouter;
-    QLabel *label5;
+    QLabel *lbl_nom_a;
     QLineEdit *input_nom_ajouter;
-    QLabel *label6;
+    QLabel *lbl_email_a;
     QLineEdit *input_email_ajouter;
-    QLabel *label7;
-    QSpinBox *input_bacs_ajouter;
-    QLabel *label8;
-    QSpinBox *input_score_ajouter;
-    QLabel *label9;
+    QLabel *lbl_contrat_a;
+    QComboBox *input_contrat_ajouter;
+    QLabel *lbl_paiement_a;
     QComboBox *input_paiement_ajouter;
     QHBoxLayout *hboxLayout2;
     QSpacerItem *spacerItem13;
@@ -674,20 +695,18 @@ public:
     QVBoxLayout *verticalLayout_modifier_client_wrapper;
     QSpacerItem *vs_m1_client;
     QFrame *formCard_modifier;
-    QVBoxLayout *vboxLayout25;
-    QLabel *label10;
+    QVBoxLayout *vboxLayout22;
+    QLabel *label4;
     QGridLayout *grid_modifier;
-    QLabel *label11;
+    QLabel *lbl_matricule_m;
     QLineEdit *input_matricule_modifier;
-    QLabel *label12;
+    QLabel *lbl_nom_m;
     QLineEdit *input_nom_modifier;
-    QLabel *label13;
+    QLabel *lbl_email_m;
     QLineEdit *input_email_modifier;
-    QLabel *label14;
-    QSpinBox *input_bacs_modifier;
-    QLabel *label15;
-    QSpinBox *input_score_modifier;
-    QLabel *label16;
+    QLabel *lbl_contrat_m;
+    QComboBox *input_contrat_modifier;
+    QLabel *lbl_paiement_m;
     QComboBox *input_paiement_modifier;
     QHBoxLayout *hboxLayout3;
     QSpacerItem *spacerItem15;
@@ -695,12 +714,23 @@ public:
     QPushButton *btn_save_modifier;
     QSpacerItem *spacerItem16;
     QSpacerItem *vs_m2_client;
+    QWidget *page_stats_client;
+    QVBoxLayout *vLayout_stats_client;
+    QHBoxLayout *hLayout_statsHeader_client;
+    QLabel *lblStatsTitle_client;
+    QSpacerItem *hs_statsClient;
+    QPushButton *btnRetour_stats_client;
+    QHBoxLayout *hLayout_statsCharts_client;
+    QChartView *chartEcoScorePie;
+    QChartView *chartEcoScoreBar;
+    QChartView *chartContratDist;
     QWidget *pageCmdDashboard;
     QHBoxLayout *horizontalLayout_Main2;
     QVBoxLayout *rightContentLayout;
     QHBoxLayout *horizontalLayout_11;
     QLabel *lb_1;
     QFrame *topFill_1;
+    QPushButton *btnAddDashboard;
     QLabel *user_1;
     QFrame *topGap_1;
     QPushButton *btnnotif_1;
@@ -714,38 +744,37 @@ public:
     QLabel *lblSort_dashboard;
     QComboBox *cbSortDashboard;
     QLineEdit *searchInputDashboard;
-    QPushButton *btnAddDashboard;
     QPushButton *btnTempToModifier;
     QTableWidget *tableDashboard;
-    QFrame *rightSidebar1;
-    QVBoxLayout *rightLayout;
-    QLabel *lblFunc1;
-    QFrame *stat11;
-    QVBoxLayout *_2;
-    QLabel *st_val11;
-    QLabel *st_lbl11;
-    QFrame *stat21;
-    QVBoxLayout *_3;
-    QLabel *st_val21;
-    QLabel *st_lbl21;
-    QFrame *stat31;
-    QVBoxLayout *_4;
-    QLabel *st_val31;
-    QLabel *st_lbl31;
-    QLabel *lblExport1;
-    QPushButton *btnPdf1;
-    QPushButton *btnCsv1;
-    QSpacerItem *spacerItem18;
     QWidget *pageCommandes;
-    QVBoxLayout *pageCommandesLayout;
+    QHBoxLayout *pageCommandesLayout;
     QVBoxLayout *tableLayout_2;
-    QTableWidget *tableProduits_2;
     QHBoxLayout *searchRow_2;
-    QSpacerItem *spacerItem19;
+    QSpacerItem *spacerItem18;
     QLabel *lblSort_2;
     QComboBox *cbSort_2;
     QLineEdit *searchInput_2;
     QPushButton *btnAddProduct_2;
+    QTableWidget *tableProduits_2;
+    QFrame *rightSidebar_Commande;
+    QVBoxLayout *rightLayout_Cmd;
+    QLabel *lblFunc_Cmd;
+    QFrame *stat1_Cmd;
+    QVBoxLayout *vboxLayout23;
+    QLabel *st_val1_Cmd;
+    QLabel *st_lbl1_Cmd;
+    QFrame *stat2_Cmd;
+    QVBoxLayout *vboxLayout24;
+    QLabel *st_val2_Cmd;
+    QLabel *st_lbl2_Cmd;
+    QFrame *stat3_Cmd;
+    QVBoxLayout *vboxLayout25;
+    QLabel *st_val3_Cmd;
+    QLabel *st_lbl3_Cmd;
+    QSpacerItem *spacerItem19;
+    QPushButton *btnGoStats_Cmd;
+    QLabel *lblExport_Cmd;
+    QPushButton *btnPdf_Cmd;
     QWidget *pageCmdAjout;
     QHBoxLayout *hbox_ajout;
     QVBoxLayout *vbox_ajout_content;
@@ -756,6 +785,8 @@ public:
     QFrame *topGap_5;
     QPushButton *btnnotif_5;
     QPushButton *btnprofil_5;
+    QScrollArea *scrollArea_CmdAjout;
+    QWidget *scrollContent_CmdAjout;
     QHBoxLayout *hl_mod_split_3;
     QFrame *cardMod_3;
     QVBoxLayout *verticalLayout_Mod_3;
@@ -765,12 +796,15 @@ public:
     QLabel *l_px_4;
     QLabel *l1_4;
     QLabel *l_stat_4;
-    QLineEdit *ln_ref_add_4;
+    QComboBox *cb_client_add;
     QComboBox *cb_model_add_4;
     QComboBox *cb_status_add_4;
     QSpinBox *sb_qty_add_4;
     QLabel *l_qty_4;
     QLabel *l2_4;
+    QSpacerItem *spacerBeforeDates;
+    QFrame *separatorLine1;
+    QLabel *lblSectionDates;
     QHBoxLayout *horizontalLayout_10;
     QLabel *label_27;
     QLabel *label_28;
@@ -787,9 +821,14 @@ public:
     QComboBox *comboBox_23;
     QLabel *label_34;
     QComboBox *comboBox_24;
+    QSpacerItem *spacerBeforeAdresse;
+    QFrame *separatorLine2;
+    QLabel *lblSectionAdresse;
     QHBoxLayout *horizontalLayout;
-    QLabel *label17;
+    QLabel *label5;
     QTextEdit *textEdit;
+    QSpacerItem *spacerBeforeBtns;
+    QFrame *separatorLine3;
     QHBoxLayout *btns_mod_3;
     QPushButton *btnSave_Mod_3;
     QPushButton *btnCancel_Mod_3;
@@ -803,6 +842,8 @@ public:
     QFrame *topGap_3;
     QPushButton *btnnotif_3;
     QPushButton *btnprofil_3;
+    QScrollArea *scrollArea_CmdModif;
+    QWidget *scrollContent_CmdModif;
     QHBoxLayout *hl_mod_split;
     QFrame *cardMod1;
     QVBoxLayout *verticalLayout_Mod;
@@ -815,9 +856,12 @@ public:
     QLabel *l_px_2;
     QLabel *l2_2;
     QLabel *l1_2;
-    QLineEdit *ln_ref_add_2;
+    QComboBox *cb_client_mod;
     QSpinBox *sb_qty_add_2;
     QComboBox *cb_model_add_2;
+    QSpacerItem *spacerBeforeDatesMod;
+    QFrame *sepLineMod1;
+    QLabel *lblSectionDates_Mod;
     QHBoxLayout *horizontalLayout_5;
     QLabel *label_11;
     QLabel *label_12;
@@ -834,12 +878,17 @@ public:
     QComboBox *comboBox_14;
     QLabel *label_22;
     QComboBox *comboBox_15;
+    QSpacerItem *spacerBeforeAdresseMod;
+    QFrame *sepLineMod2;
+    QLabel *lblSectionAdresse_Mod;
     QHBoxLayout *horizontalLayout_12;
     QLabel *label_6;
     QTextEdit *textEdit_2;
+    QSpacerItem *spacerBeforeBtnsMod;
+    QFrame *sepLineMod3;
     QHBoxLayout *btns_mod;
-    QPushButton *btnSave_Mod1;
-    QPushButton *btnCancel_Mod1;
+    QPushButton *btnSave_CmdMod;
+    QPushButton *btnCancel_CmdMod;
     QMenuBar *menubar;
     QStatusBar *statusbar;
 
@@ -847,7 +896,7 @@ public:
     {
         if (MainWindow->objectName().isEmpty())
             MainWindow->setObjectName("MainWindow");
-        MainWindow->resize(1225, 874);
+        MainWindow->resize(1505, 1030);
         MainWindow->setStyleSheet(QString::fromUtf8("\n"
 "QMainWindow, QWidget {\n"
 "    background-color: #f4f6f9; \n"
@@ -1066,7 +1115,7 @@ public:
 "    margin-top: -2px;\n"
 "}\n"
 "\n"
-"/* Style Sp\303\251cifique pour l'onglet Mission */\n"
+"/* Style Sp?cifique pour l'onglet Mission */\n"
 "QPushButton#btnAnalyser {\n"
 "    background-color: #6c5ce7;\n"
 "    color: white;\n"
@@ -1083,8 +1132,8 @@ public:
 "}\n"
 "QLabel#lblResultat {\n"
 "    font-size: 14px;\n"
-"    color: #27ae60 !i"
-                        "mportant;\n"
+"    color: #27ae60 !importan"
+                        "t;\n"
 "}\n"
 "\n"
 "/* Style pour l'onglet Pointage */\n"
@@ -1125,8 +1174,8 @@ public:
 "    border-radius: 9px;\n"
 "}\n"
 "/* ======================================================= */\n"
-"/* "
-                        "STYLE UNIFI\303\211 POUR LES 5 BOUTONS PRINCIPAUX              */\n"
+"/* STYLE U"
+                        "NIFI? POUR LES 5 BOUTONS PRINCIPAUX              */\n"
 "/* ======================================================= */\n"
 "\n"
 "/* 1. Style de base pour les deux boutons du haut ET les trois du bas */\n"
@@ -1151,8 +1200,8 @@ public:
 "}\n"
 "\n"
 "/* 3. Effet quand on clique dessus (Pressed) pour les 5 boutons */\n"
-"QPushB"
-                        "utton#btnFichePaie:pressed, QPushButton#btnExport:pressed,\n"
+"QPushButton#btnFiche"
+                        "Paie:pressed, QPushButton#btnExport:pressed,\n"
 "QPushButton#btnGoMission:pressed, QPushButton#btnGoPointage:pressed, QPushButton#btnGoStats:pressed {\n"
 "    background-color: #e1ecf4;\n"
 "    border: 1px solid #2980b9;\n"
@@ -1179,10 +1228,10 @@ public:
 "    background-color: #5a6268;  \n"
 "}\n"
 "/* ======================================================= */\n"
-"/* 1. CORRECTION DES BOUTONS DE RETOUR "
-                        "(Pages internes)    */\n"
+"/* 1. CORRECTION DES BOUTONS DE RETOUR (Pages interne"
+                        "s)    */\n"
 "/* ======================================================= */\n"
-"/* Cela rendra les boutons \"Retour\" bien visibles en gris fonc\303\251 */\n"
+"/* Cela rendra les boutons \"Retour\" bien visibles en gris fonc? */\n"
 "QPushButton#btnAnnulerMission, \n"
 "QPushButton#btnAnnulerPointage, \n"
 "QPushButton#btnAnnulerStats {\n"
@@ -1207,9 +1256,9 @@ public:
 "/* 2. CORRECTION DE LA BOITE DE DIALOGUE (Supprimer)       */\n"
 "/* ======================================================= */\n"
 "QPushButton#msgBoxYes, QPushButton#msgBoxNo {\n"
-"    background-color: #0f2"
-                        "b4c;\n"
-"    color: white !important;\n"
+"    background-color: #0f2b4c;\n"
+"    color: w"
+                        "hite !important;\n"
 "    border-radius: 5px;\n"
 "    padding: 6px 20px;\n"
 "    min-width: 80px;\n"
@@ -1242,9 +1291,9 @@ public:
 "    font-weight: bold;\n"
 "    text-align: center;\n"
 "}\n"
-""
-                        "\n"
-"QPushButton#btnFichePaie:hover, QPushButton#btnExport:hover,\n"
+"\n"
+"QPushButton#b"
+                        "tnFichePaie:hover, QPushButton#btnExport:hover,\n"
 "QPushButton#btnGoMission:hover, QPushButton#btnGoPointage:hover, QPushButton#btnGoStats:hover {\n"
 "    background-color: #e3f2fd;\n"
 "    border: 1px solid #3498db;\n"
@@ -1270,8 +1319,8 @@ public:
 "    font-size: 14px;\n"
 "    border-left: 3px solid transparent;\n"
 "}\n"
-"QPushButton[objectName"
-                        "^=\"sideMenuButton\"]:hover, \n"
+"QPushButton[objectName^=\"sideMenuButton"
+                        "\"]:hover, \n"
 "QPushButton[objectName^=\"sideMenuButton\"]:checked {\n"
 "    background-color: #1a4270;\n"
 "    color: white;\n"
@@ -1301,8 +1350,8 @@ public:
 "}\n"
 "/* CARTES ET CONTENEURS Maintenance */\n"
 "QFrame#card, QFrame#cardAdd, QFrame#cardMod, \n"
-"QFrame#rightSidebar, QFra"
-                        "me#stat1, QFrame#stat2, QFrame#stat3 { \n"
+"QFrame#rightSidebar, QFrame#stat1, QFrame#s"
+                        "tat2, QFrame#stat3 { \n"
 "    background-color: #ffffff;\n"
 "    border-radius: 12px;\n"
 "    border: 1px solid #dce1e6;\n"
@@ -1326,7 +1375,7 @@ public:
 "    border: 1px solid #ffcdd2;\n"
 "}\n"
 "/* BOUTONS D'ACTION Maintenance */\n"
-"QPushButton#btnSave_Add, QPushButton#btnSave_Mod, QPushButton#btnGotoAjout, QPushButton#btnGotoModifier {\n"
+"QPushButton#btnSave_Add, QPushButton#btnSave_Mod, QPushButton#btnGotoModifier {\n"
 "    background-color: #28a745;\n"
 "    color: white;\n"
 "    border-radius: 5px;\n"
@@ -1334,9 +1383,21 @@ public:
 "    font-weight: bold;\n"
 "    border: none;\n"
 "}\n"
-"QPushButton#btnSave_Add:hover, QPushButton#btnSave_Mod:hover, QPushButton#btnGotoAjout:hover {\n"
-"    background-color: #218838"
-                        ";\n"
+"QPushButton#btnSave_Add:hover, QPushButton#btnSave_Mod:hover {\n"
+"    background-color: #218838;\n"
+"}\n"
+"QPushButton#btnGotoAjout {\n"
+"    background-color: #0f2b4c;\n"
+""
+                        "    color: #ffffff;\n"
+"    border-radius: 10px;\n"
+"    padding: 10px 20px;\n"
+"    font-size: 14px;\n"
+"    font-weight: 700;\n"
+"    border: none;\n"
+"}\n"
+"QPushButton#btnGotoAjout:hover {\n"
+"    background-color: #1a4270;\n"
 "}\n"
 "QPushButton#btnCancel_Add, QPushButton#btnCancel_Mod {\n"
 "    background-color: #6c757d;\n"
@@ -1349,21 +1410,27 @@ public:
 "QPushButton#btnCancel_Add:hover, QPushButton#btnCancel_Mod:hover {\n"
 "    background-color: #5a6268;\n"
 "}\n"
-"QPushButton#btnPdf, QPushButton#btnCsv {\n"
+"QPushButton#btnPdf {\n"
 "    background-color: #ffffff;\n"
-"    color: #333333;\n"
-"    border: 1px solid #cccccc;\n"
-"    border-radius: 8px;\n"
-"    padding: 10px 15px;\n"
-"    text-align: left;\n"
-"    font-weight: bold;\n"
-"    font-size: 13px;\n"
-"    margin-top: 5px;\n"
+"    color: #1f2d3d;\n"
+"    border: 1px solid #dce1e6;\n"
+"    border-radius: 10px;\n"
+"    padding: 12px 16px;\n"
+"    text-align: center;\n"
+"    font-weight: 700;\n"
+"    font-size: 14px;\n"
+"    min-height: 52px;\n"
 "}\n"
-"QPushButton#btnPdf:hover, QPushButton#btnCsv:hover {\n"
+"QPushButton#btnPdf:hover {\n"
 "    background-color: #e3f2fd;\n"
 "    border: 1px solid #3498db;\n"
 "    color: #0f2b4c;\n"
+"}\n"
+"QPushButton#btnPdf:disabled {\n"
+""
+                        "    background-color: #ffffff;\n"
+"    color: #1f2d3d;\n"
+"    border: 1px solid #dce1e6;\n"
 "}\n"
 "QPushButton#btnNotif, QPushButton#btnProfil {\n"
 "    background-color: #f0f2f5;\n"
@@ -1372,8 +1439,7 @@ public:
 "    border: 1px solid #dce1e6;\n"
 "    color: #0f2b4c;\n"
 "}\n"
-"QPushButton#bt"
-                        "nNotif:hover, QPushButton#btnProfil:hover {\n"
+"QPushButton#btnNotif:hover, QPushButton#btnProfil:hover {\n"
 "    background-color: #e3f2fd;\n"
 "    border-color: #3498db;\n"
 "}\n"
@@ -1397,7 +1463,8 @@ public:
 "    padding: 6px;\n"
 "}\n"
 "QComboBox:focus {\n"
-"    border: 1px solid #3498db;\n"
+"    border: 1px solid "
+                        "#3498db;\n"
 "}\n"
 "QComboBox QAbstractItemView {\n"
 "    background-color: #ffffff;\n"
@@ -1409,8 +1476,7 @@ public:
 "QTextEdit {\n"
 "    background-color: #ffffff;\n"
 "    border: 1px solid #cccccc;\n"
-""
-                        "    border-radius: 8px;\n"
+"    border-radius: 8px;\n"
 "    padding: 6px;\n"
 "    color: #333333;\n"
 "}\n"
@@ -1436,7 +1502,8 @@ public:
 "    border: none;\n"
 "    border-radius: 6px;\n"
 "    padding: 8px 14px;\n"
-"    font-weight: 700;\n"
+"    font-weigh"
+                        "t: 700;\n"
 "}\n"
 "\n"
 "QPushButton#btnAddDashboard:hover,\n"
@@ -1449,8 +1516,7 @@ public:
 "QPushButton#btnTempToModifier {\n"
 "    background-color: #124e84;\n"
 "    color: white;\n"
-"    b"
-                        "order: none;\n"
+"    border: none;\n"
 "    border-radius: 6px;\n"
 "    padding: 8px 14px;\n"
 "    font-weight: 700;\n"
@@ -1478,7 +1544,8 @@ public:
 "QFrame#topFill_1, QFrame#topFill_3, QFrame#topFill_5,\n"
 "QFrame#topGap_1, QFrame#topGap_3, QFrame#topGap_5 {\n"
 "    background-color: #0f2f57;\n"
-"    border: none;\n"
+"  "
+                        "  border: none;\n"
 "    min-height: 56px;\n"
 "    max-height: 56px;\n"
 "    border-radius: 0px;\n"
@@ -1491,8 +1558,7 @@ public:
 "    font-weight: 800;\n"
 "    padding: 0px 20px;\n"
 "    min-height: 56px;\n"
-""
-                        "    max-height: 56px;\n"
+"    max-height: 56px;\n"
 "    border-radius: 0px;\n"
 "}\n"
 "\n"
@@ -1520,7 +1586,8 @@ public:
 "}\n"
 "\n"
 "QPushButton#btnprofil_3, QPushButton#btnprofil_5 {\n"
-"    background-color: #0f2f57;\n"
+"    "
+                        "background-color: #0f2f57;\n"
 "    color: #6b4b8a;\n"
 "    border: none;\n"
 "    border-radius: 0px;\n"
@@ -1529,6 +1596,653 @@ public:
 "    min-height: 56px;\n"
 "    max-height: 56px;\n"
 "    padding: 0px;\n"
+"}\n"
+"\n"
+"/* --- Unified right sidebars (Employees reference) --- */\n"
+"QFrame#sidePanel_Employe,\n"
+"QFrame#rightSidebar,\n"
+"QFrame#rightSidebar_Commande,\n"
+"QWidget#sidepanel,\n"
+"QFrame#prod_rightSidebar {\n"
+"    background: transparent;\n"
+"    border: none;\n"
+"}\n"
+"\n"
+"QFrame#statCard, QFrame#statCard_2, QFrame#statCard_3, QFrame#actionCard,\n"
+"QFrame#statsBox, QFrame#orderBox,\n"
+"QWidget#growthWidget {\n"
+"    background-color: #ffffff;\n"
+"    border: 1px solid #dce1e6;\n"
+"    border-radius: 12px;\n"
+"}\n"
+"\n"
+"QFrame#stat1, QFrame#stat2, QFrame#stat3,\n"
+"QFrame#stat1_Cmd, QFrame#stat2_Cmd, QFrame#stat3_Cmd {\n"
+"    background-color: #ffffff;\n"
+"    border: none;\n"
+"    border-radius: 16px;\n"
+"    padding: 18px 16px;\n"
+"}\n"
+"\n"
+"QFrame#stat1:hover, QFrame#sta"
+                        "t2:hover, QFrame#stat3:hover,\n"
+"QFrame#stat1_Cmd:hover, QFrame#stat2_Cmd:hover, QFrame#stat3_Cmd:hover {\n"
+"    background-color: #f0f7ff;\n"
+"    border: 1px solid #b3d4fc;\n"
+"}\n"
+"\n"
+"QLabel#lblFunc, QLabel#lblFunc_Cmd, QLabel#pilotage, QLabel#lblStatsTitle, QLabel#lblOrderTitle, QLabel#label_Actions {\n"
+"    color: #1f2d3d;\n"
+"    font-size: 15px;\n"
+"    font-weight: 700;\n"
+"}\n"
+"\n"
+"QLabel#st_icon1, QLabel#st_icon2, QLabel#st_icon3,\n"
+"QLabel#st_icon1_Cmd, QLabel#st_icon2_Cmd, QLabel#st_icon3_Cmd {\n"
+"    font-size: 28px;\n"
+"    padding: 0px;\n"
+"    background: transparent;\n"
+"    border: none;\n"
+"}\n"
+"\n"
+"QFrame#miniChartFrame {\n"
+"    background-color: #ffffff;\n"
+"    border: none;\n"
+"    border-radius: 16px;\n"
+"    padding: 14px;\n"
+"}\n"
+"\n"
+"QLabel#lblMiniChartTitle {\n"
+"    font-size: 13px;\n"
+"    font-weight: 700;\n"
+"    color: #1f2d3d;\n"
+"}\n"
+"\n"
+"QLabel#lblMiniBar1, QLabel#lblMiniBar2, QLabel#lblMiniBar3 {\n"
+"    font-size: 12px;\n"
+"    color: #4a5568;\n"
+"    font"
+                        "-weight: 500;\n"
+"}\n"
+"\n"
+"QProgressBar#pbMini1, QProgressBar#pbMini2, QProgressBar#pbMini3 {\n"
+"    border: none;\n"
+"    border-radius: 5px;\n"
+"    background-color: #e2e8f0;\n"
+"    min-height: 10px;\n"
+"    max-height: 10px;\n"
+"    text-align: center;\n"
+"}\n"
+"\n"
+"QProgressBar#pbMini1::chunk {\n"
+"    background-color: #38a169;\n"
+"    border-radius: 5px;\n"
+"}\n"
+"\n"
+"QProgressBar#pbMini2::chunk {\n"
+"    background-color: #3182ce;\n"
+"    border-radius: 5px;\n"
+"}\n"
+"\n"
+"QProgressBar#pbMini3::chunk {\n"
+"    background-color: #e53e3e;\n"
+"    border-radius: 5px;\n"
+"}\n"
+"\n"
+"QLabel#lblMiniPct1, QLabel#lblMiniPct2, QLabel#lblMiniPct3 {\n"
+"    font-size: 11px;\n"
+"    font-weight: 700;\n"
+"    color: #2d3748;\n"
+"    min-width: 32px;\n"
+"}\n"
+"\n"
+"QPushButton#btnFichePaie, QPushButton#btnGoMission, QPushButton#btnGoPointage, QPushButton#btnGoStats, QPushButton#btnExport,\n"
+"QPushButton#btnOrder, QPushButton#btnPrediction, QPushButton#btnAlerts,\n"
+"QPushButton#facture, QPushButton#score, QPu"
+                        "shButton#exportclient,\n"
+"QPushButton#btnPdf,\n"
+"QPushButton#prod_btnPdf, QPushButton#prod_btnMap3D, QPushButton#prod_btnVideo3D, QPushButton#prod_btnOpenStats {\n"
+"    background-color: #ffffff;\n"
+"    color: #1f2d3d;\n"
+"    border: 1px solid #dce1e6;\n"
+"    border-radius: 10px;\n"
+"    padding: 12px 16px;\n"
+"    min-height: 48px;\n"
+"    font-size: 14px;\n"
+"    font-weight: 700;\n"
+"    text-align: center;\n"
+"}\n"
+"\n"
+"QPushButton#btnFichePaie:hover, QPushButton#btnGoMission:hover, QPushButton#btnGoPointage:hover, QPushButton#btnGoStats:hover, QPushButton#btnExport:hover,\n"
+"QPushButton#btnOrder:hover, QPushButton#btnPrediction:hover, QPushButton#btnAlerts:hover,\n"
+"QPushButton#facture:hover, QPushButton#score:hover, QPushButton#exportclient:hover,\n"
+"QPushButton#btnPdf:hover,\n"
+"QPushButton#prod_btnPdf:hover, QPushButton#prod_btnMap3D:hover, QPushButton#prod_btnVideo3D:hover, QPushButton#prod_btnOpenStats:hover {\n"
+"    background-color: #e3f2fd;\n"
+"    border: 1px solid #3498db;\n"
+"    col"
+                        "or: #0f2b4c;\n"
+"}\n"
+"\n"
+"QPushButton#btnGoStats_Maint,\n"
+"QPushButton#btnGoStats_Cmd,\n"
+"QPushButton#btnPdf,\n"
+"QPushButton#btnPdf_Cmd {\n"
+"    background-color: #1a365d;\n"
+"    color: #ffffff;\n"
+"    border: none;\n"
+"    border-radius: 12px;\n"
+"    padding: 16px 20px;\n"
+"    font-size: 15px;\n"
+"    font-weight: 700;\n"
+"    min-height: 48px;\n"
+"}\n"
+"\n"
+"QPushButton#btnGoStats_Maint:hover,\n"
+"QPushButton#btnGoStats_Cmd:hover,\n"
+"QPushButton#btnPdf:hover,\n"
+"QPushButton#btnPdf_Cmd:hover {\n"
+"    background-color: #2a4a7f;\n"
+"}\n"
+"\n"
+"QLabel#st_val1, QLabel#st_val2, QLabel#st_val3,\n"
+"QLabel#st_val1_Cmd, QLabel#st_val2_Cmd, QLabel#st_val3_Cmd {\n"
+"    font-size: 28px;\n"
+"    font-weight: 800;\n"
+"    color: #1a365d;\n"
+"    padding: 2px 0px;\n"
+"}\n"
+"\n"
+"QLabel#st_lbl1, QLabel#st_lbl2, QLabel#st_lbl3,\n"
+"QLabel#st_lbl1_Cmd, QLabel#st_lbl2_Cmd, QLabel#st_lbl3_Cmd {\n"
+"    font-size: 12px;\n"
+"    color: #a0aec0;\n"
+"    font-weight: 600;\n"
+"    letter-spacing: 1px;\n"
+"}\n"
+"\n"
+"QW"
+                        "idget#pageCmdAjout {\n"
+"    background-color: #f0f2f5;\n"
+"}\n"
+"\n"
+"QFrame#cardMod_3 {\n"
+"    background-color: #ffffff;\n"
+"    border-radius: 18px;\n"
+"    border: 1px solid #e2e8f0;\n"
+"    padding: 10px;\n"
+"}\n"
+"\n"
+"QLabel#lblTitleMod_3 {\n"
+"    font-size: 22px;\n"
+"    font-weight: 800;\n"
+"    color: #1a365d;\n"
+"    padding: 8px 0px 12px 0px;\n"
+"    border-bottom: 2px solid #e2e8f0;\n"
+"    margin-bottom: 8px;\n"
+"}\n"
+"\n"
+"QFrame#cardMod_3 QLabel {\n"
+"    font-size: 13px;\n"
+"    font-weight: 600;\n"
+"    color: #4a5568;\n"
+"}\n"
+"\n"
+"QFrame#cardMod_3 QLineEdit {\n"
+"    background-color: #f7fafc;\n"
+"    border: 1.5px solid #e2e8f0;\n"
+"    border-radius: 10px;\n"
+"    padding: 12px 16px;\n"
+"    font-size: 14px;\n"
+"    color: #2d3748;\n"
+"    min-height: 24px;\n"
+"}\n"
+"\n"
+"QFrame#cardMod_3 QLineEdit:focus {\n"
+"    border: 1.5px solid #4299e1;\n"
+"    background-color: #ffffff;\n"
+"}\n"
+"\n"
+"QFrame#cardMod_3 QComboBox {\n"
+"    background-color: #f7fafc;\n"
+"    border: 1.5px solid #e"
+                        "2e8f0;\n"
+"    border-radius: 10px;\n"
+"    padding: 10px 14px;\n"
+"    font-size: 14px;\n"
+"    color: #2d3748;\n"
+"    min-height: 24px;\n"
+"}\n"
+"\n"
+"QFrame#cardMod_3 QComboBox:focus {\n"
+"    border: 1.5px solid #4299e1;\n"
+"    background-color: #ffffff;\n"
+"}\n"
+"\n"
+"QFrame#cardMod_3 QSpinBox,\n"
+"QFrame#cardMod_3 QDoubleSpinBox {\n"
+"    background-color: #f7fafc;\n"
+"    border: 1.5px solid #e2e8f0;\n"
+"    border-radius: 10px;\n"
+"    padding: 10px 14px;\n"
+"    font-size: 14px;\n"
+"    color: #2d3748;\n"
+"    min-height: 24px;\n"
+"}\n"
+"\n"
+"QFrame#cardMod_3 QSpinBox:focus,\n"
+"QFrame#cardMod_3 QDoubleSpinBox:focus {\n"
+"    border: 1.5px solid #4299e1;\n"
+"    background-color: #ffffff;\n"
+"}\n"
+"\n"
+"QFrame#cardMod_3 QTextEdit {\n"
+"    background-color: #f7fafc;\n"
+"    border: 1.5px solid #e2e8f0;\n"
+"    border-radius: 10px;\n"
+"    padding: 12px 16px;\n"
+"    font-size: 14px;\n"
+"    color: #2d3748;\n"
+"}\n"
+"\n"
+"QFrame#cardMod_3 QTextEdit:focus {\n"
+"    border: 1.5px solid #4299e1;\n"
+"   "
+                        " background-color: #ffffff;\n"
+"}\n"
+"\n"
+"QLabel#lblSectionDates {\n"
+"    font-size: 16px;\n"
+"    font-weight: 700;\n"
+"    color: #2d3748;\n"
+"    padding: 6px 0px;\n"
+"}\n"
+"\n"
+"QLabel#lblSectionAdresse {\n"
+"    font-size: 16px;\n"
+"    font-weight: 700;\n"
+"    color: #2d3748;\n"
+"    padding: 6px 0px;\n"
+"}\n"
+"\n"
+"QFrame#separatorLine1, QFrame#separatorLine2, QFrame#separatorLine3 {\n"
+"    background-color: #e2e8f0;\n"
+"    border: none;\n"
+"    min-height: 1px;\n"
+"    max-height: 1px;\n"
+"}\n"
+"\n"
+"QPushButton#btnSave_Mod_3 {\n"
+"    background-color: #38a169;\n"
+"    color: #ffffff;\n"
+"    border: none;\n"
+"    border-radius: 12px;\n"
+"    padding: 14px 20px;\n"
+"    font-size: 15px;\n"
+"    font-weight: 700;\n"
+"    min-height: 48px;\n"
+"}\n"
+"\n"
+"QPushButton#btnSave_Mod_3:hover {\n"
+"    background-color: #2f855a;\n"
+"}\n"
+"\n"
+"QPushButton#btnCancel_Mod_3 {\n"
+"    background-color: #edf2f7;\n"
+"    color: #4a5568;\n"
+"    border: 1.5px solid #e2e8f0;\n"
+"    border-radius: 12px;\n"
+"    p"
+                        "adding: 14px 20px;\n"
+"    font-size: 15px;\n"
+"    font-weight: 700;\n"
+"    min-height: 48px;\n"
+"}\n"
+"\n"
+"QPushButton#btnCancel_Mod_3:hover {\n"
+"    background-color: #e2e8f0;\n"
+"    border-color: #cbd5e0;\n"
+"    color: #2d3748;\n"
+"}\n"
+"\n"
+"QLabel#label_27, QLabel#label_28, QLabel#label_29,\n"
+"QLabel#label_30, QLabel#label_31, QLabel#label_32,\n"
+"QLabel#label_33, QLabel#label_34 {\n"
+"    font-size: 13px;\n"
+"    font-weight: 600;\n"
+"    color: #718096;\n"
+"}\n"
+"\n"
+"QLabel#l1_4, QLabel#l_px_4, QLabel#l_stat_4,\n"
+"QLabel#l2_4, QLabel#l_qty_4 {\n"
+"    font-size: 13px;\n"
+"    font-weight: 700;\n"
+"    color: #4a5568;\n"
+"    padding: 4px 0px;\n"
+"}\n"
+"\n"
+"QLabel#label {\n"
+"    font-size: 13px;\n"
+"    font-weight: 700;\n"
+"    color: #4a5568;\n"
+"    padding: 4px 0px;\n"
+"}\n"
+"\n"
+"QWidget#pageCmdModifier {\n"
+"    background-color: #f0f2f5;\n"
+"}\n"
+"\n"
+"QFrame#cardMod {\n"
+"    background-color: #ffffff;\n"
+"    border-radius: 18px;\n"
+"    border: 1px solid #e2e8f0;\n"
+"    padding: 10p"
+                        "x;\n"
+"}\n"
+"\n"
+"QLabel#lblTitleMod {\n"
+"    font-size: 22px;\n"
+"    font-weight: 800;\n"
+"    color: #1a365d;\n"
+"    padding: 8px 0px 12px 0px;\n"
+"    border-bottom: 2px solid #e2e8f0;\n"
+"    margin-bottom: 8px;\n"
+"}\n"
+"\n"
+"QFrame#cardMod QLabel {\n"
+"    font-size: 13px;\n"
+"    font-weight: 600;\n"
+"    color: #4a5568;\n"
+"}\n"
+"\n"
+"QFrame#cardMod QLineEdit {\n"
+"    background-color: #f7fafc;\n"
+"    border: 1.5px solid #e2e8f0;\n"
+"    border-radius: 10px;\n"
+"    padding: 12px 16px;\n"
+"    font-size: 14px;\n"
+"    color: #2d3748;\n"
+"    min-height: 24px;\n"
+"}\n"
+"\n"
+"QFrame#cardMod QLineEdit:focus {\n"
+"    border: 1.5px solid #4299e1;\n"
+"    background-color: #ffffff;\n"
+"}\n"
+"\n"
+"QFrame#cardMod QComboBox {\n"
+"    background-color: #f7fafc;\n"
+"    border: 1.5px solid #e2e8f0;\n"
+"    border-radius: 10px;\n"
+"    padding: 10px 14px;\n"
+"    font-size: 14px;\n"
+"    color: #2d3748;\n"
+"    min-height: 24px;\n"
+"}\n"
+"\n"
+"QFrame#cardMod QComboBox:focus {\n"
+"    border: 1.5px solid #429"
+                        "9e1;\n"
+"    background-color: #ffffff;\n"
+"}\n"
+"\n"
+"QFrame#cardMod QSpinBox,\n"
+"QFrame#cardMod QDoubleSpinBox {\n"
+"    background-color: #f7fafc;\n"
+"    border: 1.5px solid #e2e8f0;\n"
+"    border-radius: 10px;\n"
+"    padding: 10px 14px;\n"
+"    font-size: 14px;\n"
+"    color: #2d3748;\n"
+"    min-height: 24px;\n"
+"}\n"
+"\n"
+"QFrame#cardMod QSpinBox:focus,\n"
+"QFrame#cardMod QDoubleSpinBox:focus {\n"
+"    border: 1.5px solid #4299e1;\n"
+"    background-color: #ffffff;\n"
+"}\n"
+"\n"
+"QFrame#cardMod QTextEdit {\n"
+"    background-color: #f7fafc;\n"
+"    border: 1.5px solid #e2e8f0;\n"
+"    border-radius: 10px;\n"
+"    padding: 12px 16px;\n"
+"    font-size: 14px;\n"
+"    color: #2d3748;\n"
+"}\n"
+"\n"
+"QFrame#cardMod QTextEdit:focus {\n"
+"    border: 1.5px solid #4299e1;\n"
+"    background-color: #ffffff;\n"
+"}\n"
+"\n"
+"QLabel#lblSectionDates_Mod {\n"
+"    font-size: 16px;\n"
+"    font-weight: 700;\n"
+"    color: #2d3748;\n"
+"    padding: 6px 0px;\n"
+"}\n"
+"\n"
+"QLabel#lblSectionAdresse_Mod {\n"
+"    font-s"
+                        "ize: 16px;\n"
+"    font-weight: 700;\n"
+"    color: #2d3748;\n"
+"    padding: 6px 0px;\n"
+"}\n"
+"\n"
+"QFrame#sepLineMod1, QFrame#sepLineMod2, QFrame#sepLineMod3 {\n"
+"    background-color: #e2e8f0;\n"
+"    border: none;\n"
+"    min-height: 1px;\n"
+"    max-height: 1px;\n"
+"}\n"
+"\n"
+"QLabel#l1_2, QLabel#l_px_2, QLabel#l_stat_2,\n"
+"QLabel#l2_2, QLabel#l_qty_2 {\n"
+"    font-size: 13px;\n"
+"    font-weight: 700;\n"
+"    color: #4a5568;\n"
+"    padding: 4px 0px;\n"
+"}\n"
+"\n"
+"QLabel#label_11, QLabel#label_12, QLabel#label_13,\n"
+"QLabel#label_14, QLabel#label_19, QLabel#label_20,\n"
+"QLabel#label_21, QLabel#label_22 {\n"
+"    font-size: 13px;\n"
+"    font-weight: 600;\n"
+"    color: #718096;\n"
+"}\n"
+"\n"
+"QFrame#cardMod[objectName=\"cardMod\"] {\n"
+"    background-color: #ffffff;\n"
+"    border-radius: 18px;\n"
+"    border: 1px solid #e2e8f0;\n"
+"}\n"
+"\n"
+"QLabel#lblTitreFormMod {\n"
+"    font-size: 22px;\n"
+"    font-weight: 800;\n"
+"    color: #1a365d;\n"
+"    padding: 8px 0px 12px 0px;\n"
+"    border-botto"
+                        "m: 2px solid #e2e8f0;\n"
+"    margin-bottom: 8px;\n"
+"}\n"
+"\n"
+"QLabel#lblRefMod, QLabel#lblDateMod, QLabel#lblDurMod,\n"
+"QLabel#lblCoutMod, QLabel#lblPrioMod, QLabel#lblTechMod,\n"
+"QLabel#lblAddrMod, QLabel#lblDescMod, QLabel#lblPhotosAvantMod {\n"
+"    font-size: 13px;\n"
+"    font-weight: 700;\n"
+"    color: #4a5568;\n"
+"    padding: 4px 0px;\n"
+"}\n"
+"\n"
+"QLabel#lblLastUpdate {\n"
+"    font-size: 11px;\n"
+"    font-weight: 500;\n"
+"    color: #a0aec0;\n"
+"    padding: 4px 0px;\n"
+"}\n"
+"\n"
+"QLabel#lblImgPreview_Mod {\n"
+"    border: 2.5px dashed #cbd5e0;\n"
+"    border-radius: 14px;\n"
+"    background-color: #f7fafc;\n"
+"    color: #a0aec0;\n"
+"    font-size: 14px;\n"
+"    font-weight: 500;\n"
+"    min-height: 120px;\n"
+"    padding: 20px;\n"
+"}\n"
+"\n"
+"QFrame#sepMaintMod1, QFrame#sepMaintMod2, QFrame#sepMaintMod3, QFrame#sepMaintMod4 {\n"
+"    background-color: #e2e8f0;\n"
+"    border: none;\n"
+"    min-height: 1px;\n"
+"    max-height: 1px;\n"
+"}\n"
+"\n"
+"QLabel#lblSecInfoMod {\n"
+"    font-size: 16"
+                        "px;\n"
+"    font-weight: 700;\n"
+"    color: #2d3748;\n"
+"    padding: 6px 0px;\n"
+"}\n"
+"\n"
+"QLabel#lblSecTechMod {\n"
+"    font-size: 16px;\n"
+"    font-weight: 700;\n"
+"    color: #2d3748;\n"
+"    padding: 6px 0px;\n"
+"}\n"
+"\n"
+"QLabel#lblSecDescMod {\n"
+"    font-size: 16px;\n"
+"    font-weight: 700;\n"
+"    color: #2d3748;\n"
+"    padding: 6px 0px;\n"
+"}\n"
+"\n"
+"QLabel#lblSecPhotoMod {\n"
+"    font-size: 16px;\n"
+"    font-weight: 700;\n"
+"    color: #2d3748;\n"
+"    padding: 6px 0px;\n"
+"}\n"
+"\n"
+"QFrame#cardAdd {\n"
+"    background-color: #ffffff;\n"
+"    border-radius: 18px;\n"
+"    border: 1px solid #e2e8f0;\n"
+"}\n"
+"\n"
+"QLabel#lblTitreFormAdd {\n"
+"    font-size: 22px;\n"
+"    font-weight: 800;\n"
+"    color: #1a365d;\n"
+"    padding: 8px 0px 12px 0px;\n"
+"    border-bottom: 2px solid #e2e8f0;\n"
+"    margin-bottom: 8px;\n"
+"}\n"
+"\n"
+"QLabel#lblRefAdd, QLabel#lblDateAdd, QLabel#lblDurAdd,\n"
+"QLabel#lblCoutAdd, QLabel#lblPrioAdd, QLabel#lblTechAdd,\n"
+"QLabel#lblAddrAdd {\n"
+"    font-size: 13"
+                        "px;\n"
+"    font-weight: 700;\n"
+"    color: #4a5568;\n"
+"    padding: 4px 0px;\n"
+"}\n"
+"\n"
+"QLabel#lblDescAdd {\n"
+"    font-size: 15px;\n"
+"    font-weight: 700;\n"
+"    color: #2d3748;\n"
+"    padding: 6px 0px;\n"
+"}\n"
+"\n"
+"QLabel#lblPhotosAvantAdd, QLabel#lblPhotosApresAdd {\n"
+"    font-size: 15px;\n"
+"    font-weight: 700;\n"
+"    color: #2d3748;\n"
+"    padding: 6px 0px;\n"
+"}\n"
+"\n"
+"QLabel#lblImgPreview_Add, QLabel#lblImgPreview2_Add {\n"
+"    border: 2.5px dashed #cbd5e0;\n"
+"    border-radius: 14px;\n"
+"    background-color: #f7fafc;\n"
+"    color: #a0aec0;\n"
+"    font-size: 13px;\n"
+"    font-weight: 500;\n"
+"    min-height: 140px;\n"
+"    padding: 20px;\n"
+"}\n"
+"\n"
+"QLabel#lblImgPreview_Add:hover, QLabel#lblImgPreview2_Add:hover {\n"
+"    border-color: #90cdf4;\n"
+"    background-color: #ebf8ff;\n"
+"}\n"
+"\n"
+"QFrame#sepMaintAdd1, QFrame#sepMaintAdd2, QFrame#sepMaintAdd3, QFrame#sepMaintAdd4 {\n"
+"    background-color: #e2e8f0;\n"
+"    border: none;\n"
+"    min-height: 1px;\n"
+"    max-hei"
+                        "ght: 1px;\n"
+"}\n"
+"\n"
+"QPushButton#btnSave_Add {\n"
+"    background-color: #38a169;\n"
+"    color: white;\n"
+"    border: none;\n"
+"    border-radius: 10px;\n"
+"    font-size: 14px;\n"
+"    font-weight: 700;\n"
+"    padding: 12px 28px;\n"
+"}\n"
+"\n"
+"QPushButton#btnSave_Add:hover {\n"
+"    background-color: #2f855a;\n"
+"}\n"
+"\n"
+"QPushButton#btnCancel_Add {\n"
+"    background-color: #edf2f7;\n"
+"    color: #4a5568;\n"
+"    border: 1px solid #e2e8f0;\n"
+"    border-radius: 10px;\n"
+"    font-size: 14px;\n"
+"    font-weight: 600;\n"
+"    padding: 12px 28px;\n"
+"}\n"
+"\n"
+"QPushButton#btnCancel_Add:hover {\n"
+"    background-color: #e2e8f0;\n"
+"}\n"
+"\n"
+"QFrame#topBar_Aj {\n"
+"    background-color: #ffffff;\n"
+"    border-bottom: 1px solid #e2e8f0;\n"
+"    padding: 8px 16px;\n"
+"}\n"
+"\n"
+"QLabel#titleLabel_Aj {\n"
+"    font-size: 16px;\n"
+"    font-weight: 800;\n"
+"    color: #1a365d;\n"
+"    letter-spacing: 1px;\n"
+"}\n"
+"\n"
+"QLabel#userLabel_Aj {\n"
+"    font-size: 13px;\n"
+"    font-weight: 600;\n"
+"    "
+                        "color: #4a5568;\n"
 "}"));
         centralwidget = new QWidget(MainWindow);
         centralwidget->setObjectName("centralwidget");
@@ -1549,11 +2263,24 @@ public:
         sidebar->setFrameShadow(QFrame::Shadow::Raised);
         verticalLayout_4 = new QVBoxLayout(sidebar);
         verticalLayout_4->setObjectName("verticalLayout_4");
+        btnToggleSidebar = new QPushButton(sidebar);
+        btnToggleSidebar->setObjectName("btnToggleSidebar");
+        btnToggleSidebar->setCursor(QCursor(Qt::CursorShape::PointingHandCursor));
+        btnToggleSidebar->setStyleSheet(QString::fromUtf8("\n"
+"           background: transparent;\n"
+"           color: white;\n"
+"           font-size: 20px;\n"
+"           border: none;\n"
+"           padding: 5px;\n"
+"          "));
+
+        verticalLayout_4->addWidget(btnToggleSidebar);
+
         label_logo = new QLabel(sidebar);
         label_logo->setObjectName("label_logo");
         label_logo->setMinimumSize(QSize(200, 200));
         label_logo->setMaximumSize(QSize(200, 200));
-        label_logo->setPixmap(QPixmap(QString::fromUtf8(":/wasteguard_logo.png")));
+        label_logo->setPixmap(QPixmap(QString::fromUtf8(":/WASTEGUARD (1).png")));
         label_logo->setScaledContents(true);
         label_logo->setAlignment(Qt::AlignmentFlag::AlignCenter);
 
@@ -1586,6 +2313,7 @@ public:
 
         btnStatistiques = new QPushButton(sidebar);
         btnStatistiques->setObjectName("btnStatistiques");
+        btnStatistiques->setVisible(false);
 
         verticalLayout_4->addWidget(btnStatistiques);
 
@@ -1596,6 +2324,7 @@ public:
 
         btnRetour = new QPushButton(sidebar);
         btnRetour->setObjectName("btnRetour");
+        btnRetour->setVisible(false);
 
         verticalLayout_4->addWidget(btnRetour);
 
@@ -1655,27 +2384,39 @@ public:
         frameUser->setObjectName("frameUser");
         frameUser->setFrameShape(QFrame::Shape::NoFrame);
         verticalLayout_User = new QVBoxLayout(frameUser);
-        verticalLayout_User->setSpacing(2);
+        verticalLayout_User->setSpacing(0);
         verticalLayout_User->setObjectName("verticalLayout_User");
         verticalLayout_User->setContentsMargins(0, 0, 5, 0);
+        horizontalLayout_UserHeader = new QHBoxLayout();
+        horizontalLayout_UserHeader->setSpacing(10);
+        horizontalLayout_UserHeader->setObjectName("horizontalLayout_UserHeader");
+        verticalLayout_UserText = new QVBoxLayout();
+        verticalLayout_UserText->setSpacing(2);
+        verticalLayout_UserText->setObjectName("verticalLayout_UserText");
         lblUserName = new QLabel(frameUser);
         lblUserName->setObjectName("lblUserName");
         lblUserName->setAlignment(Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter);
 
-        verticalLayout_User->addWidget(lblUserName);
+        verticalLayout_UserText->addWidget(lblUserName);
+
+        lblUserRole = new QLabel(frameUser);
+        lblUserRole->setObjectName("lblUserRole");
+        lblUserRole->setAlignment(Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter);
+
+        verticalLayout_UserText->addWidget(lblUserRole);
+
+
+        horizontalLayout_UserHeader->addLayout(verticalLayout_UserText);
 
         btnNouveau = new QPushButton(frameUser);
         btnNouveau->setObjectName("btnNouveau");
         btnNouveau->setMinimumSize(QSize(0, 40));
         btnNouveau->setCursor(QCursor(Qt::CursorShape::PointingHandCursor));
 
-        verticalLayout_User->addWidget(btnNouveau);
+        horizontalLayout_UserHeader->addWidget(btnNouveau);
 
-        lblUserRole = new QLabel(frameUser);
-        lblUserRole->setObjectName("lblUserRole");
-        lblUserRole->setAlignment(Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter);
 
-        verticalLayout_User->addWidget(lblUserRole);
+        verticalLayout_User->addLayout(horizontalLayout_UserHeader);
 
 
         horizontalLayout_Header->addWidget(frameUser);
@@ -1859,8 +2600,7 @@ public:
         label_Actions->setObjectName("label_Actions");
         QFont font1;
         font1.setFamilies({QString::fromUtf8("Segoe UI")});
-        font1.setPointSize(10);
-        font1.setWeight(QFont::DemiBold);
+        font1.setBold(true);
         label_Actions->setFont(font1);
 
         verticalLayout_Actions->addWidget(label_Actions);
@@ -2602,17 +3342,30 @@ public:
         prod_cbSort = new QComboBox(prod_affichage);
         prod_cbSort->addItem(QString());
         prod_cbSort->addItem(QString());
-        prod_cbSort->addItem(QString());
-        prod_cbSort->addItem(QString());
         prod_cbSort->setObjectName("prod_cbSort");
         prod_cbSort->setMinimumSize(QSize(180, 40));
 
         prod_searchRow->addWidget(prod_cbSort);
 
+        prod_btnToggleView = new QPushButton(prod_affichage);
+        prod_btnToggleView->setObjectName("prod_btnToggleView");
+        prod_btnToggleView->setMinimumSize(QSize(40, 40));
+        prod_btnToggleView->setMaximumSize(QSize(40, 40));
+
+        prod_searchRow->addWidget(prod_btnToggleView);
+
 
         prod_tableLayout->addLayout(prod_searchRow);
 
-        prod_tableProduits = new QTableWidget(prod_affichage);
+        prod_viewStackedWidget = new QStackedWidget(prod_affichage);
+        prod_viewStackedWidget->setObjectName("prod_viewStackedWidget");
+        prod_tableViewPage = new QWidget();
+        prod_tableViewPage->setObjectName("prod_tableViewPage");
+        prod_tablePgLayout = new QVBoxLayout(prod_tableViewPage);
+        prod_tablePgLayout->setSpacing(0);
+        prod_tablePgLayout->setObjectName("prod_tablePgLayout");
+        prod_tablePgLayout->setContentsMargins(0, 0, 0, 0);
+        prod_tableProduits = new QTableWidget(prod_tableViewPage);
         if (prod_tableProduits->columnCount() < 8)
             prod_tableProduits->setColumnCount(8);
         QTableWidgetItem *__qtablewidgetitem37 = new QTableWidgetItem();
@@ -2638,7 +3391,33 @@ public:
         prod_tableProduits->setColumnCount(8);
         prod_tableProduits->verticalHeader()->setVisible(false);
 
-        prod_tableLayout->addWidget(prod_tableProduits);
+        prod_tablePgLayout->addWidget(prod_tableProduits);
+
+        prod_viewStackedWidget->addWidget(prod_tableViewPage);
+        prod_cardViewPage = new QWidget();
+        prod_cardViewPage->setObjectName("prod_cardViewPage");
+        prod_cardPgLayout = new QVBoxLayout(prod_cardViewPage);
+        prod_cardPgLayout->setSpacing(0);
+        prod_cardPgLayout->setObjectName("prod_cardPgLayout");
+        prod_cardPgLayout->setContentsMargins(0, 0, 0, 0);
+        prod_cardViewScrollArea = new QScrollArea(prod_cardViewPage);
+        prod_cardViewScrollArea->setObjectName("prod_cardViewScrollArea");
+        prod_cardViewScrollArea->setFrameShape(QFrame::Shape::NoFrame);
+        prod_cardViewScrollArea->setWidgetResizable(true);
+        prod_cardContainer = new QWidget();
+        prod_cardContainer->setObjectName("prod_cardContainer");
+        prod_cardContainer->setGeometry(QRect(0, 0, 100, 30));
+        prod_cardLayout = new QGridLayout(prod_cardContainer);
+        prod_cardLayout->setSpacing(20);
+        prod_cardLayout->setObjectName("prod_cardLayout");
+        prod_cardLayout->setContentsMargins(10, 10, 10, 10);
+        prod_cardViewScrollArea->setWidget(prod_cardContainer);
+
+        prod_cardPgLayout->addWidget(prod_cardViewScrollArea);
+
+        prod_viewStackedWidget->addWidget(prod_cardViewPage);
+
+        prod_tableLayout->addWidget(prod_viewStackedWidget);
 
 
         prod_affichageLayout->addLayout(prod_tableLayout);
@@ -2769,7 +3548,15 @@ public:
 
         prod_btnOpenStats = new QPushButton(prod_statsPreview);
         prod_btnOpenStats->setObjectName("prod_btnOpenStats");
-        prod_btnOpenStats->setFlat(true);
+        prod_btnOpenStats->setStyleSheet(QString::fromUtf8("background-color: #ffffff;\n"
+"color: #1f2d3d;\n"
+"border: 1px solid #dce1e6;\n"
+"border-radius: 10px;\n"
+"padding: 12px 16px;\n"
+"font-size: 14px;\n"
+"font-weight: 700;\n"
+"text-align: center;"));
+        prod_btnOpenStats->setFlat(false);
 
         prod_statsPreviewLayout->addWidget(prod_btnOpenStats);
 
@@ -2779,16 +3566,32 @@ public:
         prod_btnMap3D = new QPushButton(prod_rightSidebar);
         prod_btnMap3D->setObjectName("prod_btnMap3D");
         prod_btnMap3D->setCursor(QCursor(Qt::CursorShape::PointingHandCursor));
+        prod_btnMap3D->setStyleSheet(QString::fromUtf8("background-color: #ffffff;\n"
+"color: #1f2d3d;\n"
+"border: 1px solid #dce1e6;\n"
+"border-radius: 10px;\n"
+"padding: 12px 16px;\n"
+"font-size: 14px;\n"
+"font-weight: 700;\n"
+"text-align: center;"));
 
         prod_rightLayout->addWidget(prod_btnMap3D);
 
         prod_btnVideo3D = new QPushButton(prod_rightSidebar);
         prod_btnVideo3D->setObjectName("prod_btnVideo3D");
         prod_btnVideo3D->setCursor(QCursor(Qt::CursorShape::PointingHandCursor));
+        prod_btnVideo3D->setStyleSheet(QString::fromUtf8("background-color: #ffffff;\n"
+"color: #1f2d3d;\n"
+"border: 1px solid #dce1e6;\n"
+"border-radius: 10px;\n"
+"padding: 12px 16px;\n"
+"font-size: 14px;\n"
+"font-weight: 700;\n"
+"text-align: center;"));
 
         prod_rightLayout->addWidget(prod_btnVideo3D);
 
-        spacerItem2 = new QSpacerItem(0, 0, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
+        spacerItem2 = new QSpacerItem(0, 8, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Fixed);
 
         prod_rightLayout->addItem(spacerItem2);
 
@@ -2801,11 +3604,6 @@ public:
         prod_btnPdf->setObjectName("prod_btnPdf");
 
         prod_rightLayout->addWidget(prod_btnPdf);
-
-        prod_btnCsv = new QPushButton(prod_rightSidebar);
-        prod_btnCsv->setObjectName("prod_btnCsv");
-
-        prod_rightLayout->addWidget(prod_btnCsv);
 
         spacerItem3 = new QSpacerItem(0, 0, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
 
@@ -3009,102 +3807,17 @@ public:
 
         prod_verticalLayout_Add->addWidget(prod_l5);
 
-        prod_mapFrame = new QFrame(prod_cardAdd);
-        prod_mapFrame->setObjectName("prod_mapFrame");
-        prod_mapFrame->setFrameShape(QFrame::Shape::StyledPanel);
-        prod_gl_map_add = new QGridLayout(prod_mapFrame);
-        prod_gl_map_add->setObjectName("prod_gl_map_add");
-        prod_zoneA = new QLabel(prod_mapFrame);
-        prod_zoneA->setObjectName("prod_zoneA");
-        prod_zoneA->setAlignment(Qt::AlignmentFlag::AlignCenter);
-
-        prod_gl_map_add->addWidget(prod_zoneA, 0, 0, 1, 3);
-
-        prod_btn_a1 = new QPushButton(prod_mapFrame);
-        prod_btn_a1->setObjectName("prod_btn_a1");
-        prod_btn_a1->setCheckable(true);
-        prod_btn_a1->setAutoExclusive(true);
-
-        prod_gl_map_add->addWidget(prod_btn_a1, 1, 0, 1, 1);
-
-        prod_btn_a2 = new QPushButton(prod_mapFrame);
-        prod_btn_a2->setObjectName("prod_btn_a2");
-        prod_btn_a2->setEnabled(false);
-
-        prod_gl_map_add->addWidget(prod_btn_a2, 1, 1, 1, 1);
-
-        prod_btn_a3 = new QPushButton(prod_mapFrame);
-        prod_btn_a3->setObjectName("prod_btn_a3");
-        prod_btn_a3->setCheckable(true);
-        prod_btn_a3->setAutoExclusive(true);
-
-        prod_gl_map_add->addWidget(prod_btn_a3, 1, 2, 1, 1);
-
-        prod_zoneB = new QLabel(prod_mapFrame);
-        prod_zoneB->setObjectName("prod_zoneB");
-        prod_zoneB->setAlignment(Qt::AlignmentFlag::AlignCenter);
-
-        prod_gl_map_add->addWidget(prod_zoneB, 2, 0, 1, 3);
-
-        prod_btn_b1 = new QPushButton(prod_mapFrame);
-        prod_btn_b1->setObjectName("prod_btn_b1");
-        prod_btn_b1->setCheckable(true);
-        prod_btn_b1->setAutoExclusive(true);
-
-        prod_gl_map_add->addWidget(prod_btn_b1, 3, 0, 1, 1);
-
-        prod_btn_b2 = new QPushButton(prod_mapFrame);
-        prod_btn_b2->setObjectName("prod_btn_b2");
-        prod_btn_b2->setCheckable(true);
-        prod_btn_b2->setAutoExclusive(true);
-
-        prod_gl_map_add->addWidget(prod_btn_b2, 3, 1, 1, 1);
-
-        prod_btn_b3 = new QPushButton(prod_mapFrame);
-        prod_btn_b3->setObjectName("prod_btn_b3");
-        prod_btn_b3->setCheckable(true);
-        prod_btn_b3->setAutoExclusive(true);
-
-        prod_gl_map_add->addWidget(prod_btn_b3, 3, 2, 1, 1);
-
-        prod_zoneC = new QLabel(prod_mapFrame);
-        prod_zoneC->setObjectName("prod_zoneC");
-        prod_zoneC->setAlignment(Qt::AlignmentFlag::AlignCenter);
-
-        prod_gl_map_add->addWidget(prod_zoneC, 4, 0, 1, 3);
-
-        prod_btn_c2 = new QPushButton(prod_mapFrame);
-        prod_btn_c2->setObjectName("prod_btn_c2");
-        prod_btn_c2->setCheckable(true);
-        prod_btn_c2->setAutoExclusive(true);
-
-        prod_gl_map_add->addWidget(prod_btn_c2, 5, 1, 1, 1);
-
-        prod_btn_c3 = new QPushButton(prod_mapFrame);
-        prod_btn_c3->setObjectName("prod_btn_c3");
-        prod_btn_c3->setCheckable(true);
-        prod_btn_c3->setAutoExclusive(true);
-
-        prod_gl_map_add->addWidget(prod_btn_c3, 5, 2, 1, 1);
-
-        prod_btn_a2_2 = new QPushButton(prod_mapFrame);
-        prod_btn_a2_2->setObjectName("prod_btn_a2_2");
-        prod_btn_a2_2->setEnabled(false);
-
-        prod_gl_map_add->addWidget(prod_btn_a2_2, 5, 0, 1, 1);
-
-
-        prod_verticalLayout_Add->addWidget(prod_mapFrame);
-
         prod_btns_add = new QHBoxLayout();
         prod_btns_add->setObjectName("prod_btns_add");
         prod_btnSave_Add = new QPushButton(prod_cardAdd);
         prod_btnSave_Add->setObjectName("prod_btnSave_Add");
+        prod_btnSave_Add->setMinimumSize(QSize(0, 35));
 
         prod_btns_add->addWidget(prod_btnSave_Add);
 
         prod_btnCancel_Add = new QPushButton(prod_cardAdd);
         prod_btnCancel_Add->setObjectName("prod_btnCancel_Add");
+        prod_btnCancel_Add->setMinimumSize(QSize(0, 35));
 
         prod_btns_add->addWidget(prod_btnCancel_Add);
 
@@ -3280,104 +3993,17 @@ public:
 
         prod_verticalLayout_Mod->addWidget(prod_l5_m);
 
-        prod_depotMapFrame_mod = new QFrame(prod_cardMod);
-        prod_depotMapFrame_mod->setObjectName("prod_depotMapFrame_mod");
-        prod_depotMapFrame_mod->setFrameShape(QFrame::Shape::StyledPanel);
-        prod_gl_map_mod = new QGridLayout(prod_depotMapFrame_mod);
-        prod_gl_map_mod->setObjectName("prod_gl_map_mod");
-        prod_zoneAm = new QLabel(prod_depotMapFrame_mod);
-        prod_zoneAm->setObjectName("prod_zoneAm");
-        prod_zoneAm->setAlignment(Qt::AlignmentFlag::AlignCenter);
-
-        prod_gl_map_mod->addWidget(prod_zoneAm, 0, 0, 1, 3);
-
-        prod_btn_a1_m = new QPushButton(prod_depotMapFrame_mod);
-        prod_btn_a1_m->setObjectName("prod_btn_a1_m");
-        prod_btn_a1_m->setCheckable(true);
-        prod_btn_a1_m->setChecked(true);
-        prod_btn_a1_m->setAutoExclusive(true);
-
-        prod_gl_map_mod->addWidget(prod_btn_a1_m, 1, 0, 1, 1);
-
-        prod_btn_a3_m = new QPushButton(prod_depotMapFrame_mod);
-        prod_btn_a3_m->setObjectName("prod_btn_a3_m");
-        prod_btn_a3_m->setCheckable(true);
-        prod_btn_a3_m->setAutoExclusive(true);
-
-        prod_gl_map_mod->addWidget(prod_btn_a3_m, 1, 2, 1, 1);
-
-        prod_zoneBm = new QLabel(prod_depotMapFrame_mod);
-        prod_zoneBm->setObjectName("prod_zoneBm");
-        prod_zoneBm->setAlignment(Qt::AlignmentFlag::AlignCenter);
-
-        prod_gl_map_mod->addWidget(prod_zoneBm, 2, 0, 1, 3);
-
-        prod_btn_b1_m = new QPushButton(prod_depotMapFrame_mod);
-        prod_btn_b1_m->setObjectName("prod_btn_b1_m");
-        prod_btn_b1_m->setCheckable(true);
-        prod_btn_b1_m->setAutoExclusive(true);
-
-        prod_gl_map_mod->addWidget(prod_btn_b1_m, 3, 0, 1, 1);
-
-        prod_btn_b2_m = new QPushButton(prod_depotMapFrame_mod);
-        prod_btn_b2_m->setObjectName("prod_btn_b2_m");
-        prod_btn_b2_m->setCheckable(true);
-        prod_btn_b2_m->setAutoExclusive(true);
-
-        prod_gl_map_mod->addWidget(prod_btn_b2_m, 3, 1, 1, 1);
-
-        prod_btn_b3_m = new QPushButton(prod_depotMapFrame_mod);
-        prod_btn_b3_m->setObjectName("prod_btn_b3_m");
-        prod_btn_b3_m->setCheckable(true);
-        prod_btn_b3_m->setAutoExclusive(true);
-
-        prod_gl_map_mod->addWidget(prod_btn_b3_m, 3, 2, 1, 1);
-
-        prod_zoneCm = new QLabel(prod_depotMapFrame_mod);
-        prod_zoneCm->setObjectName("prod_zoneCm");
-        prod_zoneCm->setAlignment(Qt::AlignmentFlag::AlignCenter);
-
-        prod_gl_map_mod->addWidget(prod_zoneCm, 4, 0, 1, 3);
-
-        prod_btn_c1_m = new QPushButton(prod_depotMapFrame_mod);
-        prod_btn_c1_m->setObjectName("prod_btn_c1_m");
-        prod_btn_c1_m->setCheckable(true);
-        prod_btn_c1_m->setAutoExclusive(true);
-
-        prod_gl_map_mod->addWidget(prod_btn_c1_m, 5, 0, 1, 1);
-
-        prod_btn_c2_m = new QPushButton(prod_depotMapFrame_mod);
-        prod_btn_c2_m->setObjectName("prod_btn_c2_m");
-        prod_btn_c2_m->setCheckable(true);
-        prod_btn_c2_m->setAutoExclusive(true);
-
-        prod_gl_map_mod->addWidget(prod_btn_c2_m, 5, 1, 1, 1);
-
-        prod_btn_c3_m = new QPushButton(prod_depotMapFrame_mod);
-        prod_btn_c3_m->setObjectName("prod_btn_c3_m");
-        prod_btn_c3_m->setCheckable(true);
-        prod_btn_c3_m->setAutoExclusive(true);
-
-        prod_gl_map_mod->addWidget(prod_btn_c3_m, 5, 2, 1, 1);
-
-        prod_btn_a2_3 = new QPushButton(prod_depotMapFrame_mod);
-        prod_btn_a2_3->setObjectName("prod_btn_a2_3");
-        prod_btn_a2_3->setEnabled(false);
-
-        prod_gl_map_mod->addWidget(prod_btn_a2_3, 1, 1, 1, 1);
-
-
-        prod_verticalLayout_Mod->addWidget(prod_depotMapFrame_mod);
-
         prod_btns_mod = new QHBoxLayout();
         prod_btns_mod->setObjectName("prod_btns_mod");
         prod_btnSave_Mod = new QPushButton(prod_cardMod);
         prod_btnSave_Mod->setObjectName("prod_btnSave_Mod");
+        prod_btnSave_Mod->setMinimumSize(QSize(0, 35));
 
         prod_btns_mod->addWidget(prod_btnSave_Mod);
 
         prod_btnCancel_Mod = new QPushButton(prod_cardMod);
         prod_btnCancel_Mod->setObjectName("prod_btnCancel_Mod");
+        prod_btnCancel_Mod->setMinimumSize(QSize(0, 35));
 
         prod_btns_mod->addWidget(prod_btnCancel_Mod);
 
@@ -3529,11 +4155,6 @@ public:
         stackedWidget->addWidget(pageProduit);
         pageStock = new QWidget();
         pageStock->setObjectName("pageStock");
-        pageStock->setStyleSheet(QString::fromUtf8("Pointage:hover, QPushButton#btnGoStats:hover {\n"
-"    background-color: #e3f2fd;\n"
-"    border: 1px solid #3498db;\n"
-"    color: #000000 !important;\n"
-"}"));
         horizontalLayout_Main1 = new QHBoxLayout(pageStock);
         horizontalLayout_Main1->setSpacing(0);
         horizontalLayout_Main1->setContentsMargins(0, 0, 0, 0);
@@ -3555,6 +4176,11 @@ public:
 
         headerLayout->addItem(horizontalSpacer_header);
 
+        btnNew = new QPushButton(headerBar);
+        btnNew->setObjectName("btnNew");
+
+        headerLayout->addWidget(btnNew);
+
         user = new QLabel(headerBar);
         user->setObjectName("user");
 
@@ -3569,7 +4195,7 @@ public:
         pageInventaire->setObjectName("pageInventaire");
         dashboardLayout = new QHBoxLayout(pageInventaire);
         dashboardLayout->setSpacing(25);
-        dashboardLayout->setContentsMargins(25, 25, 25, 25);
+        dashboardLayout->setContentsMargins(18, 18, 18, 18);
         dashboardLayout->setObjectName("dashboardLayout");
         tableCard = new QFrame(pageInventaire);
         tableCard->setObjectName("tableCard");
@@ -3587,13 +4213,29 @@ public:
 
         tableHeaderActions->addItem(horizontalSpacer_table);
 
-        btnNew = new QPushButton(tableCard);
-        btnNew->setObjectName("btnNew");
-
-        tableHeaderActions->addWidget(btnNew);
-
 
         tableCardLayout->addLayout(tableHeaderActions);
+
+        stockSearchSortRow = new QHBoxLayout();
+        stockSearchSortRow->setSpacing(12);
+        stockSearchSortRow->setObjectName("stockSearchSortRow");
+        stock_searchInput = new QLineEdit(tableCard);
+        stock_searchInput->setObjectName("stock_searchInput");
+        stock_searchInput->setMinimumSize(QSize(0, 34));
+
+        stockSearchSortRow->addWidget(stock_searchInput);
+
+        stock_sortCombo = new QComboBox(tableCard);
+        stock_sortCombo->addItem(QString());
+        stock_sortCombo->addItem(QString());
+        stock_sortCombo->addItem(QString());
+        stock_sortCombo->setObjectName("stock_sortCombo");
+        stock_sortCombo->setMinimumSize(QSize(210, 40));
+
+        stockSearchSortRow->addWidget(stock_sortCombo);
+
+
+        tableCardLayout->addLayout(stockSearchSortRow);
 
         tableWidget = new QTableWidget(tableCard);
         tableWidget->setObjectName("tableWidget");
@@ -3605,8 +4247,9 @@ public:
         dashboardLayout->addWidget(tableCard);
 
         rightColumn = new QVBoxLayout();
-        rightColumn->setSpacing(20);
+        rightColumn->setSpacing(14);
         rightColumn->setObjectName("rightColumn");
+        rightColumn->setContentsMargins(0, 0, 0, 0);
         statsBox = new QFrame(pageInventaire);
         statsBox->setObjectName("statsBox");
         statsLayout = new QVBoxLayout(statsBox);
@@ -3645,6 +4288,14 @@ public:
 
         btnOrder = new QPushButton(orderBox);
         btnOrder->setObjectName("btnOrder");
+        btnOrder->setStyleSheet(QString::fromUtf8("background-color: #ffffff;\n"
+"color: #1f2d3d;\n"
+"border: 1px solid #dce1e6;\n"
+"border-radius: 10px;\n"
+"padding: 12px 16px;\n"
+"font-size: 14px;\n"
+"font-weight: 700;\n"
+"text-align: center;"));
 
         orderLayout->addWidget(btnOrder);
 
@@ -3653,13 +4304,34 @@ public:
 
         btnPrediction = new QPushButton(pageInventaire);
         btnPrediction->setObjectName("btnPrediction");
+        btnPrediction->setStyleSheet(QString::fromUtf8("background-color: #ffffff;\n"
+"color: #1f2d3d;\n"
+"border: 1px solid #dce1e6;\n"
+"border-radius: 10px;\n"
+"padding: 12px 16px;\n"
+"font-size: 14px;\n"
+"font-weight: 700;\n"
+"text-align: center;"));
 
         rightColumn->addWidget(btnPrediction);
 
         btnAlerts = new QPushButton(pageInventaire);
         btnAlerts->setObjectName("btnAlerts");
+        btnAlerts->setStyleSheet(QString::fromUtf8("background-color: #ffffff;\n"
+"color: #1f2d3d;\n"
+"border: 1px solid #dce1e6;\n"
+"border-radius: 10px;\n"
+"padding: 12px 16px;\n"
+"font-size: 14px;\n"
+"font-weight: 700;\n"
+"text-align: center;"));
 
         rightColumn->addWidget(btnAlerts);
+
+        btnGoStats_Stock = new QPushButton(pageInventaire);
+        btnGoStats_Stock->setObjectName("btnGoStats_Stock");
+
+        rightColumn->addWidget(btnGoStats_Stock);
 
         verticalSpacer_right = new QSpacerItem(20, 40, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
 
@@ -3871,13 +4543,25 @@ public:
         stackedWidget_Maintenance->setObjectName("stackedWidget_Maintenance");
         page_Maint_Dash = new QWidget();
         page_Maint_Dash->setObjectName("page_Maint_Dash");
-        horizontalLayoutWidget_1 = new QWidget(page_Maint_Dash);
-        horizontalLayoutWidget_1->setObjectName("horizontalLayoutWidget_1");
-        horizontalLayoutWidget_1->setGeometry(QRect(20, 0, 1180, 60));
-        horizontalLayout_1 = new QHBoxLayout(horizontalLayoutWidget_1);
+        vl_page_Maint_Dash = new QVBoxLayout(page_Maint_Dash);
+        vl_page_Maint_Dash->setSpacing(0);
+        vl_page_Maint_Dash->setObjectName("vl_page_Maint_Dash");
+        vl_page_Maint_Dash->setContentsMargins(0, 0, 0, 0);
+        scrollAreaMaint = new QScrollArea(page_Maint_Dash);
+        scrollAreaMaint->setObjectName("scrollAreaMaint");
+        scrollAreaMaint->setFrameShape(QFrame::Shape::NoFrame);
+        scrollAreaMaint->setWidgetResizable(true);
+        scrollContentMaint = new QWidget();
+        scrollContentMaint->setObjectName("scrollContentMaint");
+        scrollContentMaint->setGeometry(QRect(0, 0, 781, 1057));
+        vlScrollMaint = new QVBoxLayout(scrollContentMaint);
+        vlScrollMaint->setSpacing(20);
+        vlScrollMaint->setObjectName("vlScrollMaint");
+        vlScrollMaint->setContentsMargins(20, 0, 20, 20);
+        horizontalLayout_1 = new QHBoxLayout();
         horizontalLayout_1->setObjectName("horizontalLayout_1");
-        horizontalLayout_1->setContentsMargins(20, 0, 20, 0);
-        topBar = new QFrame(horizontalLayoutWidget_1);
+        horizontalLayout_1->setContentsMargins(20, -1, 20, -1);
+        topBar = new QFrame(scrollContentMaint);
         topBar->setObjectName("topBar");
         topLayout_1 = new QHBoxLayout(topBar);
         topLayout_1->setObjectName("topLayout_1");
@@ -3890,6 +4574,11 @@ public:
         spacerItem6 = new QSpacerItem(40, 20, QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Minimum);
 
         topLayout_1->addItem(spacerItem6);
+
+        btnGotoAjout = new QPushButton(topBar);
+        btnGotoAjout->setObjectName("btnGotoAjout");
+
+        topLayout_1->addWidget(btnGotoAjout);
 
         userLabel = new QLabel(topBar);
         userLabel->setObjectName("userLabel");
@@ -3909,23 +4598,24 @@ public:
 
         horizontalLayout_1->addWidget(topBar);
 
-        contentArea_1 = new QWidget(page_Maint_Dash);
-        contentArea_1->setObjectName("contentArea_1");
-        contentArea_1->setGeometry(QRect(20, 80, 1180, 620));
-        contentLayout_1 = new QHBoxLayout(contentArea_1);
-        contentLayout_1->setSpacing(20);
+
+        vlScrollMaint->addLayout(horizontalLayout_1);
+
+        contentLayout_1 = new QHBoxLayout();
+        contentLayout_1->setSpacing(16);
         contentLayout_1->setObjectName("contentLayout_1");
         contentLayout_1->setContentsMargins(0, 0, 0, 0);
         tableLayout = new QVBoxLayout();
         tableLayout->setObjectName("tableLayout");
         searchRow = new QHBoxLayout();
         searchRow->setObjectName("searchRow");
-        lblSort = new QLabel(contentArea_1);
+        lblSort = new QLabel(scrollContentMaint);
         lblSort->setObjectName("lblSort");
 
         searchRow->addWidget(lblSort);
 
-        cbSort1 = new QComboBox(contentArea_1);
+        cbSort1 = new QComboBox(scrollContentMaint);
+        cbSort1->addItem(QString());
         cbSort1->addItem(QString());
         cbSort1->addItem(QString());
         cbSort1->addItem(QString());
@@ -3934,17 +4624,12 @@ public:
 
         searchRow->addWidget(cbSort1);
 
-        searchInput = new QLineEdit(contentArea_1);
+        searchInput = new QLineEdit(scrollContentMaint);
         searchInput->setObjectName("searchInput");
 
         searchRow->addWidget(searchInput);
 
-        btnGotoAjout = new QPushButton(contentArea_1);
-        btnGotoAjout->setObjectName("btnGotoAjout");
-
-        searchRow->addWidget(btnGotoAjout);
-
-        btnGotoModifier = new QPushButton(contentArea_1);
+        btnGotoModifier = new QPushButton(scrollContentMaint);
         btnGotoModifier->setObjectName("btnGotoModifier");
 
         searchRow->addWidget(btnGotoModifier);
@@ -3952,7 +4637,7 @@ public:
 
         tableLayout->addLayout(searchRow);
 
-        card = new QFrame(contentArea_1);
+        card = new QFrame(scrollContentMaint);
         card->setObjectName("card");
         vl_card_dash = new QVBoxLayout(card);
         vl_card_dash->setObjectName("vl_card_dash");
@@ -3991,10 +4676,14 @@ public:
 
         contentLayout_1->addLayout(tableLayout);
 
-        rightSidebar = new QFrame(contentArea_1);
+        rightSidebar = new QFrame(scrollContentMaint);
         rightSidebar->setObjectName("rightSidebar");
+        rightSidebar->setMinimumSize(QSize(300, 0));
+        rightSidebar->setMaximumSize(QSize(350, 16777215));
         rightLayout_1 = new QVBoxLayout(rightSidebar);
+        rightLayout_1->setSpacing(14);
         rightLayout_1->setObjectName("rightLayout_1");
+        rightLayout_1->setContentsMargins(8, 8, 8, 8);
         lblFunc = new QLabel(rightSidebar);
         lblFunc->setObjectName("lblFunc");
 
@@ -4002,61 +4691,86 @@ public:
 
         stat1 = new QFrame(rightSidebar);
         stat1->setObjectName("stat1");
-        vboxLayout3 = new QVBoxLayout(stat1);
-        vboxLayout3->setObjectName("vboxLayout3");
+        vlStat1 = new QVBoxLayout(stat1);
+        vlStat1->setSpacing(4);
+        vlStat1->setObjectName("vlStat1");
+        st_icon1 = new QLabel(stat1);
+        st_icon1->setObjectName("st_icon1");
+
+        vlStat1->addWidget(st_icon1);
+
         st_val1 = new QLabel(stat1);
         st_val1->setObjectName("st_val1");
 
-        vboxLayout3->addWidget(st_val1);
+        vlStat1->addWidget(st_val1);
 
         st_lbl1 = new QLabel(stat1);
         st_lbl1->setObjectName("st_lbl1");
 
-        vboxLayout3->addWidget(st_lbl1);
+        vlStat1->addWidget(st_lbl1);
 
 
         rightLayout_1->addWidget(stat1);
 
         stat2 = new QFrame(rightSidebar);
         stat2->setObjectName("stat2");
-        vboxLayout4 = new QVBoxLayout(stat2);
-        vboxLayout4->setObjectName("vboxLayout4");
+        vlStat2 = new QVBoxLayout(stat2);
+        vlStat2->setSpacing(4);
+        vlStat2->setObjectName("vlStat2");
+        st_icon2 = new QLabel(stat2);
+        st_icon2->setObjectName("st_icon2");
+
+        vlStat2->addWidget(st_icon2);
+
         st_val2 = new QLabel(stat2);
         st_val2->setObjectName("st_val2");
 
-        vboxLayout4->addWidget(st_val2);
+        vlStat2->addWidget(st_val2);
 
         st_lbl2 = new QLabel(stat2);
         st_lbl2->setObjectName("st_lbl2");
 
-        vboxLayout4->addWidget(st_lbl2);
+        vlStat2->addWidget(st_lbl2);
 
 
         rightLayout_1->addWidget(stat2);
 
         stat3 = new QFrame(rightSidebar);
         stat3->setObjectName("stat3");
-        vboxLayout5 = new QVBoxLayout(stat3);
-        vboxLayout5->setObjectName("vboxLayout5");
+        vlStat3 = new QVBoxLayout(stat3);
+        vlStat3->setSpacing(4);
+        vlStat3->setObjectName("vlStat3");
+        st_icon3 = new QLabel(stat3);
+        st_icon3->setObjectName("st_icon3");
+
+        vlStat3->addWidget(st_icon3);
+
         st_val3 = new QLabel(stat3);
         st_val3->setObjectName("st_val3");
 
-        vboxLayout5->addWidget(st_val3);
+        vlStat3->addWidget(st_val3);
 
         st_lbl3 = new QLabel(stat3);
         st_lbl3->setObjectName("st_lbl3");
 
-        vboxLayout5->addWidget(st_lbl3);
+        vlStat3->addWidget(st_lbl3);
 
 
         rightLayout_1->addWidget(stat3);
 
-        spacerItem7 = new QSpacerItem(0, 40, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
+        spacerItem7 = new QSpacerItem(0, 6, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Fixed);
 
         rightLayout_1->addItem(spacerItem7);
 
+        btnGoStats_Maint = new QPushButton(rightSidebar);
+        btnGoStats_Maint->setObjectName("btnGoStats_Maint");
+
+        rightLayout_1->addWidget(btnGoStats_Maint);
+
         lblExport = new QLabel(rightSidebar);
         lblExport->setObjectName("lblExport");
+        lblExport->setMaximumSize(QSize(0, 0));
+        lblExport->setVisible(false);
 
         rightLayout_1->addWidget(lblExport);
 
@@ -4065,24 +4779,118 @@ public:
 
         rightLayout_1->addWidget(btnPdf);
 
-        btnCsv = new QPushButton(rightSidebar);
-        btnCsv->setObjectName("btnCsv");
+        vSpacerBottom_Maint = new QSpacerItem(0, 0, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
 
-        rightLayout_1->addWidget(btnCsv);
+        rightLayout_1->addItem(vSpacerBottom_Maint);
 
 
         contentLayout_1->addWidget(rightSidebar);
 
+
+        vlScrollMaint->addLayout(contentLayout_1);
+
+        miniChartFrame = new QFrame(scrollContentMaint);
+        miniChartFrame->setObjectName("miniChartFrame");
+        vlMiniChart = new QVBoxLayout(miniChartFrame);
+        vlMiniChart->setSpacing(10);
+        vlMiniChart->setObjectName("vlMiniChart");
+        lblMiniChartTitle = new QLabel(miniChartFrame);
+        lblMiniChartTitle->setObjectName("lblMiniChartTitle");
+
+        vlMiniChart->addWidget(lblMiniChartTitle);
+
+        hlMiniBar1 = new QHBoxLayout();
+        hlMiniBar1->setSpacing(8);
+        hlMiniBar1->setObjectName("hlMiniBar1");
+        lblMiniBar1 = new QLabel(miniChartFrame);
+        lblMiniBar1->setObjectName("lblMiniBar1");
+        lblMiniBar1->setMinimumSize(QSize(70, 0));
+
+        hlMiniBar1->addWidget(lblMiniBar1);
+
+        pbMini1 = new QProgressBar(miniChartFrame);
+        pbMini1->setObjectName("pbMini1");
+        pbMini1->setValue(55);
+        pbMini1->setTextVisible(false);
+
+        hlMiniBar1->addWidget(pbMini1);
+
+        lblMiniPct1 = new QLabel(miniChartFrame);
+        lblMiniPct1->setObjectName("lblMiniPct1");
+        lblMiniPct1->setAlignment(Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter);
+
+        hlMiniBar1->addWidget(lblMiniPct1);
+
+
+        vlMiniChart->addLayout(hlMiniBar1);
+
+        hlMiniBar2 = new QHBoxLayout();
+        hlMiniBar2->setSpacing(8);
+        hlMiniBar2->setObjectName("hlMiniBar2");
+        lblMiniBar2 = new QLabel(miniChartFrame);
+        lblMiniBar2->setObjectName("lblMiniBar2");
+        lblMiniBar2->setMinimumSize(QSize(70, 0));
+
+        hlMiniBar2->addWidget(lblMiniBar2);
+
+        pbMini2 = new QProgressBar(miniChartFrame);
+        pbMini2->setObjectName("pbMini2");
+        pbMini2->setValue(30);
+        pbMini2->setTextVisible(false);
+
+        hlMiniBar2->addWidget(pbMini2);
+
+        lblMiniPct2 = new QLabel(miniChartFrame);
+        lblMiniPct2->setObjectName("lblMiniPct2");
+        lblMiniPct2->setAlignment(Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter);
+
+        hlMiniBar2->addWidget(lblMiniPct2);
+
+
+        vlMiniChart->addLayout(hlMiniBar2);
+
+        hlMiniBar3 = new QHBoxLayout();
+        hlMiniBar3->setSpacing(8);
+        hlMiniBar3->setObjectName("hlMiniBar3");
+        lblMiniBar3 = new QLabel(miniChartFrame);
+        lblMiniBar3->setObjectName("lblMiniBar3");
+        lblMiniBar3->setMinimumSize(QSize(70, 0));
+
+        hlMiniBar3->addWidget(lblMiniBar3);
+
+        pbMini3 = new QProgressBar(miniChartFrame);
+        pbMini3->setObjectName("pbMini3");
+        pbMini3->setValue(15);
+        pbMini3->setTextVisible(false);
+
+        hlMiniBar3->addWidget(pbMini3);
+
+        lblMiniPct3 = new QLabel(miniChartFrame);
+        lblMiniPct3->setObjectName("lblMiniPct3");
+        lblMiniPct3->setAlignment(Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter);
+
+        hlMiniBar3->addWidget(lblMiniPct3);
+
+
+        vlMiniChart->addLayout(hlMiniBar3);
+
+
+        vlScrollMaint->addWidget(miniChartFrame);
+
+        scrollAreaMaint->setWidget(scrollContentMaint);
+
+        vl_page_Maint_Dash->addWidget(scrollAreaMaint);
+
         stackedWidget_Maintenance->addWidget(page_Maint_Dash);
         page_Maint_Ajout = new QWidget();
         page_Maint_Ajout->setObjectName("page_Maint_Ajout");
-        topAjout = new QWidget(page_Maint_Ajout);
-        topAjout->setObjectName("topAjout");
-        topAjout->setGeometry(QRect(230, 0, 1050, 60));
-        hlTopAjout = new QHBoxLayout(topAjout);
+        vl_page_Maint_Ajout = new QVBoxLayout(page_Maint_Ajout);
+        vl_page_Maint_Ajout->setSpacing(20);
+        vl_page_Maint_Ajout->setObjectName("vl_page_Maint_Ajout");
+        vl_page_Maint_Ajout->setContentsMargins(20, 0, 20, 20);
+        hlTopAjout = new QHBoxLayout();
         hlTopAjout->setObjectName("hlTopAjout");
-        hlTopAjout->setContentsMargins(0, 0, 0, 0);
-        topBar_Aj = new QFrame(topAjout);
+        topBar_Aj = new QFrame(page_Maint_Ajout);
         topBar_Aj->setObjectName("topBar_Aj");
         hlTopInnerAjout = new QHBoxLayout(topBar_Aj);
         hlTopInnerAjout->setObjectName("hlTopInnerAjout");
@@ -4103,70 +4911,91 @@ public:
 
         hlTopAjout->addWidget(topBar_Aj);
 
-        contentAjout = new QWidget(page_Maint_Ajout);
-        contentAjout->setObjectName("contentAjout");
-        contentAjout->setGeometry(QRect(20, 80, 1180, 800));
-        vlAjoutRoot = new QVBoxLayout(contentAjout);
+
+        vl_page_Maint_Ajout->addLayout(hlTopAjout);
+
+        vlAjoutRoot = new QVBoxLayout();
         vlAjoutRoot->setObjectName("vlAjoutRoot");
-        vlAjoutRoot->setContentsMargins(0, 0, 0, 0);
-        btnBack_Ajout = new QPushButton(contentAjout);
+        scrollArea_MaintAjout = new QScrollArea(page_Maint_Ajout);
+        scrollArea_MaintAjout->setObjectName("scrollArea_MaintAjout");
+        scrollArea_MaintAjout->setFrameShape(QFrame::Shape::NoFrame);
+        scrollArea_MaintAjout->setWidgetResizable(true);
+        scrollContent_MaintAjout = new QWidget();
+        scrollContent_MaintAjout->setObjectName("scrollContent_MaintAjout");
+        scrollContent_MaintAjout->setGeometry(QRect(0, 0, 394, 1154));
+        vlScrollMaintAjout = new QVBoxLayout(scrollContent_MaintAjout);
+        vlScrollMaintAjout->setObjectName("vlScrollMaintAjout");
+        vlScrollMaintAjout->setContentsMargins(20, -1, 20, 20);
+        btnBack_Ajout = new QPushButton(scrollContent_MaintAjout);
         btnBack_Ajout->setObjectName("btnBack_Ajout");
+        btnBack_Ajout->setMaximumSize(QSize(0, 0));
+        btnBack_Ajout->setVisible(false);
 
-        vlAjoutRoot->addWidget(btnBack_Ajout);
+        vlScrollMaintAjout->addWidget(btnBack_Ajout);
 
-        cardAdd = new QFrame(contentAjout);
+        cardAdd = new QFrame(scrollContent_MaintAjout);
         cardAdd->setObjectName("cardAdd");
         vlCardAdd = new QVBoxLayout(cardAdd);
+        vlCardAdd->setSpacing(14);
         vlCardAdd->setObjectName("vlCardAdd");
+        vlCardAdd->setContentsMargins(32, 28, 32, 28);
         lblTitreFormAdd = new QLabel(cardAdd);
         lblTitreFormAdd->setObjectName("lblTitreFormAdd");
+        lblTitreFormAdd->setMinimumSize(QSize(0, 50));
 
         vlCardAdd->addWidget(lblTitreFormAdd);
 
+        sepMaintAdd1 = new QFrame(cardAdd);
+        sepMaintAdd1->setObjectName("sepMaintAdd1");
+        sepMaintAdd1->setFrameShape(QFrame::Shape::HLine);
+        sepMaintAdd1->setFrameShadow(QFrame::Shadow::Sunken);
+
+        vlCardAdd->addWidget(sepMaintAdd1);
+
         hlRefAdd = new QHBoxLayout();
         hlRefAdd->setObjectName("hlRefAdd");
-        vboxLayout6 = new QVBoxLayout();
-        vboxLayout6->setObjectName("vboxLayout6");
+        vboxLayout3 = new QVBoxLayout();
+        vboxLayout3->setObjectName("vboxLayout3");
         lblRefAdd = new QLabel(cardAdd);
         lblRefAdd->setObjectName("lblRefAdd");
 
-        vboxLayout6->addWidget(lblRefAdd);
+        vboxLayout3->addWidget(lblRefAdd);
 
         editRefAdd = new QLineEdit(cardAdd);
         editRefAdd->setObjectName("editRefAdd");
 
-        vboxLayout6->addWidget(editRefAdd);
+        vboxLayout3->addWidget(editRefAdd);
 
 
-        hlRefAdd->addLayout(vboxLayout6);
+        hlRefAdd->addLayout(vboxLayout3);
 
 
         vlCardAdd->addLayout(hlRefAdd);
 
         hlDateDureeAdd = new QHBoxLayout();
         hlDateDureeAdd->setObjectName("hlDateDureeAdd");
-        vboxLayout7 = new QVBoxLayout();
-        vboxLayout7->setObjectName("vboxLayout7");
+        vboxLayout4 = new QVBoxLayout();
+        vboxLayout4->setObjectName("vboxLayout4");
         lblDateAdd = new QLabel(cardAdd);
         lblDateAdd->setObjectName("lblDateAdd");
 
-        vboxLayout7->addWidget(lblDateAdd);
+        vboxLayout4->addWidget(lblDateAdd);
 
         dateAdd = new QDateEdit(cardAdd);
         dateAdd->setObjectName("dateAdd");
         dateAdd->setCalendarPopup(true);
 
-        vboxLayout7->addWidget(dateAdd);
+        vboxLayout4->addWidget(dateAdd);
 
 
-        hlDateDureeAdd->addLayout(vboxLayout7);
+        hlDateDureeAdd->addLayout(vboxLayout4);
 
-        vboxLayout8 = new QVBoxLayout();
-        vboxLayout8->setObjectName("vboxLayout8");
+        vboxLayout5 = new QVBoxLayout();
+        vboxLayout5->setObjectName("vboxLayout5");
         lblDurAdd = new QLabel(cardAdd);
         lblDurAdd->setObjectName("lblDurAdd");
 
-        vboxLayout8->addWidget(lblDurAdd);
+        vboxLayout5->addWidget(lblDurAdd);
 
         comboDurAdd = new QComboBox(cardAdd);
         comboDurAdd->addItem(QString());
@@ -4174,22 +5003,22 @@ public:
         comboDurAdd->addItem(QString());
         comboDurAdd->setObjectName("comboDurAdd");
 
-        vboxLayout8->addWidget(comboDurAdd);
+        vboxLayout5->addWidget(comboDurAdd);
 
 
-        hlDateDureeAdd->addLayout(vboxLayout8);
+        hlDateDureeAdd->addLayout(vboxLayout5);
 
 
         vlCardAdd->addLayout(hlDateDureeAdd);
 
         hlCoutAdd = new QHBoxLayout();
         hlCoutAdd->setObjectName("hlCoutAdd");
-        vboxLayout9 = new QVBoxLayout();
-        vboxLayout9->setObjectName("vboxLayout9");
+        vboxLayout6 = new QVBoxLayout();
+        vboxLayout6->setObjectName("vboxLayout6");
         lblCoutAdd = new QLabel(cardAdd);
         lblCoutAdd->setObjectName("lblCoutAdd");
 
-        vboxLayout9->addWidget(lblCoutAdd);
+        vboxLayout6->addWidget(lblCoutAdd);
 
         hboxLayout = new QHBoxLayout();
         hboxLayout->setObjectName("hboxLayout");
@@ -4207,22 +5036,22 @@ public:
         hboxLayout->addWidget(lblEuroAdd);
 
 
-        vboxLayout9->addLayout(hboxLayout);
+        vboxLayout6->addLayout(hboxLayout);
 
 
-        hlCoutAdd->addLayout(vboxLayout9);
+        hlCoutAdd->addLayout(vboxLayout6);
 
 
         vlCardAdd->addLayout(hlCoutAdd);
 
         hlPrioAdd = new QHBoxLayout();
         hlPrioAdd->setObjectName("hlPrioAdd");
-        vboxLayout10 = new QVBoxLayout();
-        vboxLayout10->setObjectName("vboxLayout10");
+        vboxLayout7 = new QVBoxLayout();
+        vboxLayout7->setObjectName("vboxLayout7");
         lblPrioAdd = new QLabel(cardAdd);
         lblPrioAdd->setObjectName("lblPrioAdd");
 
-        vboxLayout10->addWidget(lblPrioAdd);
+        vboxLayout7->addWidget(lblPrioAdd);
 
         comboPrioAdd = new QComboBox(cardAdd);
         comboPrioAdd->addItem(QString());
@@ -4230,48 +5059,62 @@ public:
         comboPrioAdd->addItem(QString());
         comboPrioAdd->setObjectName("comboPrioAdd");
 
-        vboxLayout10->addWidget(comboPrioAdd);
+        vboxLayout7->addWidget(comboPrioAdd);
 
 
-        hlPrioAdd->addLayout(vboxLayout10);
+        hlPrioAdd->addLayout(vboxLayout7);
 
 
         vlCardAdd->addLayout(hlPrioAdd);
 
+        sepMaintAdd2 = new QFrame(cardAdd);
+        sepMaintAdd2->setObjectName("sepMaintAdd2");
+        sepMaintAdd2->setFrameShape(QFrame::Shape::HLine);
+        sepMaintAdd2->setFrameShadow(QFrame::Shadow::Sunken);
+
+        vlCardAdd->addWidget(sepMaintAdd2);
+
         hlTechAddrAdd = new QHBoxLayout();
         hlTechAddrAdd->setObjectName("hlTechAddrAdd");
-        vboxLayout11 = new QVBoxLayout();
-        vboxLayout11->setObjectName("vboxLayout11");
+        vboxLayout8 = new QVBoxLayout();
+        vboxLayout8->setObjectName("vboxLayout8");
         lblTechAdd = new QLabel(cardAdd);
         lblTechAdd->setObjectName("lblTechAdd");
 
-        vboxLayout11->addWidget(lblTechAdd);
+        vboxLayout8->addWidget(lblTechAdd);
 
         editTechAdd = new QLineEdit(cardAdd);
         editTechAdd->setObjectName("editTechAdd");
 
-        vboxLayout11->addWidget(editTechAdd);
+        vboxLayout8->addWidget(editTechAdd);
 
 
-        hlTechAddrAdd->addLayout(vboxLayout11);
+        hlTechAddrAdd->addLayout(vboxLayout8);
 
-        vboxLayout12 = new QVBoxLayout();
-        vboxLayout12->setObjectName("vboxLayout12");
+        vboxLayout9 = new QVBoxLayout();
+        vboxLayout9->setObjectName("vboxLayout9");
         lblAddrAdd = new QLabel(cardAdd);
         lblAddrAdd->setObjectName("lblAddrAdd");
 
-        vboxLayout12->addWidget(lblAddrAdd);
+        vboxLayout9->addWidget(lblAddrAdd);
 
         editAddrAdd = new QLineEdit(cardAdd);
         editAddrAdd->setObjectName("editAddrAdd");
 
-        vboxLayout12->addWidget(editAddrAdd);
+        vboxLayout9->addWidget(editAddrAdd);
 
 
-        hlTechAddrAdd->addLayout(vboxLayout12);
+        hlTechAddrAdd->addLayout(vboxLayout9);
 
 
         vlCardAdd->addLayout(hlTechAddrAdd);
+
+        sepMaintAdd3 = new QFrame(cardAdd);
+        sepMaintAdd3->setObjectName("sepMaintAdd3");
+        sepMaintAdd3->setFrameShape(QFrame::Shape::HLine);
+        sepMaintAdd3->setFrameShadow(QFrame::Shadow::Sunken);
+
+        vlCardAdd->addWidget(sepMaintAdd3);
 
         vlDescAdd = new QVBoxLayout();
         vlDescAdd->setObjectName("vlDescAdd");
@@ -4282,83 +5125,107 @@ public:
 
         txtDescAdd = new QTextEdit(cardAdd);
         txtDescAdd->setObjectName("txtDescAdd");
+        txtDescAdd->setMinimumSize(QSize(0, 80));
+        txtDescAdd->setMaximumSize(QSize(16777215, 120));
 
         vlDescAdd->addWidget(txtDescAdd);
 
 
         vlCardAdd->addLayout(vlDescAdd);
 
+        sepMaintAdd4 = new QFrame(cardAdd);
+        sepMaintAdd4->setObjectName("sepMaintAdd4");
+        sepMaintAdd4->setFrameShape(QFrame::Shape::HLine);
+        sepMaintAdd4->setFrameShadow(QFrame::Shadow::Sunken);
+
+        vlCardAdd->addWidget(sepMaintAdd4);
+
         hlPhotosAdd = new QHBoxLayout();
+        hlPhotosAdd->setSpacing(16);
         hlPhotosAdd->setObjectName("hlPhotosAdd");
-        vboxLayout13 = new QVBoxLayout();
-        vboxLayout13->setObjectName("vboxLayout13");
+        vboxLayout10 = new QVBoxLayout();
+        vboxLayout10->setObjectName("vboxLayout10");
         lblPhotosAvantAdd = new QLabel(cardAdd);
         lblPhotosAvantAdd->setObjectName("lblPhotosAvantAdd");
 
-        vboxLayout13->addWidget(lblPhotosAvantAdd);
+        vboxLayout10->addWidget(lblPhotosAvantAdd);
 
         lblImgPreview_Add = new QLabel(cardAdd);
         lblImgPreview_Add->setObjectName("lblImgPreview_Add");
-        lblImgPreview_Add->setMinimumSize(QSize(200, 100));
+        lblImgPreview_Add->setMinimumSize(QSize(0, 186));
         lblImgPreview_Add->setAlignment(Qt::AlignmentFlag::AlignCenter);
+        lblImgPreview_Add->setWordWrap(true);
 
-        vboxLayout13->addWidget(lblImgPreview_Add);
+        vboxLayout10->addWidget(lblImgPreview_Add);
 
 
-        hlPhotosAdd->addLayout(vboxLayout13);
+        hlPhotosAdd->addLayout(vboxLayout10);
 
-        vboxLayout14 = new QVBoxLayout();
-        vboxLayout14->setObjectName("vboxLayout14");
+        vboxLayout11 = new QVBoxLayout();
+        vboxLayout11->setObjectName("vboxLayout11");
         lblPhotosApresAdd = new QLabel(cardAdd);
         lblPhotosApresAdd->setObjectName("lblPhotosApresAdd");
 
-        vboxLayout14->addWidget(lblPhotosApresAdd);
+        vboxLayout11->addWidget(lblPhotosApresAdd);
 
         lblImgPreview2_Add = new QLabel(cardAdd);
         lblImgPreview2_Add->setObjectName("lblImgPreview2_Add");
-        lblImgPreview2_Add->setMinimumSize(QSize(200, 100));
+        lblImgPreview2_Add->setMinimumSize(QSize(0, 186));
         lblImgPreview2_Add->setAlignment(Qt::AlignmentFlag::AlignCenter);
+        lblImgPreview2_Add->setWordWrap(true);
 
-        vboxLayout14->addWidget(lblImgPreview2_Add);
+        vboxLayout11->addWidget(lblImgPreview2_Add);
 
 
-        hlPhotosAdd->addLayout(vboxLayout14);
+        hlPhotosAdd->addLayout(vboxLayout11);
 
 
         vlCardAdd->addLayout(hlPhotosAdd);
 
+
+        vlScrollMaintAjout->addWidget(cardAdd);
+
         hlButtonsAdd = new QHBoxLayout();
+        hlButtonsAdd->setSpacing(16);
         hlButtonsAdd->setObjectName("hlButtonsAdd");
         spacerItem9 = new QSpacerItem(40, 20, QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Minimum);
 
         hlButtonsAdd->addItem(spacerItem9);
 
-        btnSave_Add = new QPushButton(cardAdd);
-        btnSave_Add->setObjectName("btnSave_Add");
-
-        hlButtonsAdd->addWidget(btnSave_Add);
-
-        btnCancel_Add = new QPushButton(cardAdd);
+        btnCancel_Add = new QPushButton(scrollContent_MaintAjout);
         btnCancel_Add->setObjectName("btnCancel_Add");
+        btnCancel_Add->setMinimumSize(QSize(160, 48));
+        btnCancel_Add->setCursor(QCursor(Qt::CursorShape::PointingHandCursor));
 
         hlButtonsAdd->addWidget(btnCancel_Add);
 
+        btnSave_Add = new QPushButton(scrollContent_MaintAjout);
+        btnSave_Add->setObjectName("btnSave_Add");
+        btnSave_Add->setMinimumSize(QSize(160, 48));
+        btnSave_Add->setCursor(QCursor(Qt::CursorShape::PointingHandCursor));
 
-        vlCardAdd->addLayout(hlButtonsAdd);
+        hlButtonsAdd->addWidget(btnSave_Add);
 
 
-        vlAjoutRoot->addWidget(cardAdd);
+        vlScrollMaintAjout->addLayout(hlButtonsAdd);
+
+        scrollArea_MaintAjout->setWidget(scrollContent_MaintAjout);
+
+        vlAjoutRoot->addWidget(scrollArea_MaintAjout);
+
+
+        vl_page_Maint_Ajout->addLayout(vlAjoutRoot);
 
         stackedWidget_Maintenance->addWidget(page_Maint_Ajout);
         page_Maint_Modif = new QWidget();
         page_Maint_Modif->setObjectName("page_Maint_Modif");
-        topMod = new QWidget(page_Maint_Modif);
-        topMod->setObjectName("topMod");
-        topMod->setGeometry(QRect(230, 0, 1050, 60));
-        hlTopMod = new QHBoxLayout(topMod);
+        vl_page_Maint_Modif = new QVBoxLayout(page_Maint_Modif);
+        vl_page_Maint_Modif->setSpacing(20);
+        vl_page_Maint_Modif->setObjectName("vl_page_Maint_Modif");
+        vl_page_Maint_Modif->setContentsMargins(20, 0, 20, 20);
+        hlTopMod = new QHBoxLayout();
         hlTopMod->setObjectName("hlTopMod");
-        hlTopMod->setContentsMargins(0, 0, 0, 0);
-        topBar_Mod = new QFrame(topMod);
+        topBar_Mod = new QFrame(page_Maint_Modif);
         topBar_Mod->setObjectName("topBar_Mod");
         hlTopInnerMod = new QHBoxLayout(topBar_Mod);
         hlTopInnerMod->setObjectName("hlTopInnerMod");
@@ -4379,70 +5246,90 @@ public:
 
         hlTopMod->addWidget(topBar_Mod);
 
-        contentMod = new QWidget(page_Maint_Modif);
-        contentMod->setObjectName("contentMod");
-        contentMod->setGeometry(QRect(20, 80, 1180, 867));
-        vlModRoot = new QVBoxLayout(contentMod);
+
+        vl_page_Maint_Modif->addLayout(hlTopMod);
+
+        vlModRoot = new QVBoxLayout();
         vlModRoot->setObjectName("vlModRoot");
-        vlModRoot->setContentsMargins(0, 0, 0, 0);
-        btnBack_Modif = new QPushButton(contentMod);
+        scrollArea_MaintModif = new QScrollArea(page_Maint_Modif);
+        scrollArea_MaintModif->setObjectName("scrollArea_MaintModif");
+        scrollArea_MaintModif->setFrameShape(QFrame::Shape::NoFrame);
+        scrollArea_MaintModif->setWidgetResizable(true);
+        scrollContent_MaintModif = new QWidget();
+        scrollContent_MaintModif->setObjectName("scrollContent_MaintModif");
+        scrollContent_MaintModif->setGeometry(QRect(0, 0, 439, 1277));
+        vlScrollMaintModif = new QVBoxLayout(scrollContent_MaintModif);
+        vlScrollMaintModif->setObjectName("vlScrollMaintModif");
+        vlScrollMaintModif->setContentsMargins(20, -1, 20, 20);
+        btnBack_Modif = new QPushButton(scrollContent_MaintModif);
         btnBack_Modif->setObjectName("btnBack_Modif");
+        btnBack_Modif->setMaximumSize(QSize(0, 0));
+        btnBack_Modif->setVisible(false);
 
-        vlModRoot->addWidget(btnBack_Modif);
+        vlScrollMaintModif->addWidget(btnBack_Modif);
 
-        cardMod = new QFrame(contentMod);
+        cardMod = new QFrame(scrollContent_MaintModif);
         cardMod->setObjectName("cardMod");
         vlCardMod = new QVBoxLayout(cardMod);
+        vlCardMod->setSpacing(14);
         vlCardMod->setObjectName("vlCardMod");
+        vlCardMod->setContentsMargins(32, 28, 32, 28);
         lblTitreFormMod = new QLabel(cardMod);
         lblTitreFormMod->setObjectName("lblTitreFormMod");
 
         vlCardMod->addWidget(lblTitreFormMod);
 
+        sepMaintMod1 = new QFrame(cardMod);
+        sepMaintMod1->setObjectName("sepMaintMod1");
+        sepMaintMod1->setFrameShape(QFrame::Shape::HLine);
+        sepMaintMod1->setFrameShadow(QFrame::Shadow::Sunken);
+
+        vlCardMod->addWidget(sepMaintMod1);
+
         hlRefMod = new QHBoxLayout();
         hlRefMod->setObjectName("hlRefMod");
-        vboxLayout15 = new QVBoxLayout();
-        vboxLayout15->setObjectName("vboxLayout15");
+        vboxLayout12 = new QVBoxLayout();
+        vboxLayout12->setObjectName("vboxLayout12");
         lblRefMod = new QLabel(cardMod);
         lblRefMod->setObjectName("lblRefMod");
 
-        vboxLayout15->addWidget(lblRefMod);
+        vboxLayout12->addWidget(lblRefMod);
 
         editRefMod = new QLineEdit(cardMod);
         editRefMod->setObjectName("editRefMod");
 
-        vboxLayout15->addWidget(editRefMod);
+        vboxLayout12->addWidget(editRefMod);
 
 
-        hlRefMod->addLayout(vboxLayout15);
+        hlRefMod->addLayout(vboxLayout12);
 
 
         vlCardMod->addLayout(hlRefMod);
 
         hlDateDureeMod = new QHBoxLayout();
         hlDateDureeMod->setObjectName("hlDateDureeMod");
-        vboxLayout16 = new QVBoxLayout();
-        vboxLayout16->setObjectName("vboxLayout16");
+        vboxLayout13 = new QVBoxLayout();
+        vboxLayout13->setObjectName("vboxLayout13");
         lblDateMod = new QLabel(cardMod);
         lblDateMod->setObjectName("lblDateMod");
 
-        vboxLayout16->addWidget(lblDateMod);
+        vboxLayout13->addWidget(lblDateMod);
 
         dateMod = new QDateEdit(cardMod);
         dateMod->setObjectName("dateMod");
         dateMod->setCalendarPopup(true);
 
-        vboxLayout16->addWidget(dateMod);
+        vboxLayout13->addWidget(dateMod);
 
 
-        hlDateDureeMod->addLayout(vboxLayout16);
+        hlDateDureeMod->addLayout(vboxLayout13);
 
-        vboxLayout17 = new QVBoxLayout();
-        vboxLayout17->setObjectName("vboxLayout17");
+        vboxLayout14 = new QVBoxLayout();
+        vboxLayout14->setObjectName("vboxLayout14");
         lblDurMod = new QLabel(cardMod);
         lblDurMod->setObjectName("lblDurMod");
 
-        vboxLayout17->addWidget(lblDurMod);
+        vboxLayout14->addWidget(lblDurMod);
 
         comboDurMod = new QComboBox(cardMod);
         comboDurMod->addItem(QString());
@@ -4450,22 +5337,22 @@ public:
         comboDurMod->addItem(QString());
         comboDurMod->setObjectName("comboDurMod");
 
-        vboxLayout17->addWidget(comboDurMod);
+        vboxLayout14->addWidget(comboDurMod);
 
 
-        hlDateDureeMod->addLayout(vboxLayout17);
+        hlDateDureeMod->addLayout(vboxLayout14);
 
 
         vlCardMod->addLayout(hlDateDureeMod);
 
         hlCoutMod = new QHBoxLayout();
         hlCoutMod->setObjectName("hlCoutMod");
-        vboxLayout18 = new QVBoxLayout();
-        vboxLayout18->setObjectName("vboxLayout18");
+        vboxLayout15 = new QVBoxLayout();
+        vboxLayout15->setObjectName("vboxLayout15");
         lblCoutMod = new QLabel(cardMod);
         lblCoutMod->setObjectName("lblCoutMod");
 
-        vboxLayout18->addWidget(lblCoutMod);
+        vboxLayout15->addWidget(lblCoutMod);
 
         hboxLayout1 = new QHBoxLayout();
         hboxLayout1->setObjectName("hboxLayout1");
@@ -4483,22 +5370,22 @@ public:
         hboxLayout1->addWidget(lblEuroMod);
 
 
-        vboxLayout18->addLayout(hboxLayout1);
+        vboxLayout15->addLayout(hboxLayout1);
 
 
-        hlCoutMod->addLayout(vboxLayout18);
+        hlCoutMod->addLayout(vboxLayout15);
 
 
         vlCardMod->addLayout(hlCoutMod);
 
         hlPrioMod = new QHBoxLayout();
         hlPrioMod->setObjectName("hlPrioMod");
-        vboxLayout19 = new QVBoxLayout();
-        vboxLayout19->setObjectName("vboxLayout19");
+        vboxLayout16 = new QVBoxLayout();
+        vboxLayout16->setObjectName("vboxLayout16");
         lblPrioMod = new QLabel(cardMod);
         lblPrioMod->setObjectName("lblPrioMod");
 
-        vboxLayout19->addWidget(lblPrioMod);
+        vboxLayout16->addWidget(lblPrioMod);
 
         comboPrioMod = new QComboBox(cardMod);
         comboPrioMod->addItem(QString());
@@ -4506,82 +5393,124 @@ public:
         comboPrioMod->addItem(QString());
         comboPrioMod->setObjectName("comboPrioMod");
 
-        vboxLayout19->addWidget(comboPrioMod);
+        vboxLayout16->addWidget(comboPrioMod);
 
 
-        hlPrioMod->addLayout(vboxLayout19);
+        hlPrioMod->addLayout(vboxLayout16);
 
 
         vlCardMod->addLayout(hlPrioMod);
 
+        sepMaintMod2 = new QFrame(cardMod);
+        sepMaintMod2->setObjectName("sepMaintMod2");
+        sepMaintMod2->setFrameShape(QFrame::Shape::HLine);
+        sepMaintMod2->setFrameShadow(QFrame::Shadow::Sunken);
+
+        vlCardMod->addWidget(sepMaintMod2);
+
+        lblSecTechMod = new QLabel(cardMod);
+        lblSecTechMod->setObjectName("lblSecTechMod");
+
+        vlCardMod->addWidget(lblSecTechMod);
+
         hlTechAddrMod = new QHBoxLayout();
         hlTechAddrMod->setObjectName("hlTechAddrMod");
-        vboxLayout20 = new QVBoxLayout();
-        vboxLayout20->setObjectName("vboxLayout20");
+        vboxLayout17 = new QVBoxLayout();
+        vboxLayout17->setObjectName("vboxLayout17");
         lblTechMod = new QLabel(cardMod);
         lblTechMod->setObjectName("lblTechMod");
 
-        vboxLayout20->addWidget(lblTechMod);
+        vboxLayout17->addWidget(lblTechMod);
 
         editTechMod = new QLineEdit(cardMod);
         editTechMod->setObjectName("editTechMod");
 
-        vboxLayout20->addWidget(editTechMod);
+        vboxLayout17->addWidget(editTechMod);
 
 
-        hlTechAddrMod->addLayout(vboxLayout20);
+        hlTechAddrMod->addLayout(vboxLayout17);
 
-        vboxLayout21 = new QVBoxLayout();
-        vboxLayout21->setObjectName("vboxLayout21");
+        vboxLayout18 = new QVBoxLayout();
+        vboxLayout18->setObjectName("vboxLayout18");
         lblAddrMod = new QLabel(cardMod);
         lblAddrMod->setObjectName("lblAddrMod");
 
-        vboxLayout21->addWidget(lblAddrMod);
+        vboxLayout18->addWidget(lblAddrMod);
 
         editAddrMod = new QLineEdit(cardMod);
         editAddrMod->setObjectName("editAddrMod");
 
-        vboxLayout21->addWidget(editAddrMod);
+        vboxLayout18->addWidget(editAddrMod);
 
 
-        hlTechAddrMod->addLayout(vboxLayout21);
+        hlTechAddrMod->addLayout(vboxLayout18);
 
 
         vlCardMod->addLayout(hlTechAddrMod);
+
+        sepMaintMod3 = new QFrame(cardMod);
+        sepMaintMod3->setObjectName("sepMaintMod3");
+        sepMaintMod3->setFrameShape(QFrame::Shape::HLine);
+        sepMaintMod3->setFrameShadow(QFrame::Shadow::Sunken);
+
+        vlCardMod->addWidget(sepMaintMod3);
+
+        lblSecDescMod = new QLabel(cardMod);
+        lblSecDescMod->setObjectName("lblSecDescMod");
+
+        vlCardMod->addWidget(lblSecDescMod);
 
         vlDescMod = new QVBoxLayout();
         vlDescMod->setObjectName("vlDescMod");
         lblDescMod = new QLabel(cardMod);
         lblDescMod->setObjectName("lblDescMod");
+        lblDescMod->setMaximumSize(QSize(0, 0));
+        lblDescMod->setVisible(false);
 
         vlDescMod->addWidget(lblDescMod);
 
         txtDescMod = new QTextEdit(cardMod);
         txtDescMod->setObjectName("txtDescMod");
+        txtDescMod->setMinimumSize(QSize(0, 80));
+        txtDescMod->setMaximumSize(QSize(16777215, 120));
 
         vlDescMod->addWidget(txtDescMod);
 
 
         vlCardMod->addLayout(vlDescMod);
 
+        sepMaintMod4 = new QFrame(cardMod);
+        sepMaintMod4->setObjectName("sepMaintMod4");
+        sepMaintMod4->setFrameShape(QFrame::Shape::HLine);
+        sepMaintMod4->setFrameShadow(QFrame::Shadow::Sunken);
+
+        vlCardMod->addWidget(sepMaintMod4);
+
+        lblSecPhotoMod = new QLabel(cardMod);
+        lblSecPhotoMod->setObjectName("lblSecPhotoMod");
+
+        vlCardMod->addWidget(lblSecPhotoMod);
+
         hlPhotosMod = new QHBoxLayout();
         hlPhotosMod->setObjectName("hlPhotosMod");
-        vboxLayout22 = new QVBoxLayout();
-        vboxLayout22->setObjectName("vboxLayout22");
+        vboxLayout19 = new QVBoxLayout();
+        vboxLayout19->setObjectName("vboxLayout19");
         lblPhotosAvantMod = new QLabel(cardMod);
         lblPhotosAvantMod->setObjectName("lblPhotosAvantMod");
+        lblPhotosAvantMod->setMaximumSize(QSize(0, 0));
+        lblPhotosAvantMod->setVisible(false);
 
-        vboxLayout22->addWidget(lblPhotosAvantMod);
+        vboxLayout19->addWidget(lblPhotosAvantMod);
 
         lblImgPreview_Mod = new QLabel(cardMod);
         lblImgPreview_Mod->setObjectName("lblImgPreview_Mod");
-        lblImgPreview_Mod->setMinimumSize(QSize(420, 140));
+        lblImgPreview_Mod->setMinimumSize(QSize(0, 166));
         lblImgPreview_Mod->setAlignment(Qt::AlignmentFlag::AlignCenter);
 
-        vboxLayout22->addWidget(lblImgPreview_Mod);
+        vboxLayout19->addWidget(lblImgPreview_Mod);
 
 
-        hlPhotosMod->addLayout(vboxLayout22);
+        hlPhotosMod->addLayout(vboxLayout19);
 
 
         vlCardMod->addLayout(hlPhotosMod);
@@ -4591,27 +5520,39 @@ public:
 
         vlCardMod->addWidget(lblLastUpdate);
 
+
+        vlScrollMaintModif->addWidget(cardMod);
+
         hlButtonsMod = new QHBoxLayout();
+        hlButtonsMod->setSpacing(16);
         hlButtonsMod->setObjectName("hlButtonsMod");
         spacerItem11 = new QSpacerItem(40, 20, QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Minimum);
 
         hlButtonsMod->addItem(spacerItem11);
 
-        btnSave_Mod = new QPushButton(cardMod);
-        btnSave_Mod->setObjectName("btnSave_Mod");
-
-        hlButtonsMod->addWidget(btnSave_Mod);
-
-        btnCancel_Mod = new QPushButton(cardMod);
+        btnCancel_Mod = new QPushButton(scrollContent_MaintModif);
         btnCancel_Mod->setObjectName("btnCancel_Mod");
+        btnCancel_Mod->setMinimumSize(QSize(160, 48));
+        btnCancel_Mod->setCursor(QCursor(Qt::CursorShape::PointingHandCursor));
 
         hlButtonsMod->addWidget(btnCancel_Mod);
 
+        btnSave_Mod = new QPushButton(scrollContent_MaintModif);
+        btnSave_Mod->setObjectName("btnSave_Mod");
+        btnSave_Mod->setMinimumSize(QSize(160, 48));
+        btnSave_Mod->setCursor(QCursor(Qt::CursorShape::PointingHandCursor));
 
-        vlCardMod->addLayout(hlButtonsMod);
+        hlButtonsMod->addWidget(btnSave_Mod);
 
 
-        vlModRoot->addWidget(cardMod);
+        vlScrollMaintModif->addLayout(hlButtonsMod);
+
+        scrollArea_MaintModif->setWidget(scrollContent_MaintModif);
+
+        vlModRoot->addWidget(scrollArea_MaintModif);
+
+
+        vl_page_Maint_Modif->addLayout(vlModRoot);
 
         stackedWidget_Maintenance->addWidget(page_Maint_Modif);
 
@@ -4625,9 +5566,9 @@ public:
         verticalLayout_ClientRoot->setObjectName("verticalLayout_ClientRoot");
         header_Client = new QWidget(pageClient);
         header_Client->setObjectName("header_Client");
-        header_Client->setMinimumSize(QSize(0, 80));
-        header_Client->setMaximumSize(QSize(16777215, 80));
-        header_Client->setStyleSheet(QString::fromUtf8("color: #FFFFFF; font-family: \"Montserrat\"; font-weight: bold; font-size: 18px; background-color: #1A365D;"));
+        header_Client->setMinimumSize(QSize(0, 72));
+        header_Client->setMaximumSize(QSize(16777215, 72));
+        header_Client->setStyleSheet(QString::fromUtf8("background-color: #ffffff; border: none; border-bottom: 1px solid #dce1e6;"));
         horizontalLayout_header_Client = new QHBoxLayout(header_Client);
         horizontalLayout_header_Client->setObjectName("horizontalLayout_header_Client");
         wasteguardhead_Client = new QLabel(header_Client);
@@ -4638,6 +5579,13 @@ public:
         horizontalSpacer_h_Client = new QSpacerItem(0, 0, QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Minimum);
 
         horizontalLayout_header_Client->addItem(horizontalSpacer_h_Client);
+
+        btnNouveau_Client = new QPushButton(header_Client);
+        btnNouveau_Client->setObjectName("btnNouveau_Client");
+        btnNouveau_Client->setMinimumSize(QSize(120, 30));
+        btnNouveau_Client->setStyleSheet(QString::fromUtf8("background-color: #0f2b4c; color: white; border-radius: 5px; font-weight: bold;"));
+
+        horizontalLayout_header_Client->addWidget(btnNouveau_Client);
 
         responsable_Client = new QLabel(header_Client);
         responsable_Client->setObjectName("responsable_Client");
@@ -4655,48 +5603,47 @@ public:
         verticalLayout_repertoire->setObjectName("verticalLayout_repertoire");
         horizontalLayout_filters = new QHBoxLayout();
         horizontalLayout_filters->setObjectName("horizontalLayout_filters");
-        horizontalLayout_filters->setContentsMargins(20, 20, 20, 10);
-        rep = new QLabel(page_repertoire);
-        rep->setObjectName("rep");
+        horizontalLayout_filters->setContentsMargins(20, 10, 20, 6);
+        recherche = new QLineEdit(page_repertoire);
+        recherche->setObjectName("recherche");
+        recherche->setMinimumSize(QSize(220, 34));
+        recherche->setMaximumSize(QSize(350, 36));
+        recherche->setStyleSheet(QString::fromUtf8("QLineEdit { border: 1px solid #d1d5db; border-radius: 8px; padding: 6px 12px; font-size: 13px; background: white; color: #333; } QLineEdit:focus { border-color: #2a5298; }"));
 
-        horizontalLayout_filters->addWidget(rep);
+        horizontalLayout_filters->addWidget(recherche);
 
-        horizontalSpacer_f = new QSpacerItem(0, 0, QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Minimum);
+        spacer_filter_gap = new QSpacerItem(12, 0, QSizePolicy::Policy::Fixed, QSizePolicy::Policy::Minimum);
 
-        horizontalLayout_filters->addItem(horizontalSpacer_f);
+        horizontalLayout_filters->addItem(spacer_filter_gap);
 
         lblTrier = new QLabel(page_repertoire);
         lblTrier->setObjectName("lblTrier");
-        lblTrier->setStyleSheet(QString::fromUtf8("font-weight: bold; color: #333;"));
+        lblTrier->setStyleSheet(QString::fromUtf8("font-weight: 600; color: #0f2b4c; font-size: 13px;"));
 
         horizontalLayout_filters->addWidget(lblTrier);
 
         cbTrier = new QComboBox(page_repertoire);
         cbTrier->addItem(QString());
         cbTrier->addItem(QString());
+        cbTrier->addItem(QString());
+        cbTrier->addItem(QString());
         cbTrier->setObjectName("cbTrier");
-        cbTrier->setStyleSheet(QString::fromUtf8("color:rgb(144, 144, 144)"));
+        cbTrier->setMinimumSize(QSize(160, 36));
+        cbTrier->setStyleSheet(QString::fromUtf8("QComboBox { border: 1px solid #d1d5db; border-radius: 8px; padding: 6px 12px; font-size: 13px; background: white; color: #333; } QComboBox:focus { border-color: #2a5298; } QComboBox::drop-down { border: none; } QComboBox QAbstractItemView { border: 1px solid #d1d5db; border-radius: 4px; background: white; selection-background-color: #e0e7ff; }"));
+        cbTrier->setEditable(true);
 
         horizontalLayout_filters->addWidget(cbTrier);
 
-        recherche = new QLineEdit(page_repertoire);
-        recherche->setObjectName("recherche");
-        recherche->setMinimumSize(QSize(250, 0));
+        horizontalSpacer_f = new QSpacerItem(40, 20, QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Minimum);
 
-        horizontalLayout_filters->addWidget(recherche);
-
-        btnNouveau_Client = new QPushButton(page_repertoire);
-        btnNouveau_Client->setObjectName("btnNouveau_Client");
-        btnNouveau_Client->setMinimumSize(QSize(120, 30));
-        btnNouveau_Client->setStyleSheet(QString::fromUtf8("background-color: #0f2b4c; color: white; border-radius: 5px; font-weight: bold;"));
-
-        horizontalLayout_filters->addWidget(btnNouveau_Client);
+        horizontalLayout_filters->addItem(horizontalSpacer_f);
 
 
         verticalLayout_repertoire->addLayout(horizontalLayout_filters);
 
         horizontalLayout_table = new QHBoxLayout();
         horizontalLayout_table->setObjectName("horizontalLayout_table");
+        horizontalLayout_table->setContentsMargins(0, 0, 0, 0);
         tableWidget_Client = new QTableWidget(page_repertoire);
         if (tableWidget_Client->columnCount() < 7)
             tableWidget_Client->setColumnCount(7);
@@ -4715,16 +5662,20 @@ public:
         QTableWidgetItem *__qtablewidgetitem58 = new QTableWidgetItem();
         tableWidget_Client->setHorizontalHeaderItem(6, __qtablewidgetitem58);
         tableWidget_Client->setObjectName("tableWidget_Client");
+        tableWidget_Client->setMinimumSize(QSize(0, 0));
         tableWidget_Client->setStyleSheet(QString::fromUtf8("color:rgb(0, 0, 0); font-size: 14px;"));
 
         horizontalLayout_table->addWidget(tableWidget_Client);
 
         sidepanel = new QWidget(page_repertoire);
         sidepanel->setObjectName("sidepanel");
-        sidepanel->setMinimumSize(QSize(200, 0));
+        sidepanel->setMinimumSize(QSize(300, 0));
+        sidepanel->setMaximumSize(QSize(350, 16777215));
         sidepanel->setStyleSheet(QString::fromUtf8("background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 10px;"));
         verticalLayout_sidepanel = new QVBoxLayout(sidepanel);
+        verticalLayout_sidepanel->setSpacing(10);
         verticalLayout_sidepanel->setObjectName("verticalLayout_sidepanel");
+        verticalLayout_sidepanel->setContentsMargins(10, 2, 10, 10);
         pilotage = new QLabel(sidepanel);
         pilotage->setObjectName("pilotage");
         pilotage->setStyleSheet(QString::fromUtf8("font-weight: bold; color: black;"));
@@ -4734,44 +5685,54 @@ public:
         growthWidget = new QWidget(sidepanel);
         growthWidget->setObjectName("growthWidget");
         growthWidget->setStyleSheet(QString::fromUtf8("background-color: #e9ecef; border-radius: 5px; padding: 10px;"));
-        vboxLayout23 = new QVBoxLayout(growthWidget);
-        vboxLayout23->setObjectName("vboxLayout23");
+        vboxLayout20 = new QVBoxLayout(growthWidget);
+        vboxLayout20->setObjectName("vboxLayout20");
         label1 = new QLabel(growthWidget);
         label1->setObjectName("label1");
         label1->setStyleSheet(QString::fromUtf8("color: green; font-size: 18px; font-weight: bold;"));
 
-        vboxLayout23->addWidget(label1);
+        vboxLayout20->addWidget(label1);
 
         label2 = new QLabel(growthWidget);
         label2->setObjectName("label2");
         label2->setStyleSheet(QString::fromUtf8("color: #666; font-size: 10px;"));
 
-        vboxLayout23->addWidget(label2);
+        vboxLayout20->addWidget(label2);
 
 
         verticalLayout_sidepanel->addWidget(growthWidget);
 
-        spacerItem12 = new QSpacerItem(0, 0, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
+        spacerItem12 = new QSpacerItem(20, 8, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Fixed);
 
         verticalLayout_sidepanel->addItem(spacerItem12);
 
-        facture = new QPushButton(sidepanel);
-        facture->setObjectName("facture");
-        facture->setStyleSheet(QString::fromUtf8("background-color: #1F4C8A; color: white; padding: 10px; border-radius: 5px;"));
-
-        verticalLayout_sidepanel->addWidget(facture);
-
-        score = new QPushButton(sidepanel);
-        score->setObjectName("score");
-        score->setStyleSheet(QString::fromUtf8("background-color: #D4AF37; color: white; padding: 10px; border-radius: 5px;"));
-
-        verticalLayout_sidepanel->addWidget(score);
-
         exportclient = new QPushButton(sidepanel);
         exportclient->setObjectName("exportclient");
-        exportclient->setStyleSheet(QString::fromUtf8("background-color: #1E7A3E; color: white; padding: 10px; border-radius: 5px;"));
+        exportclient->setCursor(QCursor(Qt::CursorShape::PointingHandCursor));
+        exportclient->setStyleSheet(QString::fromUtf8("background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1, stop:0 #0f2b4c, stop:1 #2a5298);\n"
+"color: white;\n"
+"border: none;\n"
+"border-radius: 12px;\n"
+"padding: 14px 16px;\n"
+"font-size: 14px;\n"
+"font-weight: 700;\n"
+"text-align: center;"));
 
         verticalLayout_sidepanel->addWidget(exportclient);
+
+        btnGoStats_Client = new QPushButton(sidepanel);
+        btnGoStats_Client->setObjectName("btnGoStats_Client");
+        btnGoStats_Client->setCursor(QCursor(Qt::CursorShape::PointingHandCursor));
+        btnGoStats_Client->setStyleSheet(QString::fromUtf8("background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1, stop:0 #0f2b4c, stop:1 #2a5298);\n"
+"color: white;\n"
+"border: none;\n"
+"border-radius: 12px;\n"
+"padding: 14px 16px;\n"
+"font-size: 14px;\n"
+"font-weight: 700;\n"
+"text-align: center;"));
+
+        verticalLayout_sidepanel->addWidget(btnGoStats_Client);
 
 
         horizontalLayout_table->addWidget(sidepanel);
@@ -4797,86 +5758,77 @@ public:
 "                   QPushButton#btn_save_ajouter { background-color: #28a745; color: white; font-weight: bold; border-radius: 5px; padding: 12px; }\n"
 "                   QPushButton#btn_annuler_ajouter { background-color: #6c757d; color: white; font-weight: bold; border-radius: 5px; padding: 12px; }\n"
 "                  "));
-        vboxLayout24 = new QVBoxLayout(formCard_ajouter);
-        vboxLayout24->setSpacing(20);
-        vboxLayout24->setObjectName("vboxLayout24");
-        vboxLayout24->setContentsMargins(40, 30, 40, 30);
+        vboxLayout21 = new QVBoxLayout(formCard_ajouter);
+        vboxLayout21->setSpacing(20);
+        vboxLayout21->setObjectName("vboxLayout21");
+        vboxLayout21->setContentsMargins(40, 30, 40, 30);
         label3 = new QLabel(formCard_ajouter);
         label3->setObjectName("label3");
         label3->setStyleSheet(QString::fromUtf8("font-size: 20px; color: #1A365D;"));
-        label3->setAlignment(Qt::AlignCenter);
+        label3->setAlignment(Qt::AlignmentFlag::AlignCenter);
 
-        vboxLayout24->addWidget(label3);
+        vboxLayout21->addWidget(label3);
 
         grid_ajouter = new QGridLayout();
         grid_ajouter->setObjectName("grid_ajouter");
         grid_ajouter->setVerticalSpacing(20);
-        label4 = new QLabel(formCard_ajouter);
-        label4->setObjectName("label4");
+        lbl_matricule_a = new QLabel(formCard_ajouter);
+        lbl_matricule_a->setObjectName("lbl_matricule_a");
 
-        grid_ajouter->addWidget(label4, 0, 0, 1, 1);
+        grid_ajouter->addWidget(lbl_matricule_a, 0, 0, 1, 1);
 
         input_matricule_ajouter = new QLineEdit(formCard_ajouter);
         input_matricule_ajouter->setObjectName("input_matricule_ajouter");
 
         grid_ajouter->addWidget(input_matricule_ajouter, 0, 1, 1, 1);
 
-        label5 = new QLabel(formCard_ajouter);
-        label5->setObjectName("label5");
+        lbl_nom_a = new QLabel(formCard_ajouter);
+        lbl_nom_a->setObjectName("lbl_nom_a");
 
-        grid_ajouter->addWidget(label5, 0, 2, 1, 1);
+        grid_ajouter->addWidget(lbl_nom_a, 0, 2, 1, 1);
 
         input_nom_ajouter = new QLineEdit(formCard_ajouter);
         input_nom_ajouter->setObjectName("input_nom_ajouter");
 
         grid_ajouter->addWidget(input_nom_ajouter, 0, 3, 1, 1);
 
-        label6 = new QLabel(formCard_ajouter);
-        label6->setObjectName("label6");
+        lbl_email_a = new QLabel(formCard_ajouter);
+        lbl_email_a->setObjectName("lbl_email_a");
 
-        grid_ajouter->addWidget(label6, 1, 0, 1, 1);
+        grid_ajouter->addWidget(lbl_email_a, 1, 0, 1, 1);
 
         input_email_ajouter = new QLineEdit(formCard_ajouter);
         input_email_ajouter->setObjectName("input_email_ajouter");
 
         grid_ajouter->addWidget(input_email_ajouter, 1, 1, 1, 1);
 
-        label7 = new QLabel(formCard_ajouter);
-        label7->setObjectName("label7");
+        lbl_contrat_a = new QLabel(formCard_ajouter);
+        lbl_contrat_a->setObjectName("lbl_contrat_a");
 
-        grid_ajouter->addWidget(label7, 1, 2, 1, 1);
+        grid_ajouter->addWidget(lbl_contrat_a, 1, 2, 1, 1);
 
-        input_bacs_ajouter = new QSpinBox(formCard_ajouter);
-        input_bacs_ajouter->setObjectName("input_bacs_ajouter");
-        input_bacs_ajouter->setMaximum(999);
+        input_contrat_ajouter = new QComboBox(formCard_ajouter);
+        input_contrat_ajouter->addItem(QString());
+        input_contrat_ajouter->addItem(QString());
+        input_contrat_ajouter->addItem(QString());
+        input_contrat_ajouter->setObjectName("input_contrat_ajouter");
 
-        grid_ajouter->addWidget(input_bacs_ajouter, 1, 3, 1, 1);
+        grid_ajouter->addWidget(input_contrat_ajouter, 1, 3, 1, 1);
 
-        label8 = new QLabel(formCard_ajouter);
-        label8->setObjectName("label8");
+        lbl_paiement_a = new QLabel(formCard_ajouter);
+        lbl_paiement_a->setObjectName("lbl_paiement_a");
 
-        grid_ajouter->addWidget(label8, 2, 0, 1, 1);
-
-        input_score_ajouter = new QSpinBox(formCard_ajouter);
-        input_score_ajouter->setObjectName("input_score_ajouter");
-        input_score_ajouter->setMaximum(9999);
-
-        grid_ajouter->addWidget(input_score_ajouter, 2, 1, 1, 1);
-
-        label9 = new QLabel(formCard_ajouter);
-        label9->setObjectName("label9");
-
-        grid_ajouter->addWidget(label9, 2, 2, 1, 1);
+        grid_ajouter->addWidget(lbl_paiement_a, 2, 0, 1, 1);
 
         input_paiement_ajouter = new QComboBox(formCard_ajouter);
         input_paiement_ajouter->addItem(QString());
         input_paiement_ajouter->addItem(QString());
         input_paiement_ajouter->setObjectName("input_paiement_ajouter");
 
-        grid_ajouter->addWidget(input_paiement_ajouter, 2, 3, 1, 1);
+        grid_ajouter->addWidget(input_paiement_ajouter, 2, 1, 1, 1);
 
 
-        vboxLayout24->addLayout(grid_ajouter);
+        vboxLayout21->addLayout(grid_ajouter);
 
         hboxLayout2 = new QHBoxLayout();
         hboxLayout2->setObjectName("hboxLayout2");
@@ -4899,7 +5851,7 @@ public:
         hboxLayout2->addItem(spacerItem14);
 
 
-        vboxLayout24->addLayout(hboxLayout2);
+        vboxLayout21->addLayout(hboxLayout2);
 
 
         verticalLayout_ajouter_client_wrapper->addWidget(formCard_ajouter);
@@ -4926,86 +5878,77 @@ public:
 "                   QPushButton#btn_save_modifier { background-color: #007bff; color: white; font-weight: bold; border-radius: 5px; padding: 12px; }\n"
 "                   QPushButton#btn_annuler_modifier { background-color: #6c757d; color: white; font-weight: bold; border-radius: 5px; padding: 12px; }\n"
 "                  "));
-        vboxLayout25 = new QVBoxLayout(formCard_modifier);
-        vboxLayout25->setSpacing(20);
-        vboxLayout25->setObjectName("vboxLayout25");
-        vboxLayout25->setContentsMargins(40, 30, 40, 30);
-        label10 = new QLabel(formCard_modifier);
-        label10->setObjectName("label10");
-        label10->setStyleSheet(QString::fromUtf8("font-size: 20px; color: #1A365D;"));
-        label10->setAlignment(Qt::AlignCenter);
+        vboxLayout22 = new QVBoxLayout(formCard_modifier);
+        vboxLayout22->setSpacing(20);
+        vboxLayout22->setObjectName("vboxLayout22");
+        vboxLayout22->setContentsMargins(40, 30, 40, 30);
+        label4 = new QLabel(formCard_modifier);
+        label4->setObjectName("label4");
+        label4->setStyleSheet(QString::fromUtf8("font-size: 20px; color: #1A365D;"));
+        label4->setAlignment(Qt::AlignmentFlag::AlignCenter);
 
-        vboxLayout25->addWidget(label10);
+        vboxLayout22->addWidget(label4);
 
         grid_modifier = new QGridLayout();
         grid_modifier->setObjectName("grid_modifier");
         grid_modifier->setVerticalSpacing(20);
-        label11 = new QLabel(formCard_modifier);
-        label11->setObjectName("label11");
+        lbl_matricule_m = new QLabel(formCard_modifier);
+        lbl_matricule_m->setObjectName("lbl_matricule_m");
 
-        grid_modifier->addWidget(label11, 0, 0, 1, 1);
+        grid_modifier->addWidget(lbl_matricule_m, 0, 0, 1, 1);
 
         input_matricule_modifier = new QLineEdit(formCard_modifier);
         input_matricule_modifier->setObjectName("input_matricule_modifier");
 
         grid_modifier->addWidget(input_matricule_modifier, 0, 1, 1, 1);
 
-        label12 = new QLabel(formCard_modifier);
-        label12->setObjectName("label12");
+        lbl_nom_m = new QLabel(formCard_modifier);
+        lbl_nom_m->setObjectName("lbl_nom_m");
 
-        grid_modifier->addWidget(label12, 0, 2, 1, 1);
+        grid_modifier->addWidget(lbl_nom_m, 0, 2, 1, 1);
 
         input_nom_modifier = new QLineEdit(formCard_modifier);
         input_nom_modifier->setObjectName("input_nom_modifier");
 
         grid_modifier->addWidget(input_nom_modifier, 0, 3, 1, 1);
 
-        label13 = new QLabel(formCard_modifier);
-        label13->setObjectName("label13");
+        lbl_email_m = new QLabel(formCard_modifier);
+        lbl_email_m->setObjectName("lbl_email_m");
 
-        grid_modifier->addWidget(label13, 1, 0, 1, 1);
+        grid_modifier->addWidget(lbl_email_m, 1, 0, 1, 1);
 
         input_email_modifier = new QLineEdit(formCard_modifier);
         input_email_modifier->setObjectName("input_email_modifier");
 
         grid_modifier->addWidget(input_email_modifier, 1, 1, 1, 1);
 
-        label14 = new QLabel(formCard_modifier);
-        label14->setObjectName("label14");
+        lbl_contrat_m = new QLabel(formCard_modifier);
+        lbl_contrat_m->setObjectName("lbl_contrat_m");
 
-        grid_modifier->addWidget(label14, 1, 2, 1, 1);
+        grid_modifier->addWidget(lbl_contrat_m, 1, 2, 1, 1);
 
-        input_bacs_modifier = new QSpinBox(formCard_modifier);
-        input_bacs_modifier->setObjectName("input_bacs_modifier");
-        input_bacs_modifier->setMaximum(999);
+        input_contrat_modifier = new QComboBox(formCard_modifier);
+        input_contrat_modifier->addItem(QString());
+        input_contrat_modifier->addItem(QString());
+        input_contrat_modifier->addItem(QString());
+        input_contrat_modifier->setObjectName("input_contrat_modifier");
 
-        grid_modifier->addWidget(input_bacs_modifier, 1, 3, 1, 1);
+        grid_modifier->addWidget(input_contrat_modifier, 1, 3, 1, 1);
 
-        label15 = new QLabel(formCard_modifier);
-        label15->setObjectName("label15");
+        lbl_paiement_m = new QLabel(formCard_modifier);
+        lbl_paiement_m->setObjectName("lbl_paiement_m");
 
-        grid_modifier->addWidget(label15, 2, 0, 1, 1);
-
-        input_score_modifier = new QSpinBox(formCard_modifier);
-        input_score_modifier->setObjectName("input_score_modifier");
-        input_score_modifier->setMaximum(9999);
-
-        grid_modifier->addWidget(input_score_modifier, 2, 1, 1, 1);
-
-        label16 = new QLabel(formCard_modifier);
-        label16->setObjectName("label16");
-
-        grid_modifier->addWidget(label16, 2, 2, 1, 1);
+        grid_modifier->addWidget(lbl_paiement_m, 2, 0, 1, 1);
 
         input_paiement_modifier = new QComboBox(formCard_modifier);
         input_paiement_modifier->addItem(QString());
         input_paiement_modifier->addItem(QString());
         input_paiement_modifier->setObjectName("input_paiement_modifier");
 
-        grid_modifier->addWidget(input_paiement_modifier, 2, 3, 1, 1);
+        grid_modifier->addWidget(input_paiement_modifier, 2, 1, 1, 1);
 
 
-        vboxLayout25->addLayout(grid_modifier);
+        vboxLayout22->addLayout(grid_modifier);
 
         hboxLayout3 = new QHBoxLayout();
         hboxLayout3->setObjectName("hboxLayout3");
@@ -5028,7 +5971,7 @@ public:
         hboxLayout3->addItem(spacerItem16);
 
 
-        vboxLayout25->addLayout(hboxLayout3);
+        vboxLayout22->addLayout(hboxLayout3);
 
 
         verticalLayout_modifier_client_wrapper->addWidget(formCard_modifier);
@@ -5038,6 +5981,58 @@ public:
         verticalLayout_modifier_client_wrapper->addItem(vs_m2_client);
 
         stackedWidget_Client->addWidget(page_modifier_client_wrapper);
+        page_stats_client = new QWidget();
+        page_stats_client->setObjectName("page_stats_client");
+        vLayout_stats_client = new QVBoxLayout(page_stats_client);
+        vLayout_stats_client->setObjectName("vLayout_stats_client");
+        vLayout_stats_client->setContentsMargins(20, 15, 20, 10);
+        hLayout_statsHeader_client = new QHBoxLayout();
+        hLayout_statsHeader_client->setObjectName("hLayout_statsHeader_client");
+        lblStatsTitle_client = new QLabel(page_stats_client);
+        lblStatsTitle_client->setObjectName("lblStatsTitle_client");
+        lblStatsTitle_client->setStyleSheet(QString::fromUtf8("font-size: 18px; font-weight: bold; color: #0f2b4c;"));
+
+        hLayout_statsHeader_client->addWidget(lblStatsTitle_client);
+
+        hs_statsClient = new QSpacerItem(40, 20, QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Minimum);
+
+        hLayout_statsHeader_client->addItem(hs_statsClient);
+
+        btnRetour_stats_client = new QPushButton(page_stats_client);
+        btnRetour_stats_client->setObjectName("btnRetour_stats_client");
+        btnRetour_stats_client->setCursor(QCursor(Qt::CursorShape::PointingHandCursor));
+        btnRetour_stats_client->setStyleSheet(QString::fromUtf8("background-color: #0f2b4c; color: white; border-radius: 8px; padding: 8px 18px; font-weight: bold; font-size: 13px;"));
+
+        hLayout_statsHeader_client->addWidget(btnRetour_stats_client);
+
+
+        vLayout_stats_client->addLayout(hLayout_statsHeader_client);
+
+        hLayout_statsCharts_client = new QHBoxLayout();
+        hLayout_statsCharts_client->setSpacing(15);
+        hLayout_statsCharts_client->setObjectName("hLayout_statsCharts_client");
+        chartEcoScorePie = new QChartView(page_stats_client);
+        chartEcoScorePie->setObjectName("chartEcoScorePie");
+        chartEcoScorePie->setMinimumSize(QSize(0, 320));
+
+        hLayout_statsCharts_client->addWidget(chartEcoScorePie);
+
+        chartEcoScoreBar = new QChartView(page_stats_client);
+        chartEcoScoreBar->setObjectName("chartEcoScoreBar");
+        chartEcoScoreBar->setMinimumSize(QSize(0, 320));
+
+        hLayout_statsCharts_client->addWidget(chartEcoScoreBar);
+
+
+        vLayout_stats_client->addLayout(hLayout_statsCharts_client);
+
+        chartContratDist = new QChartView(page_stats_client);
+        chartContratDist->setObjectName("chartContratDist");
+        chartContratDist->setMinimumSize(QSize(0, 280));
+
+        vLayout_stats_client->addWidget(chartContratDist);
+
+        stackedWidget_Client->addWidget(page_stats_client);
 
         verticalLayout_ClientRoot->addWidget(stackedWidget_Client);
 
@@ -5053,9 +6048,9 @@ public:
         rightContentLayout->setObjectName("rightContentLayout");
         rightContentLayout->setContentsMargins(0, 0, 0, 0);
         horizontalLayout_11 = new QHBoxLayout();
-        horizontalLayout_11->setSpacing(0);
+        horizontalLayout_11->setSpacing(4);
         horizontalLayout_11->setObjectName("horizontalLayout_11");
-        horizontalLayout_11->setContentsMargins(0, 0, 0, 0);
+        horizontalLayout_11->setContentsMargins(16, 0, 10, 0);
         lb_1 = new QLabel(pageCmdDashboard);
         lb_1->setObjectName("lb_1");
 
@@ -5072,6 +6067,11 @@ public:
 
         horizontalLayout_11->addWidget(topFill_1);
 
+        btnAddDashboard = new QPushButton(pageCmdDashboard);
+        btnAddDashboard->setObjectName("btnAddDashboard");
+
+        horizontalLayout_11->addWidget(btnAddDashboard);
+
         user_1 = new QLabel(pageCmdDashboard);
         user_1->setObjectName("user_1");
 
@@ -5079,19 +6079,21 @@ public:
 
         topGap_1 = new QFrame(pageCmdDashboard);
         topGap_1->setObjectName("topGap_1");
-        topGap_1->setMinimumSize(QSize(10, 0));
-        topGap_1->setMaximumSize(QSize(10, 16777215));
+        topGap_1->setMinimumSize(QSize(2, 56));
+        topGap_1->setMaximumSize(QSize(2, 56));
         topGap_1->setFrameShape(QFrame::Shape::NoFrame);
 
         horizontalLayout_11->addWidget(topGap_1);
 
         btnnotif_1 = new QPushButton(pageCmdDashboard);
         btnnotif_1->setObjectName("btnnotif_1");
+        btnnotif_1->setVisible(false);
 
         horizontalLayout_11->addWidget(btnnotif_1);
 
         btnprofil_1 = new QPushButton(pageCmdDashboard);
         btnprofil_1->setObjectName("btnprofil_1");
+        btnprofil_1->setVisible(false);
 
         horizontalLayout_11->addWidget(btnprofil_1);
 
@@ -5103,8 +6105,9 @@ public:
         pageHome = new QWidget();
         pageHome->setObjectName("pageHome");
         pageHomeLayout = new QHBoxLayout(pageHome);
-        pageHomeLayout->setSpacing(14);
+        pageHomeLayout->setSpacing(12);
         pageHomeLayout->setObjectName("pageHomeLayout");
+        pageHomeLayout->setContentsMargins(0, 0, 0, 0);
         dashboardTableArea = new QVBoxLayout();
         dashboardTableArea->setObjectName("dashboardTableArea");
         searchRow_dashboard = new QHBoxLayout();
@@ -5133,11 +6136,6 @@ public:
         searchInputDashboard->setObjectName("searchInputDashboard");
 
         searchRow_dashboard->addWidget(searchInputDashboard);
-
-        btnAddDashboard = new QPushButton(pageHome);
-        btnAddDashboard->setObjectName("btnAddDashboard");
-
-        searchRow_dashboard->addWidget(btnAddDashboard);
 
         btnTempToModifier = new QPushButton(pageHome);
         btnTempToModifier->setObjectName("btnTempToModifier");
@@ -5177,131 +6175,18 @@ public:
 
         pageHomeLayout->addLayout(dashboardTableArea);
 
-        rightSidebar1 = new QFrame(pageHome);
-        rightSidebar1->setObjectName("rightSidebar1");
-        rightSidebar1->setMinimumSize(QSize(360, 0));
-        rightSidebar1->setMaximumSize(QSize(420, 16777215));
-        rightSidebar1->setFrameShape(QFrame::Shape::StyledPanel);
-        rightLayout = new QVBoxLayout(rightSidebar1);
-        rightLayout->setObjectName("rightLayout");
-        lblFunc1 = new QLabel(rightSidebar1);
-        lblFunc1->setObjectName("lblFunc1");
-
-        rightLayout->addWidget(lblFunc1);
-
-        stat11 = new QFrame(rightSidebar1);
-        stat11->setObjectName("stat11");
-        _2 = new QVBoxLayout(stat11);
-        _2->setObjectName("_2");
-        st_val11 = new QLabel(stat11);
-        st_val11->setObjectName("st_val11");
-
-        _2->addWidget(st_val11);
-
-        st_lbl11 = new QLabel(stat11);
-        st_lbl11->setObjectName("st_lbl11");
-
-        _2->addWidget(st_lbl11);
-
-
-        rightLayout->addWidget(stat11);
-
-        stat21 = new QFrame(rightSidebar1);
-        stat21->setObjectName("stat21");
-        _3 = new QVBoxLayout(stat21);
-        _3->setObjectName("_3");
-        st_val21 = new QLabel(stat21);
-        st_val21->setObjectName("st_val21");
-
-        _3->addWidget(st_val21);
-
-        st_lbl21 = new QLabel(stat21);
-        st_lbl21->setObjectName("st_lbl21");
-
-        _3->addWidget(st_lbl21);
-
-
-        rightLayout->addWidget(stat21);
-
-        stat31 = new QFrame(rightSidebar1);
-        stat31->setObjectName("stat31");
-        _4 = new QVBoxLayout(stat31);
-        _4->setObjectName("_4");
-        st_val31 = new QLabel(stat31);
-        st_val31->setObjectName("st_val31");
-
-        _4->addWidget(st_val31);
-
-        st_lbl31 = new QLabel(stat31);
-        st_lbl31->setObjectName("st_lbl31");
-
-        _4->addWidget(st_lbl31);
-
-
-        rightLayout->addWidget(stat31);
-
-        lblExport1 = new QLabel(rightSidebar1);
-        lblExport1->setObjectName("lblExport1");
-
-        rightLayout->addWidget(lblExport1);
-
-        btnPdf1 = new QPushButton(rightSidebar1);
-        btnPdf1->setObjectName("btnPdf1");
-
-        rightLayout->addWidget(btnPdf1);
-
-        btnCsv1 = new QPushButton(rightSidebar1);
-        btnCsv1->setObjectName("btnCsv1");
-
-        rightLayout->addWidget(btnCsv1);
-
-        spacerItem18 = new QSpacerItem(0, 0, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
-
-        rightLayout->addItem(spacerItem18);
-
-
-        pageHomeLayout->addWidget(rightSidebar1);
-
         contentStack->addWidget(pageHome);
         pageCommandes = new QWidget();
         pageCommandes->setObjectName("pageCommandes");
-        pageCommandesLayout = new QVBoxLayout(pageCommandes);
+        pageCommandesLayout = new QHBoxLayout(pageCommandes);
         pageCommandesLayout->setObjectName("pageCommandesLayout");
         tableLayout_2 = new QVBoxLayout();
         tableLayout_2->setObjectName("tableLayout_2");
-        tableProduits_2 = new QTableWidget(pageCommandes);
-        if (tableProduits_2->columnCount() < 9)
-            tableProduits_2->setColumnCount(9);
-        QTableWidgetItem *__qtablewidgetitem68 = new QTableWidgetItem();
-        tableProduits_2->setHorizontalHeaderItem(0, __qtablewidgetitem68);
-        QTableWidgetItem *__qtablewidgetitem69 = new QTableWidgetItem();
-        tableProduits_2->setHorizontalHeaderItem(1, __qtablewidgetitem69);
-        QTableWidgetItem *__qtablewidgetitem70 = new QTableWidgetItem();
-        tableProduits_2->setHorizontalHeaderItem(2, __qtablewidgetitem70);
-        QTableWidgetItem *__qtablewidgetitem71 = new QTableWidgetItem();
-        tableProduits_2->setHorizontalHeaderItem(3, __qtablewidgetitem71);
-        QTableWidgetItem *__qtablewidgetitem72 = new QTableWidgetItem();
-        tableProduits_2->setHorizontalHeaderItem(4, __qtablewidgetitem72);
-        QTableWidgetItem *__qtablewidgetitem73 = new QTableWidgetItem();
-        tableProduits_2->setHorizontalHeaderItem(5, __qtablewidgetitem73);
-        QTableWidgetItem *__qtablewidgetitem74 = new QTableWidgetItem();
-        tableProduits_2->setHorizontalHeaderItem(6, __qtablewidgetitem74);
-        QTableWidgetItem *__qtablewidgetitem75 = new QTableWidgetItem();
-        tableProduits_2->setHorizontalHeaderItem(7, __qtablewidgetitem75);
-        QTableWidgetItem *__qtablewidgetitem76 = new QTableWidgetItem();
-        tableProduits_2->setHorizontalHeaderItem(8, __qtablewidgetitem76);
-        tableProduits_2->setObjectName("tableProduits_2");
-        tableProduits_2->setMinimumSize(QSize(900, 0));
-        tableProduits_2->setColumnCount(9);
-        tableProduits_2->verticalHeader()->setVisible(false);
-
-        tableLayout_2->addWidget(tableProduits_2);
-
         searchRow_2 = new QHBoxLayout();
         searchRow_2->setObjectName("searchRow_2");
-        spacerItem19 = new QSpacerItem(0, 0, QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Minimum);
+        spacerItem18 = new QSpacerItem(0, 0, QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Minimum);
 
-        searchRow_2->addItem(spacerItem19);
+        searchRow_2->addItem(spacerItem18);
 
         lblSort_2 = new QLabel(pageCommandes);
         lblSort_2->setObjectName("lblSort_2");
@@ -5332,8 +6217,124 @@ public:
 
         tableLayout_2->addLayout(searchRow_2);
 
+        tableProduits_2 = new QTableWidget(pageCommandes);
+        if (tableProduits_2->columnCount() < 9)
+            tableProduits_2->setColumnCount(9);
+        QTableWidgetItem *__qtablewidgetitem68 = new QTableWidgetItem();
+        tableProduits_2->setHorizontalHeaderItem(0, __qtablewidgetitem68);
+        QTableWidgetItem *__qtablewidgetitem69 = new QTableWidgetItem();
+        tableProduits_2->setHorizontalHeaderItem(1, __qtablewidgetitem69);
+        QTableWidgetItem *__qtablewidgetitem70 = new QTableWidgetItem();
+        tableProduits_2->setHorizontalHeaderItem(2, __qtablewidgetitem70);
+        QTableWidgetItem *__qtablewidgetitem71 = new QTableWidgetItem();
+        tableProduits_2->setHorizontalHeaderItem(3, __qtablewidgetitem71);
+        QTableWidgetItem *__qtablewidgetitem72 = new QTableWidgetItem();
+        tableProduits_2->setHorizontalHeaderItem(4, __qtablewidgetitem72);
+        QTableWidgetItem *__qtablewidgetitem73 = new QTableWidgetItem();
+        tableProduits_2->setHorizontalHeaderItem(5, __qtablewidgetitem73);
+        QTableWidgetItem *__qtablewidgetitem74 = new QTableWidgetItem();
+        tableProduits_2->setHorizontalHeaderItem(6, __qtablewidgetitem74);
+        QTableWidgetItem *__qtablewidgetitem75 = new QTableWidgetItem();
+        tableProduits_2->setHorizontalHeaderItem(7, __qtablewidgetitem75);
+        QTableWidgetItem *__qtablewidgetitem76 = new QTableWidgetItem();
+        tableProduits_2->setHorizontalHeaderItem(8, __qtablewidgetitem76);
+        tableProduits_2->setObjectName("tableProduits_2");
+        tableProduits_2->setMinimumSize(QSize(900, 0));
+        tableProduits_2->setColumnCount(9);
+        tableProduits_2->verticalHeader()->setVisible(false);
+
+        tableLayout_2->addWidget(tableProduits_2);
+
 
         pageCommandesLayout->addLayout(tableLayout_2);
+
+        rightSidebar_Commande = new QFrame(pageCommandes);
+        rightSidebar_Commande->setObjectName("rightSidebar_Commande");
+        rightSidebar_Commande->setMinimumSize(QSize(300, 0));
+        rightSidebar_Commande->setMaximumSize(QSize(350, 16777215));
+        rightLayout_Cmd = new QVBoxLayout(rightSidebar_Commande);
+        rightLayout_Cmd->setSpacing(10);
+        rightLayout_Cmd->setObjectName("rightLayout_Cmd");
+        rightLayout_Cmd->setContentsMargins(0, 0, 0, 0);
+        lblFunc_Cmd = new QLabel(rightSidebar_Commande);
+        lblFunc_Cmd->setObjectName("lblFunc_Cmd");
+
+        rightLayout_Cmd->addWidget(lblFunc_Cmd);
+
+        stat1_Cmd = new QFrame(rightSidebar_Commande);
+        stat1_Cmd->setObjectName("stat1_Cmd");
+        vboxLayout23 = new QVBoxLayout(stat1_Cmd);
+        vboxLayout23->setObjectName("vboxLayout23");
+        st_val1_Cmd = new QLabel(stat1_Cmd);
+        st_val1_Cmd->setObjectName("st_val1_Cmd");
+
+        vboxLayout23->addWidget(st_val1_Cmd);
+
+        st_lbl1_Cmd = new QLabel(stat1_Cmd);
+        st_lbl1_Cmd->setObjectName("st_lbl1_Cmd");
+
+        vboxLayout23->addWidget(st_lbl1_Cmd);
+
+
+        rightLayout_Cmd->addWidget(stat1_Cmd);
+
+        stat2_Cmd = new QFrame(rightSidebar_Commande);
+        stat2_Cmd->setObjectName("stat2_Cmd");
+        vboxLayout24 = new QVBoxLayout(stat2_Cmd);
+        vboxLayout24->setObjectName("vboxLayout24");
+        st_val2_Cmd = new QLabel(stat2_Cmd);
+        st_val2_Cmd->setObjectName("st_val2_Cmd");
+
+        vboxLayout24->addWidget(st_val2_Cmd);
+
+        st_lbl2_Cmd = new QLabel(stat2_Cmd);
+        st_lbl2_Cmd->setObjectName("st_lbl2_Cmd");
+
+        vboxLayout24->addWidget(st_lbl2_Cmd);
+
+
+        rightLayout_Cmd->addWidget(stat2_Cmd);
+
+        stat3_Cmd = new QFrame(rightSidebar_Commande);
+        stat3_Cmd->setObjectName("stat3_Cmd");
+        vboxLayout25 = new QVBoxLayout(stat3_Cmd);
+        vboxLayout25->setObjectName("vboxLayout25");
+        st_val3_Cmd = new QLabel(stat3_Cmd);
+        st_val3_Cmd->setObjectName("st_val3_Cmd");
+
+        vboxLayout25->addWidget(st_val3_Cmd);
+
+        st_lbl3_Cmd = new QLabel(stat3_Cmd);
+        st_lbl3_Cmd->setObjectName("st_lbl3_Cmd");
+
+        vboxLayout25->addWidget(st_lbl3_Cmd);
+
+
+        rightLayout_Cmd->addWidget(stat3_Cmd);
+
+        spacerItem19 = new QSpacerItem(0, 8, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Fixed);
+
+        rightLayout_Cmd->addItem(spacerItem19);
+
+        btnGoStats_Cmd = new QPushButton(rightSidebar_Commande);
+        btnGoStats_Cmd->setObjectName("btnGoStats_Cmd");
+
+        rightLayout_Cmd->addWidget(btnGoStats_Cmd);
+
+        lblExport_Cmd = new QLabel(rightSidebar_Commande);
+        lblExport_Cmd->setObjectName("lblExport_Cmd");
+        lblExport_Cmd->setMaximumSize(QSize(0, 0));
+        lblExport_Cmd->setVisible(false);
+
+        rightLayout_Cmd->addWidget(lblExport_Cmd);
+
+        btnPdf_Cmd = new QPushButton(rightSidebar_Commande);
+        btnPdf_Cmd->setObjectName("btnPdf_Cmd");
+
+        rightLayout_Cmd->addWidget(btnPdf_Cmd);
+
+
+        pageCommandesLayout->addWidget(rightSidebar_Commande);
 
         contentStack->addWidget(pageCommandes);
 
@@ -5377,8 +6378,8 @@ public:
 
         topGap_5 = new QFrame(pageCmdAjout);
         topGap_5->setObjectName("topGap_5");
-        topGap_5->setMinimumSize(QSize(10, 0));
-        topGap_5->setMaximumSize(QSize(10, 16777215));
+        topGap_5->setMinimumSize(QSize(10, 56));
+        topGap_5->setMaximumSize(QSize(10, 56));
         topGap_5->setFrameShape(QFrame::Shape::NoFrame);
 
         horizontalLayout_9->addWidget(topGap_5);
@@ -5396,27 +6397,37 @@ public:
 
         vbox_ajout_content->addLayout(horizontalLayout_9);
 
-        hl_mod_split_3 = new QHBoxLayout();
-        hl_mod_split_3->setSpacing(20);
+        scrollArea_CmdAjout = new QScrollArea(pageCmdAjout);
+        scrollArea_CmdAjout->setObjectName("scrollArea_CmdAjout");
+        scrollArea_CmdAjout->setFrameShape(QFrame::Shape::NoFrame);
+        scrollArea_CmdAjout->setWidgetResizable(true);
+        scrollContent_CmdAjout = new QWidget();
+        scrollContent_CmdAjout->setObjectName("scrollContent_CmdAjout");
+        scrollContent_CmdAjout->setGeometry(QRect(0, 0, 690, 953));
+        hl_mod_split_3 = new QHBoxLayout(scrollContent_CmdAjout);
+        hl_mod_split_3->setSpacing(0);
         hl_mod_split_3->setObjectName("hl_mod_split_3");
-        cardMod_3 = new QFrame(pageCmdAjout);
+        hl_mod_split_3->setContentsMargins(40, 25, 40, 30);
+        cardMod_3 = new QFrame(scrollContent_CmdAjout);
         cardMod_3->setObjectName("cardMod_3");
         cardMod_3->setFrameShape(QFrame::Shape::StyledPanel);
         verticalLayout_Mod_3 = new QVBoxLayout(cardMod_3);
-        verticalLayout_Mod_3->setSpacing(3);
+        verticalLayout_Mod_3->setSpacing(16);
         verticalLayout_Mod_3->setObjectName("verticalLayout_Mod_3");
-        verticalLayout_Mod_3->setContentsMargins(14, 8, 14, 8);
+        verticalLayout_Mod_3->setContentsMargins(32, 24, 32, 28);
         lblTitleMod_3 = new QLabel(cardMod_3);
         lblTitleMod_3->setObjectName("lblTitleMod_3");
-        QSizePolicy sizePolicy3(QSizePolicy::Policy::Fixed, QSizePolicy::Policy::Fixed);
+        QSizePolicy sizePolicy3(QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Fixed);
         sizePolicy3.setHorizontalStretch(0);
         sizePolicy3.setVerticalStretch(0);
         sizePolicy3.setHeightForWidth(lblTitleMod_3->sizePolicy().hasHeightForWidth());
         lblTitleMod_3->setSizePolicy(sizePolicy3);
+        lblTitleMod_3->setMinimumSize(QSize(0, 50));
 
         verticalLayout_Mod_3->addWidget(lblTitleMod_3);
 
         gl_inputs_4 = new QGridLayout();
+        gl_inputs_4->setSpacing(20);
         gl_inputs_4->setObjectName("gl_inputs_4");
         dsb_price_add_4 = new QDoubleSpinBox(cardMod_3);
         dsb_price_add_4->setObjectName("dsb_price_add_4");
@@ -5439,10 +6450,10 @@ public:
 
         gl_inputs_4->addWidget(l_stat_4, 2, 0, 1, 1);
 
-        ln_ref_add_4 = new QLineEdit(cardMod_3);
-        ln_ref_add_4->setObjectName("ln_ref_add_4");
+        cb_client_add = new QComboBox(cardMod_3);
+        cb_client_add->setObjectName("cb_client_add");
 
-        gl_inputs_4->addWidget(ln_ref_add_4, 0, 1, 1, 1);
+        gl_inputs_4->addWidget(cb_client_add, 0, 1, 1, 1);
 
         cb_model_add_4 = new QComboBox(cardMod_3);
         cb_model_add_4->addItem(QString());
@@ -5481,7 +6492,24 @@ public:
 
         verticalLayout_Mod_3->addLayout(gl_inputs_4);
 
+        spacerBeforeDates = new QSpacerItem(20, 8, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Fixed);
+
+        verticalLayout_Mod_3->addItem(spacerBeforeDates);
+
+        separatorLine1 = new QFrame(cardMod_3);
+        separatorLine1->setObjectName("separatorLine1");
+        separatorLine1->setFrameShape(QFrame::Shape::HLine);
+        separatorLine1->setFrameShadow(QFrame::Shadow::Sunken);
+
+        verticalLayout_Mod_3->addWidget(separatorLine1);
+
+        lblSectionDates = new QLabel(cardMod_3);
+        lblSectionDates->setObjectName("lblSectionDates");
+
+        verticalLayout_Mod_3->addWidget(lblSectionDates);
+
         horizontalLayout_10 = new QHBoxLayout();
+        horizontalLayout_10->setSpacing(12);
         horizontalLayout_10->setObjectName("horizontalLayout_10");
         label_27 = new QLabel(cardMod_3);
         label_27->setObjectName("label_27");
@@ -5525,6 +6553,7 @@ public:
         verticalLayout_Mod_3->addLayout(horizontalLayout_10);
 
         horizontalLayout_111 = new QHBoxLayout();
+        horizontalLayout_111->setSpacing(12);
         horizontalLayout_111->setObjectName("horizontalLayout_111");
         label_31 = new QLabel(cardMod_3);
         label_31->setObjectName("label_31");
@@ -5567,53 +6596,78 @@ public:
 
         verticalLayout_Mod_3->addLayout(horizontalLayout_111);
 
+        spacerBeforeAdresse = new QSpacerItem(20, 8, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Fixed);
+
+        verticalLayout_Mod_3->addItem(spacerBeforeAdresse);
+
+        separatorLine2 = new QFrame(cardMod_3);
+        separatorLine2->setObjectName("separatorLine2");
+        separatorLine2->setFrameShape(QFrame::Shape::HLine);
+        separatorLine2->setFrameShadow(QFrame::Shadow::Sunken);
+
+        verticalLayout_Mod_3->addWidget(separatorLine2);
+
+        lblSectionAdresse = new QLabel(cardMod_3);
+        lblSectionAdresse->setObjectName("lblSectionAdresse");
+
+        verticalLayout_Mod_3->addWidget(lblSectionAdresse);
+
         horizontalLayout = new QHBoxLayout();
         horizontalLayout->setObjectName("horizontalLayout");
-        label17 = new QLabel(cardMod_3);
-        label17->setObjectName("label17");
-        sizePolicy3.setHeightForWidth(label17->sizePolicy().hasHeightForWidth());
-        label17->setSizePolicy(sizePolicy3);
+        label5 = new QLabel(cardMod_3);
+        label5->setObjectName("label5");
+        QSizePolicy sizePolicy4(QSizePolicy::Policy::Fixed, QSizePolicy::Policy::Fixed);
+        sizePolicy4.setHorizontalStretch(0);
+        sizePolicy4.setVerticalStretch(0);
+        sizePolicy4.setHeightForWidth(label5->sizePolicy().hasHeightForWidth());
+        label5->setSizePolicy(sizePolicy4);
+        label5->setMaximumSize(QSize(0, 0));
+        label5->setVisible(false);
 
-        horizontalLayout->addWidget(label17);
+        horizontalLayout->addWidget(label5);
 
         textEdit = new QTextEdit(cardMod_3);
         textEdit->setObjectName("textEdit");
-        QSizePolicy sizePolicy4(QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Fixed);
-        sizePolicy4.setHorizontalStretch(0);
-        sizePolicy4.setVerticalStretch(0);
-        sizePolicy4.setHeightForWidth(textEdit->sizePolicy().hasHeightForWidth());
-        textEdit->setSizePolicy(sizePolicy4);
-        textEdit->setMaximumSize(QSize(16777215, 28));
+        sizePolicy3.setHeightForWidth(textEdit->sizePolicy().hasHeightForWidth());
+        textEdit->setSizePolicy(sizePolicy3);
+        textEdit->setMinimumSize(QSize(0, 80));
+        textEdit->setMaximumSize(QSize(16777215, 100));
         textEdit->setAutoFillBackground(false);
-        textEdit->setStyleSheet(QString::fromUtf8("background: transparent;\n"
-"color: #2f3f52;\n"
-"border: none;\n"
-"border-bottom: 2px solid #8f99a3;\n"
-"border-radius: 0px;"));
 
         horizontalLayout->addWidget(textEdit);
 
 
         verticalLayout_Mod_3->addLayout(horizontalLayout);
 
+        spacerBeforeBtns = new QSpacerItem(20, 12, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Fixed);
+
+        verticalLayout_Mod_3->addItem(spacerBeforeBtns);
+
+        separatorLine3 = new QFrame(cardMod_3);
+        separatorLine3->setObjectName("separatorLine3");
+        separatorLine3->setFrameShape(QFrame::Shape::HLine);
+        separatorLine3->setFrameShadow(QFrame::Shadow::Sunken);
+
+        verticalLayout_Mod_3->addWidget(separatorLine3);
+
         btns_mod_3 = new QHBoxLayout();
+        btns_mod_3->setSpacing(16);
         btns_mod_3->setObjectName("btns_mod_3");
         btnSave_Mod_3 = new QPushButton(cardMod_3);
         btnSave_Mod_3->setObjectName("btnSave_Mod_3");
-        QSizePolicy sizePolicy5(QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Fixed);
-        sizePolicy5.setHorizontalStretch(0);
-        sizePolicy5.setVerticalStretch(0);
-        sizePolicy5.setHeightForWidth(btnSave_Mod_3->sizePolicy().hasHeightForWidth());
-        btnSave_Mod_3->setSizePolicy(sizePolicy5);
-        btnSave_Mod_3->setMinimumSize(QSize(0, 34));
+        sizePolicy3.setHeightForWidth(btnSave_Mod_3->sizePolicy().hasHeightForWidth());
+        btnSave_Mod_3->setSizePolicy(sizePolicy3);
+        btnSave_Mod_3->setMinimumSize(QSize(0, 76));
+        btnSave_Mod_3->setCursor(QCursor(Qt::CursorShape::PointingHandCursor));
 
         btns_mod_3->addWidget(btnSave_Mod_3);
 
         btnCancel_Mod_3 = new QPushButton(cardMod_3);
         btnCancel_Mod_3->setObjectName("btnCancel_Mod_3");
-        sizePolicy5.setHeightForWidth(btnCancel_Mod_3->sizePolicy().hasHeightForWidth());
-        btnCancel_Mod_3->setSizePolicy(sizePolicy5);
-        btnCancel_Mod_3->setMinimumSize(QSize(0, 34));
+        sizePolicy3.setHeightForWidth(btnCancel_Mod_3->sizePolicy().hasHeightForWidth());
+        btnCancel_Mod_3->setSizePolicy(sizePolicy3);
+        btnCancel_Mod_3->setMinimumSize(QSize(0, 80));
+        btnCancel_Mod_3->setCursor(QCursor(Qt::CursorShape::PointingHandCursor));
 
         btns_mod_3->addWidget(btnCancel_Mod_3);
 
@@ -5623,8 +6677,9 @@ public:
 
         hl_mod_split_3->addWidget(cardMod_3);
 
+        scrollArea_CmdAjout->setWidget(scrollContent_CmdAjout);
 
-        vbox_ajout_content->addLayout(hl_mod_split_3);
+        vbox_ajout_content->addWidget(scrollArea_CmdAjout);
 
 
         hbox_ajout->addLayout(vbox_ajout_content);
@@ -5664,8 +6719,8 @@ public:
 
         topGap_3 = new QFrame(pageCmdModifier);
         topGap_3->setObjectName("topGap_3");
-        topGap_3->setMinimumSize(QSize(10, 0));
-        topGap_3->setMaximumSize(QSize(10, 16777215));
+        topGap_3->setMinimumSize(QSize(10, 56));
+        topGap_3->setMaximumSize(QSize(10, 56));
         topGap_3->setFrameShape(QFrame::Shape::NoFrame);
 
         horizontalLayout_3->addWidget(topGap_3);
@@ -5683,24 +6738,34 @@ public:
 
         vbox_mod_content->addLayout(horizontalLayout_3);
 
-        hl_mod_split = new QHBoxLayout();
-        hl_mod_split->setSpacing(20);
+        scrollArea_CmdModif = new QScrollArea(pageCmdModifier);
+        scrollArea_CmdModif->setObjectName("scrollArea_CmdModif");
+        scrollArea_CmdModif->setFrameShape(QFrame::Shape::NoFrame);
+        scrollArea_CmdModif->setWidgetResizable(true);
+        scrollContent_CmdModif = new QWidget();
+        scrollContent_CmdModif->setObjectName("scrollContent_CmdModif");
+        scrollContent_CmdModif->setGeometry(QRect(0, 0, 690, 923));
+        hl_mod_split = new QHBoxLayout(scrollContent_CmdModif);
+        hl_mod_split->setSpacing(0);
         hl_mod_split->setObjectName("hl_mod_split");
-        cardMod1 = new QFrame(pageCmdModifier);
+        hl_mod_split->setContentsMargins(40, 25, 40, 30);
+        cardMod1 = new QFrame(scrollContent_CmdModif);
         cardMod1->setObjectName("cardMod1");
         cardMod1->setFrameShape(QFrame::Shape::StyledPanel);
         verticalLayout_Mod = new QVBoxLayout(cardMod1);
-        verticalLayout_Mod->setSpacing(3);
+        verticalLayout_Mod->setSpacing(16);
         verticalLayout_Mod->setObjectName("verticalLayout_Mod");
-        verticalLayout_Mod->setContentsMargins(14, 8, 14, 8);
+        verticalLayout_Mod->setContentsMargins(32, 24, 32, 28);
         lblTitleMod = new QLabel(cardMod1);
         lblTitleMod->setObjectName("lblTitleMod");
         sizePolicy3.setHeightForWidth(lblTitleMod->sizePolicy().hasHeightForWidth());
         lblTitleMod->setSizePolicy(sizePolicy3);
+        lblTitleMod->setMinimumSize(QSize(0, 50));
 
         verticalLayout_Mod->addWidget(lblTitleMod);
 
         gl_inputs_2 = new QGridLayout();
+        gl_inputs_2->setSpacing(20);
         gl_inputs_2->setObjectName("gl_inputs_2");
         dsb_price_add_2 = new QDoubleSpinBox(cardMod1);
         dsb_price_add_2->setObjectName("dsb_price_add_2");
@@ -5743,10 +6808,10 @@ public:
 
         gl_inputs_2->addWidget(l1_2, 0, 0, 1, 1);
 
-        ln_ref_add_2 = new QLineEdit(cardMod1);
-        ln_ref_add_2->setObjectName("ln_ref_add_2");
+        cb_client_mod = new QComboBox(cardMod1);
+        cb_client_mod->setObjectName("cb_client_mod");
 
-        gl_inputs_2->addWidget(ln_ref_add_2, 0, 1, 1, 1);
+        gl_inputs_2->addWidget(cb_client_mod, 0, 1, 1, 1);
 
         sb_qty_add_2 = new QSpinBox(cardMod1);
         sb_qty_add_2->setObjectName("sb_qty_add_2");
@@ -5765,7 +6830,24 @@ public:
 
         verticalLayout_Mod->addLayout(gl_inputs_2);
 
+        spacerBeforeDatesMod = new QSpacerItem(20, 8, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Fixed);
+
+        verticalLayout_Mod->addItem(spacerBeforeDatesMod);
+
+        sepLineMod1 = new QFrame(cardMod1);
+        sepLineMod1->setObjectName("sepLineMod1");
+        sepLineMod1->setFrameShape(QFrame::Shape::HLine);
+        sepLineMod1->setFrameShadow(QFrame::Shadow::Sunken);
+
+        verticalLayout_Mod->addWidget(sepLineMod1);
+
+        lblSectionDates_Mod = new QLabel(cardMod1);
+        lblSectionDates_Mod->setObjectName("lblSectionDates_Mod");
+
+        verticalLayout_Mod->addWidget(lblSectionDates_Mod);
+
         horizontalLayout_5 = new QHBoxLayout();
+        horizontalLayout_5->setSpacing(12);
         horizontalLayout_5->setObjectName("horizontalLayout_5");
         label_11 = new QLabel(cardMod1);
         label_11->setObjectName("label_11");
@@ -5809,6 +6891,7 @@ public:
         verticalLayout_Mod->addLayout(horizontalLayout_5);
 
         horizontalLayout_7 = new QHBoxLayout();
+        horizontalLayout_7->setSpacing(12);
         horizontalLayout_7->setObjectName("horizontalLayout_7");
         label_19 = new QLabel(cardMod1);
         label_19->setObjectName("label_19");
@@ -5851,71 +6934,103 @@ public:
 
         verticalLayout_Mod->addLayout(horizontalLayout_7);
 
+        spacerBeforeAdresseMod = new QSpacerItem(20, 8, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Fixed);
+
+        verticalLayout_Mod->addItem(spacerBeforeAdresseMod);
+
+        sepLineMod2 = new QFrame(cardMod1);
+        sepLineMod2->setObjectName("sepLineMod2");
+        sepLineMod2->setFrameShape(QFrame::Shape::HLine);
+        sepLineMod2->setFrameShadow(QFrame::Shadow::Sunken);
+
+        verticalLayout_Mod->addWidget(sepLineMod2);
+
+        lblSectionAdresse_Mod = new QLabel(cardMod1);
+        lblSectionAdresse_Mod->setObjectName("lblSectionAdresse_Mod");
+
+        verticalLayout_Mod->addWidget(lblSectionAdresse_Mod);
+
         horizontalLayout_12 = new QHBoxLayout();
         horizontalLayout_12->setObjectName("horizontalLayout_12");
         label_6 = new QLabel(cardMod1);
         label_6->setObjectName("label_6");
-        sizePolicy3.setHeightForWidth(label_6->sizePolicy().hasHeightForWidth());
-        label_6->setSizePolicy(sizePolicy3);
+        sizePolicy4.setHeightForWidth(label_6->sizePolicy().hasHeightForWidth());
+        label_6->setSizePolicy(sizePolicy4);
+        label_6->setMaximumSize(QSize(0, 0));
+        label_6->setVisible(false);
 
         horizontalLayout_12->addWidget(label_6);
 
         textEdit_2 = new QTextEdit(cardMod1);
         textEdit_2->setObjectName("textEdit_2");
-        sizePolicy4.setHeightForWidth(textEdit_2->sizePolicy().hasHeightForWidth());
-        textEdit_2->setSizePolicy(sizePolicy4);
-        textEdit_2->setMaximumSize(QSize(16777215, 28));
+        sizePolicy3.setHeightForWidth(textEdit_2->sizePolicy().hasHeightForWidth());
+        textEdit_2->setSizePolicy(sizePolicy3);
+        textEdit_2->setMinimumSize(QSize(0, 80));
+        textEdit_2->setMaximumSize(QSize(16777215, 100));
         textEdit_2->setAutoFillBackground(false);
-        textEdit_2->setStyleSheet(QString::fromUtf8("background: transparent;\n"
-"color: #2f3f52;\n"
-"border: none;\n"
-"border-bottom: 2px solid #8f99a3;\n"
-"border-radius: 0px;"));
 
         horizontalLayout_12->addWidget(textEdit_2);
 
 
         verticalLayout_Mod->addLayout(horizontalLayout_12);
 
+        spacerBeforeBtnsMod = new QSpacerItem(20, 12, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Fixed);
+
+        verticalLayout_Mod->addItem(spacerBeforeBtnsMod);
+
+        sepLineMod3 = new QFrame(cardMod1);
+        sepLineMod3->setObjectName("sepLineMod3");
+        sepLineMod3->setFrameShape(QFrame::Shape::HLine);
+        sepLineMod3->setFrameShadow(QFrame::Shadow::Sunken);
+
+        verticalLayout_Mod->addWidget(sepLineMod3);
+
         btns_mod = new QHBoxLayout();
+        btns_mod->setSpacing(16);
         btns_mod->setObjectName("btns_mod");
-        btnSave_Mod1 = new QPushButton(cardMod1);
-        btnSave_Mod1->setObjectName("btnSave_Mod1");
-        sizePolicy5.setHeightForWidth(btnSave_Mod1->sizePolicy().hasHeightForWidth());
-        btnSave_Mod1->setSizePolicy(sizePolicy5);
-        btnSave_Mod1->setMinimumSize(QSize(0, 34));
-        btnSave_Mod1->setStyleSheet(QString::fromUtf8("QPushButton {\n"
-"    background-color: #49b14f;\n"
+        btnSave_CmdMod = new QPushButton(cardMod1);
+        btnSave_CmdMod->setObjectName("btnSave_CmdMod");
+        sizePolicy3.setHeightForWidth(btnSave_CmdMod->sizePolicy().hasHeightForWidth());
+        btnSave_CmdMod->setSizePolicy(sizePolicy3);
+        btnSave_CmdMod->setMinimumSize(QSize(0, 50));
+        btnSave_CmdMod->setCursor(QCursor(Qt::CursorShape::PointingHandCursor));
+        btnSave_CmdMod->setStyleSheet(QString::fromUtf8("QPushButton {\n"
+"    background-color: #38a169;\n"
 "    color: white;\n"
 "    border: none;\n"
-"    border-radius: 6px;\n"
-"    padding: 8px 14px;\n"
+"    border-radius: 12px;\n"
+"    padding: 14px 20px;\n"
+"    font-size: 15px;\n"
 "    font-weight: 700;\n"
 "}\n"
 "QPushButton:hover {\n"
-"    background-color: #3ea445;\n"
+"    background-color: #2f855a;\n"
 "}"));
 
-        btns_mod->addWidget(btnSave_Mod1);
+        btns_mod->addWidget(btnSave_CmdMod);
 
-        btnCancel_Mod1 = new QPushButton(cardMod1);
-        btnCancel_Mod1->setObjectName("btnCancel_Mod1");
-        sizePolicy5.setHeightForWidth(btnCancel_Mod1->sizePolicy().hasHeightForWidth());
-        btnCancel_Mod1->setSizePolicy(sizePolicy5);
-        btnCancel_Mod1->setMinimumSize(QSize(0, 34));
-        btnCancel_Mod1->setStyleSheet(QString::fromUtf8("QPushButton {\n"
-"    background-color: #a9b8c3;\n"
-"    color: white;\n"
-"    border: none;\n"
-"    border-radius: 6px;\n"
-"    padding: 8px 14px;\n"
+        btnCancel_CmdMod = new QPushButton(cardMod1);
+        btnCancel_CmdMod->setObjectName("btnCancel_CmdMod");
+        sizePolicy3.setHeightForWidth(btnCancel_CmdMod->sizePolicy().hasHeightForWidth());
+        btnCancel_CmdMod->setSizePolicy(sizePolicy3);
+        btnCancel_CmdMod->setMinimumSize(QSize(0, 50));
+        btnCancel_CmdMod->setCursor(QCursor(Qt::CursorShape::PointingHandCursor));
+        btnCancel_CmdMod->setStyleSheet(QString::fromUtf8("QPushButton {\n"
+"    background-color: #edf2f7;\n"
+"    color: #4a5568;\n"
+"    border: 1.5px solid #e2e8f0;\n"
+"    border-radius: 12px;\n"
+"    padding: 14px 20px;\n"
+"    font-size: 15px;\n"
 "    font-weight: 700;\n"
 "}\n"
 "QPushButton:hover {\n"
-"    background-color: #96a7b4;\n"
+"    background-color: #e2e8f0;\n"
+"    border-color: #cbd5e0;\n"
+"    color: #2d3748;\n"
 "}"));
 
-        btns_mod->addWidget(btnCancel_Mod1);
+        btns_mod->addWidget(btnCancel_CmdMod);
 
 
         verticalLayout_Mod->addLayout(btns_mod);
@@ -5923,8 +7038,9 @@ public:
 
         hl_mod_split->addWidget(cardMod1);
 
+        scrollArea_CmdModif->setWidget(scrollContent_CmdModif);
 
-        vbox_mod_content->addLayout(hl_mod_split);
+        vbox_mod_content->addWidget(scrollArea_CmdModif);
 
 
         hbox_mod->addLayout(vbox_mod_content);
@@ -5939,7 +7055,7 @@ public:
         MainWindow->setCentralWidget(centralwidget);
         menubar = new QMenuBar(MainWindow);
         menubar->setObjectName("menubar");
-        menubar->setGeometry(QRect(0, 0, 1225, 25));
+        menubar->setGeometry(QRect(0, 0, 1505, 25));
         MainWindow->setMenuBar(menubar);
         statusbar = new QStatusBar(MainWindow);
         statusbar->setObjectName("statusbar");
@@ -5949,14 +7065,15 @@ public:
         QObject::connect(btnGotoAjout, &QPushButton::clicked, stackedWidget_Maintenance, &QStackedWidget::setCurrentIndex);
         QObject::connect(btnGotoModifier, &QPushButton::clicked, stackedWidget_Maintenance, &QStackedWidget::setCurrentIndex);
         QObject::connect(btnCancel_Add, &QPushButton::clicked, stackedWidget_Maintenance, &QStackedWidget::setCurrentIndex);
-        QObject::connect(btnCancel_Mod1, &QPushButton::clicked, stackedWidget_Maintenance, &QStackedWidget::setCurrentIndex);
+        QObject::connect(btnCancel_Mod, &QPushButton::clicked, stackedWidget_Maintenance, &QStackedWidget::setCurrentIndex);
         QObject::connect(btnBack_Ajout, &QPushButton::clicked, stackedWidget_Maintenance, &QStackedWidget::setCurrentIndex);
         QObject::connect(btnBack_Modif, &QPushButton::clicked, stackedWidget_Maintenance, &QStackedWidget::setCurrentIndex);
 
-        stackedWidget->setCurrentIndex(0);
+        stackedWidget->setCurrentIndex(9);
         prod_stackedWidget->setCurrentIndex(2);
+        prod_viewStackedWidget->setCurrentIndex(0);
         stackedWidget_Maintenance->setCurrentIndex(0);
-        contentStack->setCurrentIndex(0);
+        contentStack->setCurrentIndex(1);
 
 
         QMetaObject::connectSlotsByName(MainWindow);
@@ -5965,21 +7082,22 @@ public:
     void retranslateUi(QMainWindow *MainWindow)
     {
         MainWindow->setWindowTitle(QCoreApplication::translate("MainWindow", "WasteGuard - Gestion des Employes", nullptr));
+        btnToggleSidebar->setText(QCoreApplication::translate("MainWindow", "\342\230\260", nullptr));
         label_logo->setText(QString());
-        btnAccueil->setText(QCoreApplication::translate("MainWindow", "Accueil", nullptr));
-        btnStock->setText(QCoreApplication::translate("MainWindow", "Stock", nullptr));
-        btnProduits->setText(QCoreApplication::translate("MainWindow", "Produits", nullptr));
-        btnClient->setText(QCoreApplication::translate("MainWindow", "Client", nullptr));
-        btnEmployes->setText(QCoreApplication::translate("MainWindow", "Employes", nullptr));
-        btnStatistiques->setText(QCoreApplication::translate("MainWindow", "Statistiques", nullptr));
-        btnMaintenance->setText(QCoreApplication::translate("MainWindow", "Maintenance", nullptr));
+        btnAccueil->setText(QCoreApplication::translate("MainWindow", "\360\237\217\240 Accueils", nullptr));
+        btnStock->setText(QCoreApplication::translate("MainWindow", "\360\237\223\246 Stock", nullptr));
+        btnProduits->setText(QCoreApplication::translate("MainWindow", "\360\237\233\215\357\270\217 Produits", nullptr));
+        btnClient->setText(QCoreApplication::translate("MainWindow", "\360\237\221\245 Clients", nullptr));
+        btnEmployes->setText(QCoreApplication::translate("MainWindow", "\360\237\221\267 Employes", nullptr));
+        btnStatistiques->setText(QCoreApplication::translate("MainWindow", "\360\237\223\212 Statistiques", nullptr));
+        btnMaintenance->setText(QCoreApplication::translate("MainWindow", "\360\237\224\247 Maintenances", nullptr));
         btnRetour->setText(QCoreApplication::translate("MainWindow", "Retour", nullptr));
-        btnCommandes->setText(QCoreApplication::translate("MainWindow", "Commandes", nullptr));
+        btnCommandes->setText(QCoreApplication::translate("MainWindow", "\360\237\223\235 Commandes", nullptr));
         label_Title->setText(QCoreApplication::translate("MainWindow", "Tableau de Bord", nullptr));
         lblUserName->setText(QCoreApplication::translate("MainWindow", "Admin System", nullptr));
-        btnNouveau->setText(QCoreApplication::translate("MainWindow", "+ Nouvel Employe", nullptr));
         lblUserRole->setText(QCoreApplication::translate("MainWindow", "Chef d'Atelier", nullptr));
-        txtSearch->setPlaceholderText(QCoreApplication::translate("MainWindow", "\360\237\224\215 Rechercher un employ\303\251...", nullptr));
+        btnNouveau->setText(QCoreApplication::translate("MainWindow", "+ Nouvel Employe", nullptr));
+        txtSearch->setPlaceholderText(QCoreApplication::translate("MainWindow", "Rechercher un employ\303\251 par matricule", nullptr));
         cbSort->setItemText(0, QCoreApplication::translate("MainWindow", "Trier par: Specialite", nullptr));
         cbSort->setItemText(1, QCoreApplication::translate("MainWindow", "Trier par: note de fin d annes", nullptr));
         cbSort->setItemText(2, QCoreApplication::translate("MainWindow", "Trier par: salaire", nullptr));
@@ -6121,8 +7239,8 @@ public:
         ___qtablewidgetitem32->setText(QCoreApplication::translate("MainWindow", "Score Match", nullptr));
         btnAnnulerMission->setText(QCoreApplication::translate("MainWindow", "Retour / Annuler", nullptr));
         lblTitrePointage->setText(QCoreApplication::translate("MainWindow", "\303\211tat du Lecteur RFID :", nullptr));
-        lblStatutRFID->setText(QCoreApplication::translate("MainWindow", "\360\237\225\220 EN ATTENTE DE BADGE...", nullptr));
-        btnSimulerBadge->setText(QCoreApplication::translate("MainWindow", "\360\237\224\256 Simuler un passage de badge (Demo)", nullptr));
+        lblStatutRFID->setText(QCoreApplication::translate("MainWindow", "\360\237\225\222 EN ATTENTE DE BADGE...", nullptr));
+        btnSimulerBadge->setText(QCoreApplication::translate("MainWindow", "\360\237\224\256 Simuler un passage de badge (D\303\251mo)", nullptr));
         lblLog->setText(QCoreApplication::translate("MainWindow", "\360\237\223\213 Historique des Entr\303\251es / Sorties (Aujourd'hui)", nullptr));
         QTableWidgetItem *___qtablewidgetitem33 = tablePointage->horizontalHeaderItem(0);
         ___qtablewidgetitem33->setText(QCoreApplication::translate("MainWindow", "Heure", nullptr));
@@ -6140,23 +7258,25 @@ public:
         cbProjetStats->setPlaceholderText(QCoreApplication::translate("MainWindow", "Selectionnez un projet...", nullptr));
         btnAnnulerStats->setText(QCoreApplication::translate("MainWindow", "Retour / Annuler", nullptr));
         prod_label_1->setText(QString());
-        prod_btnhome_1->setText(QCoreApplication::translate("MainWindow", "  Accueil", nullptr));
-        prod_btnstock_1->setText(QCoreApplication::translate("MainWindow", "  Stock", nullptr));
+        prod_btnhome_1->setText(QCoreApplication::translate("MainWindow", "  Accueils", nullptr));
+        prod_btnstock_1->setText(QCoreApplication::translate("MainWindow", "  Stocks", nullptr));
         prod_btnproduit_1->setText(QCoreApplication::translate("MainWindow", "  Produits", nullptr));
         prod_btnclient_1->setText(QCoreApplication::translate("MainWindow", "  Clients", nullptr));
         prod_btnemploye_1->setText(QCoreApplication::translate("MainWindow", "  Employes", nullptr));
-        prod_btnmaintenance_1->setText(QCoreApplication::translate("MainWindow", "  Maintenance", nullptr));
+        prod_btnmaintenance_1->setText(QCoreApplication::translate("MainWindow", "  Maintenances", nullptr));
         prod_btncmd_1->setText(QCoreApplication::translate("MainWindow", "  Commandes", nullptr));
         prod_label_Title->setText(QCoreApplication::translate("MainWindow", "Tableau de Bord", nullptr));
         prod_btnAddProduct->setText(QCoreApplication::translate("MainWindow", "+ Ajouter", nullptr));
         prod_lblUserName->setText(QCoreApplication::translate("MainWindow", "Admin System", nullptr));
         prod_lblUserRole->setText(QCoreApplication::translate("MainWindow", "Chef d'Atelier", nullptr));
-        prod_searchInput->setPlaceholderText(QCoreApplication::translate("MainWindow", "Rechercher...", nullptr));
-        prod_cbSort->setItemText(0, QCoreApplication::translate("MainWindow", "Reference", nullptr));
-        prod_cbSort->setItemText(1, QCoreApplication::translate("MainWindow", "Prix (Croissant)", nullptr));
-        prod_cbSort->setItemText(2, QCoreApplication::translate("MainWindow", "Prix (Decroissant)", nullptr));
-        prod_cbSort->setItemText(3, QCoreApplication::translate("MainWindow", "Quantite", nullptr));
+        prod_searchInput->setPlaceholderText(QCoreApplication::translate("MainWindow", "Rechercher par modele/num serie", nullptr));
+        prod_cbSort->setItemText(0, QCoreApplication::translate("MainWindow", "capacit\303\251 (Croissant)", nullptr));
+        prod_cbSort->setItemText(1, QCoreApplication::translate("MainWindow", "capacit\303\251 (Decroissant)", nullptr));
 
+#if QT_CONFIG(tooltip)
+        prod_btnToggleView->setToolTip(QCoreApplication::translate("MainWindow", "Changer de vue (Tableau/Cartes)", nullptr));
+#endif // QT_CONFIG(tooltip)
+        prod_btnToggleView->setText(QCoreApplication::translate("MainWindow", "\342\212\236", nullptr));
         QTableWidgetItem *___qtablewidgetitem37 = prod_tableProduits->horizontalHeaderItem(0);
         ___qtablewidgetitem37->setText(QCoreApplication::translate("MainWindow", "Reference", nullptr));
         QTableWidgetItem *___qtablewidgetitem38 = prod_tableProduits->horizontalHeaderItem(1);
@@ -6170,24 +7290,24 @@ public:
         QTableWidgetItem *___qtablewidgetitem42 = prod_tableProduits->horizontalHeaderItem(5);
         ___qtablewidgetitem42->setText(QCoreApplication::translate("MainWindow", "Stock", nullptr));
         QTableWidgetItem *___qtablewidgetitem43 = prod_tableProduits->horizontalHeaderItem(6);
-        ___qtablewidgetitem43->setText(QCoreApplication::translate("MainWindow", "\303\211tat", nullptr));
+        ___qtablewidgetitem43->setText(QCoreApplication::translate("MainWindow", "Etat", nullptr));
         QTableWidgetItem *___qtablewidgetitem44 = prod_tableProduits->horizontalHeaderItem(7);
         ___qtablewidgetitem44->setText(QCoreApplication::translate("MainWindow", "Actions", nullptr));
         prod_lblFunc->setText(QCoreApplication::translate("MainWindow", "INFOS GLOBALES", nullptr));
         prod_stat1->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statCard", nullptr)));
         prod_st_val1->setText(QCoreApplication::translate("MainWindow", "1,245", nullptr));
         prod_st_val1->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statValue", nullptr)));
-        prod_st_lbl1->setText(QCoreApplication::translate("MainWindow", "Total Produits", nullptr));
+        prod_st_lbl1->setText(QCoreApplication::translate("MainWindow", "Total Interventions", nullptr));
         prod_st_lbl1->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statLabel", nullptr)));
         prod_stat2->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statCard", nullptr)));
         prod_st_val2->setText(QCoreApplication::translate("MainWindow", "85,400 TND", nullptr));
         prod_st_val2->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statValue", nullptr)));
-        prod_st_lbl2->setText(QCoreApplication::translate("MainWindow", "Valeur Stock", nullptr));
+        prod_st_lbl2->setText(QCoreApplication::translate("MainWindow", "Chiffre d'Affaire", nullptr));
         prod_st_lbl2->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statLabel", nullptr)));
-        prod_stat3->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "alertCard", nullptr)));
-        prod_st_val3->setText(QCoreApplication::translate("MainWindow", "(!) 5", nullptr));
-        prod_st_val3->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "alertValue", nullptr)));
-        prod_st_lbl3->setText(QCoreApplication::translate("MainWindow", "Rupture de Stock", nullptr));
+        prod_stat3->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statCard", nullptr)));
+        prod_st_val3->setText(QCoreApplication::translate("MainWindow", "5", nullptr));
+        prod_st_val3->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statValue", nullptr)));
+        prod_st_lbl3->setText(QCoreApplication::translate("MainWindow", "\303\211quipements en Panne", nullptr));
         prod_st_lbl3->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statLabel", nullptr)));
         prod_statsPreview->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statCard", nullptr)));
         prod_lblStatsTitle->setText(QCoreApplication::translate("MainWindow", "Statistiques", nullptr));
@@ -6195,41 +7315,11 @@ public:
         prod_lblMini1->setText(QCoreApplication::translate("MainWindow", "Produits", nullptr));
         prod_lblMini2->setStyleSheet(QCoreApplication::translate("MainWindow", "color: white;", nullptr));
         prod_lblMini2->setText(QCoreApplication::translate("MainWindow", "Stock", nullptr));
-        prod_btnOpenStats->setStyleSheet(QCoreApplication::translate("MainWindow", "color: #000000; background: transparent; border: none;", nullptr));
         prod_btnOpenStats->setText(QCoreApplication::translate("MainWindow", "Voir details  ->", nullptr));
-        prod_btnMap3D->setStyleSheet(QCoreApplication::translate("MainWindow", "\n"
-"                        QPushButton {\n"
-"                         background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 #8E2DE2, stop:1 #4A00E0);\n"
-"                         color: white;\n"
-"                         border-radius: 8px;\n"
-"                         padding: 10px;\n"
-"                         font-weight: bold;\n"
-"                         font-size: 13px;\n"
-"                         border: none;\n"
-"                        }\n"
-"                        QPushButton:hover {\n"
-"                         background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 #a044ff, stop:1 #6a3093);\n"
-"                        }\n"
-"                       ", nullptr));
         prod_btnMap3D->setText(QCoreApplication::translate("MainWindow", "Visualisation Map 3D", nullptr));
-        prod_btnVideo3D->setStyleSheet(QCoreApplication::translate("MainWindow", "\n"
-"                        QPushButton {\n"
-"                         background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 #11998e, stop:1 #38ef7d);\n"
-"                         color: white;\n"
-"                         border-radius: 8px;\n"
-"                         padding: 10px;\n"
-"                         font-weight: bold;\n"
-"                         font-size: 13px;\n"
-"                         border: none;\n"
-"                        }\n"
-"                        QPushButton:hover {\n"
-"                         background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 #1fab89, stop:1 #62d2a2);\n"
-"                        }\n"
-"                       ", nullptr));
         prod_btnVideo3D->setText(QCoreApplication::translate("MainWindow", "Generer Video 3D", nullptr));
         prod_lblExport->setText(QCoreApplication::translate("MainWindow", "EXPORTER", nullptr));
         prod_btnPdf->setText(QCoreApplication::translate("MainWindow", "Rapport PDF", nullptr));
-        prod_btnCsv->setText(QCoreApplication::translate("MainWindow", "Export CSV", nullptr));
         prod_lblImgPreview_Add->setText(QCoreApplication::translate("MainWindow", "Glisser Image Ici", nullptr));
         prod_btnUpload_Add->setText(QCoreApplication::translate("MainWindow", "\360\237\223\244 Importer Image", nullptr));
         prod_lblTitleAdd->setText(QCoreApplication::translate("MainWindow", "Nouveau Stock", nullptr));
@@ -6269,15 +7359,15 @@ public:
         QListWidgetItem *___qlistwidgetitem = prod_lstCharacteristics->item(0);
         ___qlistwidgetitem->setText(QCoreApplication::translate("MainWindow", "\360\237\223\215 GPS Tracking", nullptr));
         QListWidgetItem *___qlistwidgetitem1 = prod_lstCharacteristics->item(1);
-        ___qlistwidgetitem1->setText(QCoreApplication::translate("MainWindow", "\360\237\222\241 Capteur Ultrason", nullptr));
+        ___qlistwidgetitem1->setText(QCoreApplication::translate("MainWindow", "\360\237\223\241 Capteur Ultrason", nullptr));
         QListWidgetItem *___qlistwidgetitem2 = prod_lstCharacteristics->item(2);
         ___qlistwidgetitem2->setText(QCoreApplication::translate("MainWindow", "\342\230\200\357\270\217 Compacteur Solaire", nullptr));
         QListWidgetItem *___qlistwidgetitem3 = prod_lstCharacteristics->item(3);
-        ___qlistwidgetitem3->setText(QCoreApplication::translate("MainWindow", "\360\237\224\245 Detecteur de Flamme", nullptr));
+        ___qlistwidgetitem3->setText(QCoreApplication::translate("MainWindow", "\360\237\224\245 D\303\251tecteur de Flamme", nullptr));
         QListWidgetItem *___qlistwidgetitem4 = prod_lstCharacteristics->item(4);
         ___qlistwidgetitem4->setText(QCoreApplication::translate("MainWindow", "\360\237\224\222 Verrouillage Auto", nullptr));
         QListWidgetItem *___qlistwidgetitem5 = prod_lstCharacteristics->item(5);
-        ___qlistwidgetitem5->setText(QCoreApplication::translate("MainWindow", "\342\230\201\357\270\217 Integration IoT", nullptr));
+        ___qlistwidgetitem5->setText(QCoreApplication::translate("MainWindow", "\360\237\214\220 Int\303\251gration IoT", nullptr));
         QListWidgetItem *___qlistwidgetitem6 = prod_lstCharacteristics->item(6);
         ___qlistwidgetitem6->setText(QCoreApplication::translate("MainWindow", "\360\237\214\254\357\270\217 Anti-Odeur", nullptr));
         prod_lstCharacteristics->setSortingEnabled(__sortingEnabled1);
@@ -6310,31 +7400,7 @@ public:
 "                                 border: 1px solid #90caf9;\n"
 "                                }\n"
 "                              ", nullptr));
-        prod_l5->setText(QCoreApplication::translate("MainWindow", "Plan du Depot (Selectionnez un emplacement)", nullptr));
-        prod_zoneA->setText(QCoreApplication::translate("MainWindow", "ZONE A", nullptr));
-        prod_zoneA->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "zoneLabel", nullptr)));
-        prod_btn_a1->setText(QCoreApplication::translate("MainWindow", "A-01", nullptr));
-        prod_btn_a1->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "slotBtn", nullptr)));
-        prod_btn_a2->setText(QCoreApplication::translate("MainWindow", "A-02", nullptr));
-        prod_btn_a2->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "slotBtn", nullptr)));
-        prod_btn_a3->setText(QCoreApplication::translate("MainWindow", "A-03", nullptr));
-        prod_btn_a3->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "slotBtn", nullptr)));
-        prod_zoneB->setText(QCoreApplication::translate("MainWindow", "ZONE B", nullptr));
-        prod_zoneB->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "zoneLabel", nullptr)));
-        prod_btn_b1->setText(QCoreApplication::translate("MainWindow", "B-01", nullptr));
-        prod_btn_b1->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "slotBtn", nullptr)));
-        prod_btn_b2->setText(QCoreApplication::translate("MainWindow", "B-02", nullptr));
-        prod_btn_b2->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "slotBtn", nullptr)));
-        prod_btn_b3->setText(QCoreApplication::translate("MainWindow", "B-03", nullptr));
-        prod_btn_b3->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "slotBtn", nullptr)));
-        prod_zoneC->setText(QCoreApplication::translate("MainWindow", "ZONE C", nullptr));
-        prod_zoneC->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "zoneLabel", nullptr)));
-        prod_btn_c2->setText(QCoreApplication::translate("MainWindow", "C-02", nullptr));
-        prod_btn_c2->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "slotBtn", nullptr)));
-        prod_btn_c3->setText(QCoreApplication::translate("MainWindow", "C-03", nullptr));
-        prod_btn_c3->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "slotBtn", nullptr)));
-        prod_btn_a2_2->setText(QCoreApplication::translate("MainWindow", "C-01", nullptr));
-        prod_btn_a2_2->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "slotBtn", nullptr)));
+        prod_l5->setText(QCoreApplication::translate("MainWindow", "Plan du Depot cliquer ici pour ouvrir", nullptr));
         prod_btnSave_Add->setText(QCoreApplication::translate("MainWindow", "Ajouter", nullptr));
         prod_btnCancel_Add->setText(QCoreApplication::translate("MainWindow", "Annuler", nullptr));
         prod_imgBin->setText(QCoreApplication::translate("MainWindow", "[ Image Actuelle ]", nullptr));
@@ -6374,15 +7440,15 @@ public:
         QListWidgetItem *___qlistwidgetitem7 = prod_lstCharacteristics_mod->item(0);
         ___qlistwidgetitem7->setText(QCoreApplication::translate("MainWindow", "\360\237\223\215 GPS Tracking", nullptr));
         QListWidgetItem *___qlistwidgetitem8 = prod_lstCharacteristics_mod->item(1);
-        ___qlistwidgetitem8->setText(QCoreApplication::translate("MainWindow", "\360\237\222\241 Capteur Ultrason", nullptr));
+        ___qlistwidgetitem8->setText(QCoreApplication::translate("MainWindow", "\360\237\223\241 Capteur Ultrason", nullptr));
         QListWidgetItem *___qlistwidgetitem9 = prod_lstCharacteristics_mod->item(2);
         ___qlistwidgetitem9->setText(QCoreApplication::translate("MainWindow", "\342\230\200\357\270\217 Compacteur Solaire", nullptr));
         QListWidgetItem *___qlistwidgetitem10 = prod_lstCharacteristics_mod->item(3);
-        ___qlistwidgetitem10->setText(QCoreApplication::translate("MainWindow", "\360\237\224\245 Detecteur de Flamme", nullptr));
+        ___qlistwidgetitem10->setText(QCoreApplication::translate("MainWindow", "\360\237\224\245 D\303\251tecteur de Flamme", nullptr));
         QListWidgetItem *___qlistwidgetitem11 = prod_lstCharacteristics_mod->item(4);
         ___qlistwidgetitem11->setText(QCoreApplication::translate("MainWindow", "\360\237\224\222 Verrouillage Auto", nullptr));
         QListWidgetItem *___qlistwidgetitem12 = prod_lstCharacteristics_mod->item(5);
-        ___qlistwidgetitem12->setText(QCoreApplication::translate("MainWindow", "\342\230\201\357\270\217 Integration IoT", nullptr));
+        ___qlistwidgetitem12->setText(QCoreApplication::translate("MainWindow", "\360\237\214\220 Int\303\251gration IoT", nullptr));
         QListWidgetItem *___qlistwidgetitem13 = prod_lstCharacteristics_mod->item(6);
         ___qlistwidgetitem13->setText(QCoreApplication::translate("MainWindow", "\360\237\214\254\357\270\217 Anti-Odeur", nullptr));
         prod_lstCharacteristics_mod->setSortingEnabled(__sortingEnabled2);
@@ -6414,56 +7480,38 @@ public:
 "                                 border: 1px solid #90caf9;\n"
 "                                }\n"
 "                               ", nullptr));
-        prod_l5_m->setText(QCoreApplication::translate("MainWindow", "Changer Emplacement", nullptr));
-        prod_zoneAm->setText(QCoreApplication::translate("MainWindow", "ZONE A", nullptr));
-        prod_zoneAm->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "zoneLabel", nullptr)));
-        prod_btn_a1_m->setText(QCoreApplication::translate("MainWindow", "A-01", nullptr));
-        prod_btn_a1_m->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "slotBtn", nullptr)));
-        prod_btn_a3_m->setText(QCoreApplication::translate("MainWindow", "A-03", nullptr));
-        prod_btn_a3_m->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "slotBtn", nullptr)));
-        prod_zoneBm->setText(QCoreApplication::translate("MainWindow", "ZONE B", nullptr));
-        prod_zoneBm->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "zoneLabel", nullptr)));
-        prod_btn_b1_m->setText(QCoreApplication::translate("MainWindow", "B-01", nullptr));
-        prod_btn_b1_m->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "slotBtn", nullptr)));
-        prod_btn_b2_m->setText(QCoreApplication::translate("MainWindow", "B-02", nullptr));
-        prod_btn_b2_m->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "slotBtn", nullptr)));
-        prod_btn_b3_m->setText(QCoreApplication::translate("MainWindow", "B-03", nullptr));
-        prod_btn_b3_m->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "slotBtn", nullptr)));
-        prod_zoneCm->setText(QCoreApplication::translate("MainWindow", "ZONE C", nullptr));
-        prod_zoneCm->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "zoneLabel", nullptr)));
-        prod_btn_c1_m->setText(QCoreApplication::translate("MainWindow", "C-01", nullptr));
-        prod_btn_c1_m->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "slotBtn", nullptr)));
-        prod_btn_c2_m->setText(QCoreApplication::translate("MainWindow", "C-02", nullptr));
-        prod_btn_c2_m->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "slotBtn", nullptr)));
-        prod_btn_c3_m->setText(QCoreApplication::translate("MainWindow", "C-03", nullptr));
-        prod_btn_c3_m->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "slotBtn", nullptr)));
-        prod_btn_a2_3->setText(QCoreApplication::translate("MainWindow", "A-02", nullptr));
-        prod_btn_a2_3->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "slotBtn", nullptr)));
+        prod_l5_m->setText(QCoreApplication::translate("MainWindow", "cliquer ici pour ouvrir map", nullptr));
         prod_btnSave_Mod->setText(QCoreApplication::translate("MainWindow", "Sauvegarder", nullptr));
         prod_btnCancel_Mod->setText(QCoreApplication::translate("MainWindow", "Annuler", nullptr));
         prod_btnReturnStats->setStyleSheet(QCoreApplication::translate("MainWindow", "\n"
 "                      background-color: #546e7a; color: white; padding: 6px 12px; border-radius: 4px; font-weight: bold;\n"
 "                     ", nullptr));
-        prod_btnReturnStats->setText(QCoreApplication::translate("MainWindow", "a\342\200\240\302\220 Retour", nullptr));
+        prod_btnReturnStats->setText(QCoreApplication::translate("MainWindow", "\342\254\205\357\270\217 Retour", nullptr));
         prod_lblStatsHeader->setText(QCoreApplication::translate("MainWindow", "Apercu Statistique", nullptr));
-        prod_lblStatsSub->setText(QCoreApplication::translate("MainWindow", "(Donnees exemple a\342\202\254\342\200\235 graphiques generaux)", nullptr));
+        prod_lblStatsSub->setText(QCoreApplication::translate("MainWindow", "(Donn\303\251es exemple \342\200\224 graphiques g\303\251n\303\251raux)", nullptr));
         prod_graphFrame1->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statCard", nullptr)));
-        prod_graphFrame1Title->setText(QCoreApplication::translate("MainWindow", "Graphique 1 a\342\202\254\342\200\235 Repartition (exemple)", nullptr));
+        prod_graphFrame1Title->setText(QCoreApplication::translate("MainWindow", "Graphique 1 \342\200\224 R\303\251partition (exemple)", nullptr));
         prod_graphFrame1Hint->setText(QCoreApplication::translate("MainWindow", "[Graph placeholder]", nullptr));
         prod_graphFrame2->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statCard", nullptr)));
         prod_graphFrame2Title->setText(QCoreApplication::translate("MainWindow", "Graphique 2 \342\200\224 \303\211volution (exemple)", nullptr));
         prod_graphFrame2Hint->setText(QCoreApplication::translate("MainWindow", "[Graph placeholder]", nullptr));
         prod_lblStatsNote->setText(QCoreApplication::translate("MainWindow", "Astuce: vous pouvez remplacer ces placeholders par QtCharts plus tard.", nullptr));
         headerBar->setStyleSheet(QCoreApplication::translate("MainWindow", "background-color: white; border-bottom: 1px solid #EDF2F7;", nullptr));
-        headerTitle->setStyleSheet(QCoreApplication::translate("MainWindow", "color: #3182CE; font-weight: bold; margin-left: 20px;", nullptr));
-        headerTitle->setText(QCoreApplication::translate("MainWindow", "Produits", nullptr));
+        headerTitle->setStyleSheet(QCoreApplication::translate("MainWindow", "color: #1f2d3d; font-size: 18px; font-weight: 700; margin-left: 20px;", nullptr));
+        headerTitle->setText(QCoreApplication::translate("MainWindow", "Tableau de Bord", nullptr));
+        btnNew->setStyleSheet(QCoreApplication::translate("MainWindow", "background-color: #0f2b4c; color: white; padding: 10px 22px; border-radius: 12px; font-weight: bold;", nullptr));
+        btnNew->setText(QCoreApplication::translate("MainWindow", "+ Nouveau Composant", nullptr));
         user->setStyleSheet(QCoreApplication::translate("MainWindow", "color: #4A5568; font-size: 12px; margin-right: 20px;", nullptr));
-        user->setText(QCoreApplication::translate("MainWindow", "Responsable du stock | Ahmed El Mokhtar", nullptr));
+        user->setText(QCoreApplication::translate("MainWindow", "Admin System\n"
+"Responsable du stock", nullptr));
         tableCard->setStyleSheet(QCoreApplication::translate("MainWindow", "#tableCard { background-color: white; border-radius: 12px; border: 1px solid #E2E8F0; }", nullptr));
         lblTableTitle->setStyleSheet(QCoreApplication::translate("MainWindow", "font-size: 18px; font-weight: bold;", nullptr));
         lblTableTitle->setText(QCoreApplication::translate("MainWindow", "Tableau de Bord", nullptr));
-        btnNew->setStyleSheet(QCoreApplication::translate("MainWindow", "background-color: #3182CE; color: white; padding: 10px 20px; border-radius: 8px; font-weight: bold;", nullptr));
-        btnNew->setText(QCoreApplication::translate("MainWindow", "+ Nouveau Composant", nullptr));
+        stock_searchInput->setPlaceholderText(QCoreApplication::translate("MainWindow", "Rechercher par reference, nom ou fournisseur...", nullptr));
+        stock_sortCombo->setItemText(0, QCoreApplication::translate("MainWindow", "Trier: aucun", nullptr));
+        stock_sortCombo->setItemText(1, QCoreApplication::translate("MainWindow", "Stock (croissant)", nullptr));
+        stock_sortCombo->setItemText(2, QCoreApplication::translate("MainWindow", "Stock (decroissant)", nullptr));
+
         statsBox->setStyleSheet(QCoreApplication::translate("MainWindow", "background: white; border-radius: 12px; border: 1px solid #E2E8F0;", nullptr));
         lblStatsTitle->setStyleSheet(QCoreApplication::translate("MainWindow", "font-size: 11px; color: #718096;", nullptr));
         lblStatsTitle->setText(QCoreApplication::translate("MainWindow", "Statistiques", nullptr));
@@ -6475,12 +7523,10 @@ public:
         lblOrderTitle->setText(QCoreApplication::translate("MainWindow", "BESOIN DE COMMANDE", nullptr));
         lblOrderSummary->setStyleSheet(QCoreApplication::translate("MainWindow", "font-size: 13px; color: #718096; margin-bottom: 5px;", nullptr));
         lblOrderSummary->setText(QCoreApplication::translate("MainWindow", "Analyse en cours...", nullptr));
-        btnOrder->setStyleSheet(QCoreApplication::translate("MainWindow", "background-color: #3182CE; color: white; padding: 10px; border-radius: 8px;", nullptr));
         btnOrder->setText(QCoreApplication::translate("MainWindow", "Generer Commande", nullptr));
-        btnPrediction->setStyleSheet(QCoreApplication::translate("MainWindow", "background-color: #6c5ce7; color: white; padding: 15px; border-radius: 12px; font-weight: bold; text-align: left; font-size: 14px;", nullptr));
         btnPrediction->setText(QCoreApplication::translate("MainWindow", "Predictions de Stock", nullptr));
-        btnAlerts->setStyleSheet(QCoreApplication::translate("MainWindow", "background-color: #e67e22; color: white; padding: 15px; border-radius: 12px; font-weight: bold; text-align: left; font-size: 14px;", nullptr));
-        btnAlerts->setText(QCoreApplication::translate("MainWindow", "Alertes \303\211ch\303\251ance", nullptr));
+        btnAlerts->setText(QCoreApplication::translate("MainWindow", "Alertes \303\251ch\303\251ance", nullptr));
+        btnGoStats_Stock->setText(QCoreApplication::translate("MainWindow", "Statistiques", nullptr));
         addCard->setStyleSheet(QCoreApplication::translate("MainWindow", "#addCard { background: white; border-radius: 15px; border: 1px solid #E2E8F0; } QLineEdit { padding: 15px; border-radius: 8px; background: #F8FAFC; }", nullptr));
         lblAddTitle->setStyleSheet(QCoreApplication::translate("MainWindow", "font-size: 24px; font-weight: bold; color: #1A365D;", nullptr));
         lblAddTitle->setText(QCoreApplication::translate("MainWindow", "Ajouter un Nouveau Composant", nullptr));
@@ -6500,8 +7546,10 @@ public:
         btnCancel_mod->setText(QCoreApplication::translate("MainWindow", "Annuler", nullptr));
         btnSave_mod->setStyleSheet(QCoreApplication::translate("MainWindow", "background: #48BB78; color: white; padding: 12px; border-radius: 8px;", nullptr));
         btnSave_mod->setText(QCoreApplication::translate("MainWindow", "Mettre a jour", nullptr));
-        titleLabel->setText(QCoreApplication::translate("MainWindow", "TABLEAU DE BORD", nullptr));
-        userLabel->setText(QCoreApplication::translate("MainWindow", "Chef d'Atelier", nullptr));
+        titleLabel->setText(QCoreApplication::translate("MainWindow", "Tableau de Bord", nullptr));
+        btnGotoAjout->setText(QCoreApplication::translate("MainWindow", "Aller a Ajout", nullptr));
+        userLabel->setText(QCoreApplication::translate("MainWindow", "Admin System\n"
+"Chef d'Atelier", nullptr));
         btnNotif->setText(QCoreApplication::translate("MainWindow", "\360\237\224\224", nullptr));
         btnProfil->setText(QCoreApplication::translate("MainWindow", "\360\237\221\244", nullptr));
         lblSort->setText(QCoreApplication::translate("MainWindow", "Trier par :", nullptr));
@@ -6509,9 +7557,9 @@ public:
         cbSort1->setItemText(1, QCoreApplication::translate("MainWindow", "Prix (Croissant)", nullptr));
         cbSort1->setItemText(2, QCoreApplication::translate("MainWindow", "Prix (Decroissant)", nullptr));
         cbSort1->setItemText(3, QCoreApplication::translate("MainWindow", "Quantite", nullptr));
+        cbSort1->setItemText(4, QCoreApplication::translate("MainWindow", "Priorite", nullptr));
 
         searchInput->setPlaceholderText(QCoreApplication::translate("MainWindow", "Rechercher...", nullptr));
-        btnGotoAjout->setText(QCoreApplication::translate("MainWindow", "Aller a Ajout", nullptr));
         btnGotoModifier->setText(QCoreApplication::translate("MainWindow", "Aller a Modifier", nullptr));
         lblCardTitle->setText(QCoreApplication::translate("MainWindow", "LISTE DES INTERVENTIONS", nullptr));
         QTableWidgetItem *___qtablewidgetitem45 = tableMaintenance->horizontalHeaderItem(0);
@@ -6521,7 +7569,7 @@ public:
         QTableWidgetItem *___qtablewidgetitem47 = tableMaintenance->horizontalHeaderItem(2);
         ___qtablewidgetitem47->setText(QCoreApplication::translate("MainWindow", "Technicien", nullptr));
         QTableWidgetItem *___qtablewidgetitem48 = tableMaintenance->horizontalHeaderItem(3);
-        ___qtablewidgetitem48->setText(QCoreApplication::translate("MainWindow", "Co\303\273t (TND)", nullptr));
+        ___qtablewidgetitem48->setText(QCoreApplication::translate("MainWindow", "Cout (TND)", nullptr));
         QTableWidgetItem *___qtablewidgetitem49 = tableMaintenance->horizontalHeaderItem(4);
         ___qtablewidgetitem49->setText(QCoreApplication::translate("MainWindow", "Dur\303\251e", nullptr));
         QTableWidgetItem *___qtablewidgetitem50 = tableMaintenance->horizontalHeaderItem(5);
@@ -6529,30 +7577,30 @@ public:
         QTableWidgetItem *___qtablewidgetitem51 = tableMaintenance->horizontalHeaderItem(6);
         ___qtablewidgetitem51->setText(QCoreApplication::translate("MainWindow", "Actions", nullptr));
         lblFunc->setText(QCoreApplication::translate("MainWindow", "INFOS GLOBALES", nullptr));
-        stat1->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statCard", nullptr)));
+        st_icon1->setText(QCoreApplication::translate("MainWindow", "\360\237\233\240", nullptr));
         st_val1->setText(QCoreApplication::translate("MainWindow", "1,245", nullptr));
-        st_val1->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statValue", nullptr)));
-        st_lbl1->setText(QCoreApplication::translate("MainWindow", "Total Produits", nullptr));
-        st_lbl1->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statLabel", nullptr)));
-        stat2->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statCard", nullptr)));
+        st_lbl1->setText(QCoreApplication::translate("MainWindow", "TOTAL INTERVENTIONS", nullptr));
+        st_icon2->setText(QCoreApplication::translate("MainWindow", "\360\237\222\260", nullptr));
         st_val2->setText(QCoreApplication::translate("MainWindow", "85,400 TND", nullptr));
-        st_val2->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statValue", nullptr)));
-        st_lbl2->setText(QCoreApplication::translate("MainWindow", "Valeur Stock", nullptr));
-        st_lbl2->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statLabel", nullptr)));
-        stat3->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "alertCard", nullptr)));
-        st_val3->setText(QCoreApplication::translate("MainWindow", "(!) 5", nullptr));
-        st_val3->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "alertValue", nullptr)));
-        st_lbl3->setText(QCoreApplication::translate("MainWindow", "Rupture de Stock", nullptr));
-        st_lbl3->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statLabel", nullptr)));
+        st_lbl2->setText(QCoreApplication::translate("MainWindow", "TOTAL COUT", nullptr));
+        st_icon3->setText(QCoreApplication::translate("MainWindow", "\342\217\261", nullptr));
+        st_val3->setText(QCoreApplication::translate("MainWindow", "0", nullptr));
+        st_lbl3->setText(QCoreApplication::translate("MainWindow", "HEURES DE MAINTENANCE", nullptr));
+        btnGoStats_Maint->setText(QCoreApplication::translate("MainWindow", "Statistiques", nullptr));
         lblExport->setText(QCoreApplication::translate("MainWindow", "EXPORTER", nullptr));
         btnPdf->setText(QCoreApplication::translate("MainWindow", "Rapport PDF", nullptr));
-        btnCsv->setText(QCoreApplication::translate("MainWindow", "Export CSV", nullptr));
+        lblMiniChartTitle->setText(QCoreApplication::translate("MainWindow", "Repartition par Priorite", nullptr));
+        lblMiniBar1->setText(QCoreApplication::translate("MainWindow", "Normale", nullptr));
+        lblMiniPct1->setText(QCoreApplication::translate("MainWindow", "55%", nullptr));
+        lblMiniBar2->setText(QCoreApplication::translate("MainWindow", "Urgente", nullptr));
+        lblMiniPct2->setText(QCoreApplication::translate("MainWindow", "30%", nullptr));
+        lblMiniBar3->setText(QCoreApplication::translate("MainWindow", "Critique", nullptr));
+        lblMiniPct3->setText(QCoreApplication::translate("MainWindow", "15%", nullptr));
         titleLabel_Aj->setText(QCoreApplication::translate("MainWindow", "MAINTENANCE", nullptr));
         userLabel_Aj->setText(QCoreApplication::translate("MainWindow", "Responsable Technique", nullptr));
         btnBack_Ajout->setStyleSheet(QCoreApplication::translate("MainWindow", "background-color: #e67e22; color: white; font-weight: bold; border-radius: 5px; padding: 8px;", nullptr));
-        btnBack_Ajout->setText(QCoreApplication::translate("MainWindow", "\342\254\205 Retour au Tableau de Bord", nullptr));
+        btnBack_Ajout->setText(QCoreApplication::translate("MainWindow", "\342\254\205\357\270\217 Retour au Tableau de Bord", nullptr));
         lblTitreFormAdd->setText(QCoreApplication::translate("MainWindow", "Nouvelle Intervention", nullptr));
-        lblTitreFormAdd->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "formLabel", nullptr)));
         lblRefAdd->setText(QCoreApplication::translate("MainWindow", "Reference", nullptr));
         lblRefAdd->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "formLabel", nullptr)));
         editRefAdd->setPlaceholderText(QCoreApplication::translate("MainWindow", "INT010", nullptr));
@@ -6564,14 +7612,14 @@ public:
         comboDurAdd->setItemText(1, QCoreApplication::translate("MainWindow", "1 heure", nullptr));
         comboDurAdd->setItemText(2, QCoreApplication::translate("MainWindow", "3 heures", nullptr));
 
-        lblCoutAdd->setText(QCoreApplication::translate("MainWindow", "Co\303\273t", nullptr));
+        lblCoutAdd->setText(QCoreApplication::translate("MainWindow", "Cout", nullptr));
         lblCoutAdd->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "formLabel", nullptr)));
         lblEuroAdd->setText(QCoreApplication::translate("MainWindow", "\342\202\254", nullptr));
         lblPrioAdd->setText(QCoreApplication::translate("MainWindow", "Priorite", nullptr));
         lblPrioAdd->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "formLabel", nullptr)));
         comboPrioAdd->setItemText(0, QCoreApplication::translate("MainWindow", "Basse", nullptr));
         comboPrioAdd->setItemText(1, QCoreApplication::translate("MainWindow", "Normale", nullptr));
-        comboPrioAdd->setItemText(2, QCoreApplication::translate("MainWindow", "\303\211lev\303\251e", nullptr));
+        comboPrioAdd->setItemText(2, QCoreApplication::translate("MainWindow", "\303\251lev\303\251e", nullptr));
 
         lblTechAdd->setText(QCoreApplication::translate("MainWindow", "Technicien", nullptr));
         lblTechAdd->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "formLabel", nullptr)));
@@ -6583,18 +7631,16 @@ public:
         lblDescAdd->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "formLabel", nullptr)));
         txtDescAdd->setPlaceholderText(QCoreApplication::translate("MainWindow", "Inspection du systeme de capteurs et reset du compacteur...", nullptr));
         lblPhotosAvantAdd->setText(QCoreApplication::translate("MainWindow", "Photos Avant", nullptr));
-        lblPhotosAvantAdd->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "formLabel", nullptr)));
-        lblImgPreview_Add->setText(QCoreApplication::translate("MainWindow", "Drag & drop / Parcourir", nullptr));
-        lblPhotosApresAdd->setText(QCoreApplication::translate("MainWindow", "Photos Apres", nullptr));
-        lblPhotosApresAdd->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "formLabel", nullptr)));
-        lblImgPreview2_Add->setText(QCoreApplication::translate("MainWindow", "Drag & drop / Parcourir", nullptr));
-        btnSave_Add->setText(QCoreApplication::translate("MainWindow", "Enregistrer", nullptr));
-        btnCancel_Add->setText(QCoreApplication::translate("MainWindow", "Annuler", nullptr));
+        lblImgPreview_Add->setText(QCoreApplication::translate("MainWindow", "Cliquez ou d\303\251posez vos images ici pour les t\303\251l\303\251charger", nullptr));
+        lblPhotosApresAdd->setText(QCoreApplication::translate("MainWindow", "Photos Apr\303\250s", nullptr));
+        lblImgPreview2_Add->setText(QCoreApplication::translate("MainWindow", "Cliquez ou d\303\251posez vos images ici pour les t\303\251l\303\251charger", nullptr));
+        btnCancel_Add->setText(QCoreApplication::translate("MainWindow", "\342\235\214  Annuler", nullptr));
+        btnSave_Add->setText(QCoreApplication::translate("MainWindow", "\342\234\205  Enregistrer", nullptr));
         titleLabel_Mod->setText(QCoreApplication::translate("MainWindow", "MAINTENANCE", nullptr));
         userLabel_Mod->setText(QCoreApplication::translate("MainWindow", "Responsable Technique", nullptr));
         btnBack_Modif->setStyleSheet(QCoreApplication::translate("MainWindow", "background-color: #e67e22; color: white; font-weight: bold; border-radius: 5px; padding: 8px;", nullptr));
-        btnBack_Modif->setText(QCoreApplication::translate("MainWindow", "\342\254\205 Retour au Tableau de Bord", nullptr));
-        lblTitreFormMod->setText(QCoreApplication::translate("MainWindow", "Modifier Intervention", nullptr));
+        btnBack_Modif->setText(QCoreApplication::translate("MainWindow", "\342\254\205\357\270\217 Retour au Tableau de Bord", nullptr));
+        lblTitreFormMod->setText(QCoreApplication::translate("MainWindow", "\342\234\217\357\270\217  Modifier Intervention", nullptr));
         lblTitreFormMod->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "formLabel", nullptr)));
         lblRefMod->setText(QCoreApplication::translate("MainWindow", "Reference", nullptr));
         lblRefMod->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "formLabel", nullptr)));
@@ -6607,39 +7653,45 @@ public:
         comboDurMod->setItemText(1, QCoreApplication::translate("MainWindow", "1 heure", nullptr));
         comboDurMod->setItemText(2, QCoreApplication::translate("MainWindow", "3 heures", nullptr));
 
-        lblCoutMod->setText(QCoreApplication::translate("MainWindow", "Co\303\273t", nullptr));
+        lblCoutMod->setText(QCoreApplication::translate("MainWindow", "Cout", nullptr));
         lblCoutMod->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "formLabel", nullptr)));
         lblEuroMod->setText(QCoreApplication::translate("MainWindow", "\342\202\254", nullptr));
         lblPrioMod->setText(QCoreApplication::translate("MainWindow", "Priorite", nullptr));
         lblPrioMod->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "formLabel", nullptr)));
         comboPrioMod->setItemText(0, QCoreApplication::translate("MainWindow", "Basse", nullptr));
         comboPrioMod->setItemText(1, QCoreApplication::translate("MainWindow", "Normale", nullptr));
-        comboPrioMod->setItemText(2, QCoreApplication::translate("MainWindow", "\303\211lev\303\251e", nullptr));
+        comboPrioMod->setItemText(2, QCoreApplication::translate("MainWindow", "\303\251lev\303\251e", nullptr));
 
+        lblSecTechMod->setText(QCoreApplication::translate("MainWindow", "\360\237\221\244  Technicien & Localisation", nullptr));
         lblTechMod->setText(QCoreApplication::translate("MainWindow", "Technicien", nullptr));
         lblTechMod->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "formLabel", nullptr)));
         editTechMod->setPlaceholderText(QCoreApplication::translate("MainWindow", "Sophie Dupont", nullptr));
         lblAddrMod->setText(QCoreApplication::translate("MainWindow", "Adresse", nullptr));
         lblAddrMod->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "formLabel", nullptr)));
         editAddrMod->setPlaceholderText(QCoreApplication::translate("MainWindow", "B012 - Rue du Commerce, Paris", nullptr));
+        lblSecDescMod->setText(QCoreApplication::translate("MainWindow", "\360\237\223\235  Description", nullptr));
         lblDescMod->setText(QCoreApplication::translate("MainWindow", "Description", nullptr));
         lblDescMod->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "formLabel", nullptr)));
         txtDescMod->setPlaceholderText(QCoreApplication::translate("MainWindow", "Remplacement de la batterie apres detection de faible charge...", nullptr));
+        lblSecPhotoMod->setText(QCoreApplication::translate("MainWindow", "\360\237\223\267  Photos Avant / Apr\303\250s", nullptr));
         lblPhotosAvantMod->setText(QCoreApplication::translate("MainWindow", "Photos Avant / Apres", nullptr));
         lblPhotosAvantMod->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "formLabel", nullptr)));
-        lblImgPreview_Mod->setText(QCoreApplication::translate("MainWindow", "Ici tes images AVANT / APR\303\210S (maquette)", nullptr));
+        lblImgPreview_Mod->setText(QCoreApplication::translate("MainWindow", "\360\237\223\267  D\303\251posez vos images AVANT / APR\303\210S ici", nullptr));
         lblLastUpdate->setText(QCoreApplication::translate("MainWindow", "Derniere modification : 25 avril 2024 a 10:00", nullptr));
-        btnSave_Mod->setText(QCoreApplication::translate("MainWindow", "Enregistrer", nullptr));
-        btnCancel_Mod->setText(QCoreApplication::translate("MainWindow", "Annuler", nullptr));
-        wasteguardhead_Client->setText(QCoreApplication::translate("MainWindow", "WasteGuard - Gestion de Clients", nullptr));
-        responsable_Client->setText(QCoreApplication::translate("MainWindow", "Responsable Commercial", nullptr));
-        rep->setText(QCoreApplication::translate("MainWindow", "<html><body><p><span style=\" font-size:16pt; color:black;\">R\303\251pertoire des Clients</span></p></body></html>", nullptr));
-        lblTrier->setText(QCoreApplication::translate("MainWindow", "Trier par :", nullptr));
-        cbTrier->setItemText(0, QCoreApplication::translate("MainWindow", "R\303\251ference", nullptr));
-        cbTrier->setItemText(1, QCoreApplication::translate("MainWindow", "Nom", nullptr));
-
-        recherche->setPlaceholderText(QCoreApplication::translate("MainWindow", "Rechercher...", nullptr));
+        btnCancel_Mod->setText(QCoreApplication::translate("MainWindow", "\342\235\214  Annuler", nullptr));
+        btnSave_Mod->setText(QCoreApplication::translate("MainWindow", "\342\234\205  Enregistrer", nullptr));
+        wasteguardhead_Client->setText(QCoreApplication::translate("MainWindow", "Gestion de Clients", nullptr));
         btnNouveau_Client->setText(QCoreApplication::translate("MainWindow", "+ Ajouter", nullptr));
+        responsable_Client->setText(QCoreApplication::translate("MainWindow", "Admin System\n"
+"Responsable Commercial", nullptr));
+        recherche->setPlaceholderText(QCoreApplication::translate("MainWindow", "\360\237\224\215  Rechercher (Matricule, Nom, Email)...", nullptr));
+        lblTrier->setText(QCoreApplication::translate("MainWindow", "Contrat :", nullptr));
+        cbTrier->setItemText(0, QCoreApplication::translate("MainWindow", "Tous", nullptr));
+        cbTrier->setItemText(1, QCoreApplication::translate("MainWindow", "Mensuel", nullptr));
+        cbTrier->setItemText(2, QCoreApplication::translate("MainWindow", "Trimestriel", nullptr));
+        cbTrier->setItemText(3, QCoreApplication::translate("MainWindow", "Annuel", nullptr));
+
+        cbTrier->setCurrentText(QCoreApplication::translate("MainWindow", "Type de contrat", nullptr));
         QTableWidgetItem *___qtablewidgetitem52 = tableWidget_Client->horizontalHeaderItem(0);
         ___qtablewidgetitem52->setText(QCoreApplication::translate("MainWindow", "Matricule", nullptr));
         QTableWidgetItem *___qtablewidgetitem53 = tableWidget_Client->horizontalHeaderItem(1);
@@ -6657,55 +7709,62 @@ public:
         pilotage->setText(QCoreApplication::translate("MainWindow", "Pilotage Commercial", nullptr));
         label1->setText(QCoreApplication::translate("MainWindow", "+12.4%", nullptr));
         label2->setText(QCoreApplication::translate("MainWindow", "Croissance Mensuelle", nullptr));
-        facture->setText(QCoreApplication::translate("MainWindow", "Facturation Globale", nullptr));
-        score->setText(QCoreApplication::translate("MainWindow", "Scoring", nullptr));
-        exportclient->setText(QCoreApplication::translate("MainWindow", "Export Clients", nullptr));
+        exportclient->setText(QCoreApplication::translate("MainWindow", "\360\237\223\204  Export PDF", nullptr));
+        btnGoStats_Client->setText(QCoreApplication::translate("MainWindow", "\360\237\223\212  Statistiques", nullptr));
         label3->setText(QCoreApplication::translate("MainWindow", "Ajouter un Nouveau Client", nullptr));
-        label4->setText(QCoreApplication::translate("MainWindow", "Matricule:", nullptr));
-        label5->setText(QCoreApplication::translate("MainWindow", "Nom:", nullptr));
-        label6->setText(QCoreApplication::translate("MainWindow", "Email:", nullptr));
-        label7->setText(QCoreApplication::translate("MainWindow", "Bacs:", nullptr));
-        label8->setText(QCoreApplication::translate("MainWindow", "Score:", nullptr));
-        label9->setText(QCoreApplication::translate("MainWindow", "Paiement:", nullptr));
+        lbl_matricule_a->setText(QCoreApplication::translate("MainWindow", "Matricule:", nullptr));
+        lbl_nom_a->setText(QCoreApplication::translate("MainWindow", "Nom:", nullptr));
+        lbl_email_a->setText(QCoreApplication::translate("MainWindow", "Email:", nullptr));
+        lbl_contrat_a->setText(QCoreApplication::translate("MainWindow", "Type Contrat:", nullptr));
+        input_contrat_ajouter->setItemText(0, QCoreApplication::translate("MainWindow", "Mensuel", nullptr));
+        input_contrat_ajouter->setItemText(1, QCoreApplication::translate("MainWindow", "Trimestriel", nullptr));
+        input_contrat_ajouter->setItemText(2, QCoreApplication::translate("MainWindow", "Annuel", nullptr));
+
+        lbl_paiement_a->setText(QCoreApplication::translate("MainWindow", "Statut Paiement:", nullptr));
         input_paiement_ajouter->setItemText(0, QCoreApplication::translate("MainWindow", "Pay\303\251", nullptr));
         input_paiement_ajouter->setItemText(1, QCoreApplication::translate("MainWindow", "En Retard", nullptr));
 
         btn_annuler_ajouter->setText(QCoreApplication::translate("MainWindow", "Annuler", nullptr));
         btn_save_ajouter->setText(QCoreApplication::translate("MainWindow", "Ajouter Client", nullptr));
-        label10->setText(QCoreApplication::translate("MainWindow", "Modifier les Informations du Client", nullptr));
-        label11->setText(QCoreApplication::translate("MainWindow", "Matricule:", nullptr));
-        label12->setText(QCoreApplication::translate("MainWindow", "Nom:", nullptr));
-        label13->setText(QCoreApplication::translate("MainWindow", "Email:", nullptr));
-        label14->setText(QCoreApplication::translate("MainWindow", "Bacs:", nullptr));
-        label15->setText(QCoreApplication::translate("MainWindow", "Score:", nullptr));
-        label16->setText(QCoreApplication::translate("MainWindow", "Paiement:", nullptr));
+        label4->setText(QCoreApplication::translate("MainWindow", "Modifier les Informations du Client", nullptr));
+        lbl_matricule_m->setText(QCoreApplication::translate("MainWindow", "Matricule:", nullptr));
+        lbl_nom_m->setText(QCoreApplication::translate("MainWindow", "Nom:", nullptr));
+        lbl_email_m->setText(QCoreApplication::translate("MainWindow", "Email:", nullptr));
+        lbl_contrat_m->setText(QCoreApplication::translate("MainWindow", "Type Contrat:", nullptr));
+        input_contrat_modifier->setItemText(0, QCoreApplication::translate("MainWindow", "Mensuel", nullptr));
+        input_contrat_modifier->setItemText(1, QCoreApplication::translate("MainWindow", "Trimestriel", nullptr));
+        input_contrat_modifier->setItemText(2, QCoreApplication::translate("MainWindow", "Annuel", nullptr));
+
+        lbl_paiement_m->setText(QCoreApplication::translate("MainWindow", "Statut Paiement:", nullptr));
         input_paiement_modifier->setItemText(0, QCoreApplication::translate("MainWindow", "Pay\303\251", nullptr));
         input_paiement_modifier->setItemText(1, QCoreApplication::translate("MainWindow", "En Retard", nullptr));
 
         btn_annuler_modifier->setText(QCoreApplication::translate("MainWindow", "Annuler", nullptr));
         btn_save_modifier->setText(QCoreApplication::translate("MainWindow", "Enregistrer Modifications", nullptr));
-        lb_1->setText(QCoreApplication::translate("MainWindow", "TABLEAU DE BORD", nullptr));
+        lblStatsTitle_client->setText(QCoreApplication::translate("MainWindow", "\360\237\223\212  EcoScore Client \342\200\224 Taux de Tri Correct", nullptr));
+        btnRetour_stats_client->setText(QCoreApplication::translate("MainWindow", "\342\206\220 Retour", nullptr));
+        lb_1->setText(QCoreApplication::translate("MainWindow", "Tableau de Bord", nullptr));
+        btnAddDashboard->setText(QCoreApplication::translate("MainWindow", "+ Ajouter", nullptr));
         user_1->setText(QCoreApplication::translate("MainWindow", "Admin System\n"
 "Chef d'Atelier", nullptr));
         btnnotif_1->setText(QCoreApplication::translate("MainWindow", "\360\237\224\224", nullptr));
         btnprofil_1->setText(QCoreApplication::translate("MainWindow", "\360\237\221\244", nullptr));
         lblSort_dashboard->setText(QCoreApplication::translate("MainWindow", "Trier par :", nullptr));
-        cbSortDashboard->setItemText(0, QCoreApplication::translate("MainWindow", "R\303\203\302\251f\303\203\302\251rence", nullptr));
+        cbSortDashboard->setItemText(0, QCoreApplication::translate("MainWindow", "R\357\277\275f\357\277\275rence", nullptr));
         cbSortDashboard->setItemText(1, QCoreApplication::translate("MainWindow", "Prix (Croissant)", nullptr));
-        cbSortDashboard->setItemText(2, QCoreApplication::translate("MainWindow", "Prix (D\303\203\302\251croissant)", nullptr));
+        cbSortDashboard->setItemText(2, QCoreApplication::translate("MainWindow", "Prix (D\357\277\275croissant)", nullptr));
         cbSortDashboard->setItemText(3, QCoreApplication::translate("MainWindow", "Stock", nullptr));
         cbSortDashboard->setItemText(4, QCoreApplication::translate("MainWindow", "Date de Commande", nullptr));
         cbSortDashboard->setItemText(5, QCoreApplication::translate("MainWindow", "Status", nullptr));
 
         searchInputDashboard->setPlaceholderText(QCoreApplication::translate("MainWindow", "Rechercher...", nullptr));
-        btnAddDashboard->setText(QCoreApplication::translate("MainWindow", "+ Ajouter", nullptr));
         btnTempToModifier->setText(QCoreApplication::translate("MainWindow", "Modifier (Temp)", nullptr));
         QTableWidgetItem *___qtablewidgetitem59 = tableDashboard->horizontalHeaderItem(0);
         ___qtablewidgetitem59->setText(QCoreApplication::translate("MainWindow", "ID Commande", nullptr));
         QTableWidgetItem *___qtablewidgetitem60 = tableDashboard->horizontalHeaderItem(1);
-        ___qtablewidgetitem60->setText(QCoreApplication::translate("MainWindow", "Quantit\303\203\302\251", nullptr));
+        ___qtablewidgetitem60->setText(QCoreApplication::translate("MainWindow", "Quantit\357\277\275", nullptr));
         QTableWidgetItem *___qtablewidgetitem61 = tableDashboard->horizontalHeaderItem(2);
-        ___qtablewidgetitem61->setText(QCoreApplication::translate("MainWindow", "Priorit\303\203\302\251", nullptr));
+        ___qtablewidgetitem61->setText(QCoreApplication::translate("MainWindow", "Priorit\357\277\275", nullptr));
         QTableWidgetItem *___qtablewidgetitem62 = tableDashboard->horizontalHeaderItem(3);
         ___qtablewidgetitem62->setText(QCoreApplication::translate("MainWindow", "Status", nullptr));
         QTableWidgetItem *___qtablewidgetitem63 = tableDashboard->horizontalHeaderItem(4);
@@ -6718,25 +7777,16 @@ public:
         ___qtablewidgetitem66->setText(QCoreApplication::translate("MainWindow", "Date Livraison", nullptr));
         QTableWidgetItem *___qtablewidgetitem67 = tableDashboard->horizontalHeaderItem(8);
         ___qtablewidgetitem67->setText(QCoreApplication::translate("MainWindow", "Prix Total", nullptr));
-        lblFunc1->setText(QCoreApplication::translate("MainWindow", "INFOS GLOBALES", nullptr));
-        stat11->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statCard", nullptr)));
-        st_val11->setText(QCoreApplication::translate("MainWindow", "1,245", nullptr));
-        st_val11->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statValue", nullptr)));
-        st_lbl11->setText(QCoreApplication::translate("MainWindow", "Total Commandes", nullptr));
-        st_lbl11->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statLabel", nullptr)));
-        stat21->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statCard", nullptr)));
-        st_val21->setText(QCoreApplication::translate("MainWindow", "85,400 TND", nullptr));
-        st_val21->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statValue", nullptr)));
-        st_lbl21->setText(QCoreApplication::translate("MainWindow", "Valeur Stock", nullptr));
-        st_lbl21->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statLabel", nullptr)));
-        stat31->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "alertCard", nullptr)));
-        st_val31->setText(QCoreApplication::translate("MainWindow", "\342\232\240 5", nullptr));
-        st_val31->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "alertValue", nullptr)));
-        st_lbl31->setText(QCoreApplication::translate("MainWindow", "Commandes Annul\303\251e", nullptr));
-        st_lbl31->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statLabel", nullptr)));
-        lblExport1->setText(QCoreApplication::translate("MainWindow", "EXPORTER", nullptr));
-        btnPdf1->setText(QCoreApplication::translate("MainWindow", "Rapport des Commandes PDF", nullptr));
-        btnCsv1->setText(QCoreApplication::translate("MainWindow", "Export Facture", nullptr));
+        lblSort_2->setText(QCoreApplication::translate("MainWindow", "Trier par :", nullptr));
+        cbSort_2->setItemText(0, QCoreApplication::translate("MainWindow", "R\303\251f\303\251rence", nullptr));
+        cbSort_2->setItemText(1, QCoreApplication::translate("MainWindow", "Prix (Croissant)", nullptr));
+        cbSort_2->setItemText(2, QCoreApplication::translate("MainWindow", "Prix (D\303\251croissant)", nullptr));
+        cbSort_2->setItemText(3, QCoreApplication::translate("MainWindow", "Stock", nullptr));
+        cbSort_2->setItemText(4, QCoreApplication::translate("MainWindow", "Date de Commande", nullptr));
+        cbSort_2->setItemText(5, QCoreApplication::translate("MainWindow", "Status", nullptr));
+
+        searchInput_2->setPlaceholderText(QCoreApplication::translate("MainWindow", "Rechercher...", nullptr));
+        btnAddProduct_2->setText(QCoreApplication::translate("MainWindow", "+ Ajouter", nullptr));
         QTableWidgetItem *___qtablewidgetitem68 = tableProduits_2->horizontalHeaderItem(0);
         ___qtablewidgetitem68->setText(QCoreApplication::translate("MainWindow", "ID Commande", nullptr));
         QTableWidgetItem *___qtablewidgetitem69 = tableProduits_2->horizontalHeaderItem(1);
@@ -6755,29 +7805,38 @@ public:
         ___qtablewidgetitem75->setText(QCoreApplication::translate("MainWindow", "Date Livraison", nullptr));
         QTableWidgetItem *___qtablewidgetitem76 = tableProduits_2->horizontalHeaderItem(8);
         ___qtablewidgetitem76->setText(QCoreApplication::translate("MainWindow", "Prix Total", nullptr));
-        lblSort_2->setText(QCoreApplication::translate("MainWindow", "Trier par :", nullptr));
-        cbSort_2->setItemText(0, QCoreApplication::translate("MainWindow", "R\303\251f\303\251rence", nullptr));
-        cbSort_2->setItemText(1, QCoreApplication::translate("MainWindow", "Prix (Croissant)", nullptr));
-        cbSort_2->setItemText(2, QCoreApplication::translate("MainWindow", "Prix (D\303\251croissant)", nullptr));
-        cbSort_2->setItemText(3, QCoreApplication::translate("MainWindow", "Stock", nullptr));
-        cbSort_2->setItemText(4, QCoreApplication::translate("MainWindow", "Date de Commande", nullptr));
-        cbSort_2->setItemText(5, QCoreApplication::translate("MainWindow", "Status", nullptr));
-
-        searchInput_2->setPlaceholderText(QCoreApplication::translate("MainWindow", "Rechercher...", nullptr));
-        btnAddProduct_2->setText(QCoreApplication::translate("MainWindow", "+ Ajouter", nullptr));
+        lblFunc_Cmd->setText(QCoreApplication::translate("MainWindow", "INFOS GLOBALES", nullptr));
+        stat1_Cmd->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statCard", nullptr)));
+        st_val1_Cmd->setText(QCoreApplication::translate("MainWindow", "1,245", nullptr));
+        st_val1_Cmd->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statValue", nullptr)));
+        st_lbl1_Cmd->setText(QCoreApplication::translate("MainWindow", "Total des Commandes", nullptr));
+        st_lbl1_Cmd->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statLabel", nullptr)));
+        stat2_Cmd->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statCard", nullptr)));
+        st_val2_Cmd->setText(QCoreApplication::translate("MainWindow", "85,400 TND", nullptr));
+        st_val2_Cmd->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statValue", nullptr)));
+        st_lbl2_Cmd->setText(QCoreApplication::translate("MainWindow", "Chiffre d'Affaire", nullptr));
+        st_lbl2_Cmd->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statLabel", nullptr)));
+        stat3_Cmd->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statCard", nullptr)));
+        st_val3_Cmd->setText(QCoreApplication::translate("MainWindow", "3", nullptr));
+        st_val3_Cmd->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statValue", nullptr)));
+        st_lbl3_Cmd->setText(QCoreApplication::translate("MainWindow", "Bacs Vendus", nullptr));
+        st_lbl3_Cmd->setProperty("class", QVariant(QCoreApplication::translate("MainWindow", "statLabel", nullptr)));
+        btnGoStats_Cmd->setText(QCoreApplication::translate("MainWindow", "Statistiques", nullptr));
+        lblExport_Cmd->setText(QCoreApplication::translate("MainWindow", "EXPORTER", nullptr));
+        btnPdf_Cmd->setText(QCoreApplication::translate("MainWindow", "Rapport PDF Commandes", nullptr));
         lb_5->setText(QCoreApplication::translate("MainWindow", "AJOUTER UNE COMMANDE", nullptr));
         user_5->setText(QCoreApplication::translate("MainWindow", "Admin System\n"
 "Chef d'Atelier", nullptr));
         btnnotif_5->setText(QCoreApplication::translate("MainWindow", "\360\237\224\224", nullptr));
         btnprofil_5->setText(QCoreApplication::translate("MainWindow", "\360\237\221\244", nullptr));
-        lblTitleMod_3->setText(QCoreApplication::translate("MainWindow", "Ajouter Une Commande", nullptr));
+        lblTitleMod_3->setText(QCoreApplication::translate("MainWindow", "\360\237\223\213  Ajouter Une Commande", nullptr));
         l_px_4->setText(QCoreApplication::translate("MainWindow", "Prix (TND)", nullptr));
         l1_4->setText(QCoreApplication::translate("MainWindow", "R\303\251f\303\251rence", nullptr));
         l_stat_4->setText(QCoreApplication::translate("MainWindow", "Statut", nullptr));
-        ln_ref_add_4->setPlaceholderText(QCoreApplication::translate("MainWindow", "REF-2024", nullptr));
+        cb_client_add->setPlaceholderText(QCoreApplication::translate("MainWindow", "Selectionner Client", nullptr));
         cb_model_add_4->setItemText(0, QCoreApplication::translate("MainWindow", "Normale", nullptr));
         cb_model_add_4->setItemText(1, QCoreApplication::translate("MainWindow", "Importante", nullptr));
-        cb_model_add_4->setItemText(2, QCoreApplication::translate("MainWindow", "tr\303\250s importante", nullptr));
+        cb_model_add_4->setItemText(2, QCoreApplication::translate("MainWindow", "tr\303\251s importante", nullptr));
         cb_model_add_4->setItemText(3, QCoreApplication::translate("MainWindow", "Urgente", nullptr));
 
         cb_status_add_4->setItemText(0, QCoreApplication::translate("MainWindow", "Confirmation Pendante", nullptr));
@@ -6788,7 +7847,8 @@ public:
 
         l_qty_4->setText(QCoreApplication::translate("MainWindow", "Quantit\303\251", nullptr));
         l2_4->setText(QCoreApplication::translate("MainWindow", "Priorit\303\251", nullptr));
-        label_27->setText(QCoreApplication::translate("MainWindow", "Date Demande :", nullptr));
+        lblSectionDates->setText(QCoreApplication::translate("MainWindow", "\360\237\223\205  Dates", nullptr));
+        label_27->setText(QCoreApplication::translate("MainWindow", "\360\237\223\206  Date Demande :", nullptr));
         label_28->setText(QCoreApplication::translate("MainWindow", "Jour", nullptr));
         comboBox_19->setItemText(0, QCoreApplication::translate("MainWindow", "--", nullptr));
 
@@ -6798,7 +7858,7 @@ public:
         label_30->setText(QCoreApplication::translate("MainWindow", "Ann\303\251e", nullptr));
         comboBox_21->setItemText(0, QCoreApplication::translate("MainWindow", "----", nullptr));
 
-        label_31->setText(QCoreApplication::translate("MainWindow", "Date Livraison :", nullptr));
+        label_31->setText(QCoreApplication::translate("MainWindow", "\360\237\223\246  Date Livraison :", nullptr));
         label_32->setText(QCoreApplication::translate("MainWindow", "Jour", nullptr));
         comboBox_22->setItemText(0, QCoreApplication::translate("MainWindow", "--", nullptr));
 
@@ -6808,15 +7868,17 @@ public:
         label_34->setText(QCoreApplication::translate("MainWindow", "Ann\303\251e", nullptr));
         comboBox_24->setItemText(0, QCoreApplication::translate("MainWindow", "----", nullptr));
 
-        label17->setText(QCoreApplication::translate("MainWindow", "Adresse de livraison", nullptr));
-        btnSave_Mod_3->setText(QCoreApplication::translate("MainWindow", "Sauvegarder", nullptr));
-        btnCancel_Mod_3->setText(QCoreApplication::translate("MainWindow", "Annuler", nullptr));
+        lblSectionAdresse->setText(QCoreApplication::translate("MainWindow", "\360\237\223\215  Adresse de Livraison", nullptr));
+        label5->setText(QCoreApplication::translate("MainWindow", "Adresse de livraison", nullptr));
+        textEdit->setPlaceholderText(QCoreApplication::translate("MainWindow", "Entrez l'adresse de livraison...", nullptr));
+        btnSave_Mod_3->setText(QCoreApplication::translate("MainWindow", "\342\234\205  Sauvegarder", nullptr));
+        btnCancel_Mod_3->setText(QCoreApplication::translate("MainWindow", "\342\235\214  Annuler", nullptr));
         lb_3->setText(QCoreApplication::translate("MainWindow", "MODIFIER UNE COMMANDE", nullptr));
         user_3->setText(QCoreApplication::translate("MainWindow", "Admin System\n"
 "Chef d'Atelier", nullptr));
         btnnotif_3->setText(QCoreApplication::translate("MainWindow", "\360\237\224\224", nullptr));
         btnprofil_3->setText(QCoreApplication::translate("MainWindow", "\360\237\221\244", nullptr));
-        lblTitleMod->setText(QCoreApplication::translate("MainWindow", "Modifier Une Commande", nullptr));
+        lblTitleMod->setText(QCoreApplication::translate("MainWindow", "\342\234\217\357\270\217  Modifier Une Commande", nullptr));
         l_stat_2->setText(QCoreApplication::translate("MainWindow", "Statut", nullptr));
         l_qty_2->setText(QCoreApplication::translate("MainWindow", "Quantit\303\251", nullptr));
         cb_status_add_2->setItemText(0, QCoreApplication::translate("MainWindow", "Confirmation Pendante", nullptr));
@@ -6828,13 +7890,13 @@ public:
         l_px_2->setText(QCoreApplication::translate("MainWindow", "Prix (TND)", nullptr));
         l2_2->setText(QCoreApplication::translate("MainWindow", "Priorit\303\251", nullptr));
         l1_2->setText(QCoreApplication::translate("MainWindow", "R\303\251f\303\251rence", nullptr));
-        ln_ref_add_2->setPlaceholderText(QCoreApplication::translate("MainWindow", "REF-2024", nullptr));
         cb_model_add_2->setItemText(0, QCoreApplication::translate("MainWindow", "Normale", nullptr));
         cb_model_add_2->setItemText(1, QCoreApplication::translate("MainWindow", "Importante", nullptr));
-        cb_model_add_2->setItemText(2, QCoreApplication::translate("MainWindow", "tr\303\250s importante", nullptr));
+        cb_model_add_2->setItemText(2, QCoreApplication::translate("MainWindow", "tr\303\251s importante", nullptr));
         cb_model_add_2->setItemText(3, QCoreApplication::translate("MainWindow", "Urgente", nullptr));
 
-        label_11->setText(QCoreApplication::translate("MainWindow", "Date Demande :", nullptr));
+        lblSectionDates_Mod->setText(QCoreApplication::translate("MainWindow", "\360\237\223\205  Dates", nullptr));
+        label_11->setText(QCoreApplication::translate("MainWindow", "\360\237\223\206  Date Demande :", nullptr));
         label_12->setText(QCoreApplication::translate("MainWindow", "Jour", nullptr));
         comboBox_7->setItemText(0, QCoreApplication::translate("MainWindow", "--", nullptr));
 
@@ -6844,7 +7906,7 @@ public:
         label_14->setText(QCoreApplication::translate("MainWindow", "Ann\303\251e", nullptr));
         comboBox_9->setItemText(0, QCoreApplication::translate("MainWindow", "----", nullptr));
 
-        label_19->setText(QCoreApplication::translate("MainWindow", "Date Livraison :", nullptr));
+        label_19->setText(QCoreApplication::translate("MainWindow", "\360\237\223\246  Date Livraison :", nullptr));
         label_20->setText(QCoreApplication::translate("MainWindow", "Jour", nullptr));
         comboBox_13->setItemText(0, QCoreApplication::translate("MainWindow", "--", nullptr));
 
@@ -6854,9 +7916,11 @@ public:
         label_22->setText(QCoreApplication::translate("MainWindow", "Ann\303\251e", nullptr));
         comboBox_15->setItemText(0, QCoreApplication::translate("MainWindow", "----", nullptr));
 
+        lblSectionAdresse_Mod->setText(QCoreApplication::translate("MainWindow", "\360\237\223\215  Adresse de Livraison", nullptr));
         label_6->setText(QCoreApplication::translate("MainWindow", "Adresse de livraison", nullptr));
-        btnSave_Mod1->setText(QCoreApplication::translate("MainWindow", "Sauvegarder", nullptr));
-        btnCancel_Mod1->setText(QCoreApplication::translate("MainWindow", "Annuler", nullptr));
+        textEdit_2->setPlaceholderText(QCoreApplication::translate("MainWindow", "Entrez l'adresse de livraison...", nullptr));
+        btnSave_CmdMod->setText(QCoreApplication::translate("MainWindow", "\342\234\205  Sauvegarder", nullptr));
+        btnCancel_CmdMod->setText(QCoreApplication::translate("MainWindow", "\342\235\214  Annuler", nullptr));
     } // retranslateUi
 
 };
