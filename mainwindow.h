@@ -118,6 +118,10 @@ private:
     void refreshEmployeActionButtons();
     Employe Etmp;
     void refreshEmployes();
+<<<<<<< HEAD
+=======
+    void applyEmployeSortAndFilter();
+>>>>>>> 51d1101 (ajout de fonctionnalité)
     // Produit
     void setupProduitModule();
     void applyStyleFix();

@@ -6,6 +6,11 @@
 #include <QPageSize>
 #include <QMarginsF>
 #include <QFileDialog>
+<<<<<<< HEAD
+=======
+#include <QDate>
+#include <QDir>
+>>>>>>> 51d1101 (ajout de fonctionnalité)
 
 
 
@@ -62,6 +67,11 @@
 #include <QListWidgetItem>
 
 #include <QLabel>
+<<<<<<< HEAD
+=======
+#include <QVector>
+#include <algorithm>
+>>>>>>> 51d1101 (ajout de fonctionnalité)
 
 
 
@@ -1651,6 +1661,22 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->btnDelete, &QPushButton::clicked, this, &MainWindow::on_btnSupprimer_clicked);
 
     connect(ui->btnFichePaie, &QPushButton::clicked, this, &MainWindow::on_btnFichePaie_clicked);
+<<<<<<< HEAD
+=======
+    if (ui->txtSearch && !ui->txtSearch->property("empSearchConnected").toBool()) {
+        ui->txtSearch->setClearButtonEnabled(true);
+        connect(ui->txtSearch, &QLineEdit::textChanged, this, [this](const QString &) {
+            applyEmployeSortAndFilter();
+        });
+        ui->txtSearch->setProperty("empSearchConnected", true);
+    }
+    if (ui->cbSort && !ui->cbSort->property("empSortConnected").toBool()) {
+        connect(ui->cbSort, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int) {
+            applyEmployeSortAndFilter();
+        });
+        ui->cbSort->setProperty("empSortConnected", true);
+    }
+>>>>>>> 51d1101 (ajout de fonctionnalité)
 
 
 
@@ -1921,8 +1947,153 @@ void MainWindow::refreshEmployes()
         installEmployeActionButtonsForRow(row); // garde ton système de boutons
     }
 
+<<<<<<< HEAD
     delete model;
 }
+=======
+    applyEmployeSortAndFilter();
+
+    delete model;
+}
+
+void MainWindow::applyEmployeSortAndFilter()
+{
+    if (!ui->tableEmployes) return;
+
+    struct EmpRowData {
+        int idEmp = 0;
+        QString matricule;
+        QString nom;
+        QString specialite;
+        QString disponibilite;
+        QString email;
+        QString cin;
+        int salaire = 1200;
+        int perf = 0;
+    };
+
+    int selectedId = -1;
+    const int selectedRow = ui->tableEmployes->currentRow();
+    if (selectedRow >= 0 && selectedRow < ui->tableEmployes->rowCount()) {
+        if (auto *selectedItem = ui->tableEmployes->item(selectedRow, 0)) {
+            selectedId = selectedItem->data(EMP_ROLE_ID).toInt();
+        }
+    }
+
+    QVector<EmpRowData> rows;
+    rows.reserve(ui->tableEmployes->rowCount());
+    for (int row = 0; row < ui->tableEmployes->rowCount(); ++row) {
+        auto *matItem = ui->tableEmployes->item(row, 0);
+        if (!matItem) continue;
+
+        EmpRowData rowData;
+        rowData.idEmp = matItem->data(EMP_ROLE_ID).toInt();
+        rowData.matricule = matItem->text();
+        rowData.email = matItem->data(EMP_ROLE_EMAIL).toString();
+        rowData.cin = matItem->data(EMP_ROLE_CIN).toString();
+        rowData.salaire = matItem->data(EMP_ROLE_SALAIRE).toInt();
+        rowData.perf = matItem->data(EMP_ROLE_PERF).toInt();
+        rowData.nom = ui->tableEmployes->item(row, 1) ? ui->tableEmployes->item(row, 1)->text() : QString();
+        rowData.specialite = ui->tableEmployes->item(row, 2) ? ui->tableEmployes->item(row, 2)->text() : QString();
+        rowData.disponibilite = ui->tableEmployes->item(row, 3) ? ui->tableEmployes->item(row, 3)->text() : QString();
+        rows.append(rowData);
+    }
+
+    const int sortIndex = ui->cbSort ? ui->cbSort->currentIndex() : 0;
+    std::stable_sort(rows.begin(), rows.end(), [sortIndex](const EmpRowData &a, const EmpRowData &b) {
+        switch (sortIndex) {
+        case 1:
+            if (a.perf != b.perf) return a.perf > b.perf;
+            break;
+        case 2:
+            if (a.salaire != b.salaire) return a.salaire > b.salaire;
+            break;
+        case 3: {
+            const int cmp = QString::compare(a.nom, b.nom, Qt::CaseInsensitive);
+            if (cmp != 0) return cmp < 0;
+            break;
+        }
+        case 0:
+        default: {
+            const int cmp = QString::compare(a.specialite, b.specialite, Qt::CaseInsensitive);
+            if (cmp != 0) return cmp < 0;
+            break;
+        }
+        }
+        return QString::compare(a.matricule, b.matricule, Qt::CaseInsensitive) < 0;
+    });
+
+    ui->tableEmployes->setRowCount(0);
+    for (const EmpRowData &rowData : rows) {
+        const int row = ui->tableEmployes->rowCount();
+        ui->tableEmployes->insertRow(row);
+
+        auto *matItem = new QTableWidgetItem(rowData.matricule);
+        matItem->setData(EMP_ROLE_ID, rowData.idEmp);
+        matItem->setData(EMP_ROLE_EMAIL, rowData.email);
+        matItem->setData(EMP_ROLE_CIN, rowData.cin);
+        matItem->setData(EMP_ROLE_SALAIRE, rowData.salaire);
+        matItem->setData(EMP_ROLE_PERF, rowData.perf);
+
+        ui->tableEmployes->setItem(row, 0, matItem);
+        ui->tableEmployes->setItem(row, 1, new QTableWidgetItem(rowData.nom));
+        ui->tableEmployes->setItem(row, 2, new QTableWidgetItem(rowData.specialite));
+        ui->tableEmployes->setItem(row, 3, new QTableWidgetItem(rowData.disponibilite));
+        installEmployeActionButtonsForRow(row);
+    }
+
+    const QString keyword = ui->txtSearch ? ui->txtSearch->text().trimmed() : QString();
+    for (int row = 0; row < ui->tableEmployes->rowCount(); ++row) {
+        const QString matricule = ui->tableEmployes->item(row, 0) ? ui->tableEmployes->item(row, 0)->text() : QString();
+        const QString nom = ui->tableEmployes->item(row, 1) ? ui->tableEmployes->item(row, 1)->text() : QString();
+        const QString specialite = ui->tableEmployes->item(row, 2) ? ui->tableEmployes->item(row, 2)->text() : QString();
+        const QString disponibilite = ui->tableEmployes->item(row, 3) ? ui->tableEmployes->item(row, 3)->text() : QString();
+
+        const bool match =
+            keyword.isEmpty() ||
+            matricule.contains(keyword, Qt::CaseInsensitive) ||
+            nom.contains(keyword, Qt::CaseInsensitive) ||
+            specialite.contains(keyword, Qt::CaseInsensitive) ||
+            disponibilite.contains(keyword, Qt::CaseInsensitive);
+
+        ui->tableEmployes->setRowHidden(row, !match);
+    }
+
+    currentEmployeRow = -1;
+    if (!m_isEmpCardView) {
+        ui->tableEmployes->clearSelection();
+    }
+
+    if (selectedId > 0) {
+        for (int row = 0; row < ui->tableEmployes->rowCount(); ++row) {
+            if (auto *matItem = ui->tableEmployes->item(row, 0)) {
+                if (matItem->data(EMP_ROLE_ID).toInt() == selectedId && !ui->tableEmployes->isRowHidden(row)) {
+                    if (!m_isEmpCardView) {
+                        ui->tableEmployes->selectRow(row);
+                    }
+                    currentEmployeRow = row;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (!m_isEmpCardView && currentEmployeRow < 0) {
+        for (int row = 0; row < ui->tableEmployes->rowCount(); ++row) {
+            if (!ui->tableEmployes->isRowHidden(row)) {
+                ui->tableEmployes->selectRow(row);
+                currentEmployeRow = row;
+                break;
+            }
+        }
+    }
+
+    if (m_isEmpCardView) {
+        m_empCurrentPage = 0;
+        refreshEmpCardView();
+    }
+}
+>>>>>>> 51d1101 (ajout de fonctionnalité)
 // --- NAVIGATION ---
 
 void MainWindow::on_btnNouveau_clicked()
@@ -2805,6 +2976,7 @@ void MainWindow::on_btnSimulerBadge_clicked()
 void MainWindow::on_btnFichePaie_clicked()
 
 {
+<<<<<<< HEAD
 
     QInputDialog dialog(this);
 
@@ -2866,6 +3038,295 @@ void MainWindow::on_btnFichePaie_clicked()
 
     }
 
+=======
+    if (!ui->tableEmployes) {
+        QMessageBox::warning(this, "Fiche de paie", "Table des employes introuvable.");
+        return;
+    }
+
+    QInputDialog dialog(this);
+    dialog.setWindowTitle("Fiche de Paie");
+    dialog.setLabelText("Veuillez entrer le matricule de l'employe :");
+    dialog.setTextValue("");
+    dialog.setInputMode(QInputDialog::TextInput);
+    dialog.resize(420, 200);
+    dialog.setStyleSheet(
+        "QDialog { background-color: white; }"
+        "QLabel { color: #333333; font-weight: bold; font-size: 14px; }"
+        "QLineEdit { border: 1px solid #ccc; border-radius: 5px; padding: 5px; color: black; }"
+        "QPushButton {"
+        "   background-color: #0f2b4c;"
+        "   color: white;"
+        "   border: none;"
+        "   border-radius: 5px;"
+        "   padding: 8px 15px;"
+        "   font-weight: bold;"
+        "   min-width: 70px;"
+        "}"
+        "QPushButton:hover { background-color: #1a4270; }"
+    );
+
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+
+    const QString matriculeInput = dialog.textValue().trimmed();
+    if (matriculeInput.isEmpty()) {
+        QMessageBox::warning(this, "Fiche de paie", "Matricule vide.");
+        return;
+    }
+
+    int empRow = -1;
+    for (int row = 0; row < ui->tableEmployes->rowCount(); ++row) {
+        if (auto *it = ui->tableEmployes->item(row, 0)) {
+            if (it->text().trimmed().compare(matriculeInput, Qt::CaseInsensitive) == 0) {
+                empRow = row;
+                break;
+            }
+        }
+    }
+
+    if (empRow < 0) {
+        QMessageBox::warning(this, "Fiche de paie", "Employe introuvable pour ce matricule.");
+        return;
+    }
+
+    auto textAt = [this, empRow](int col) -> QString {
+        if (!ui->tableEmployes) return QString();
+        if (auto *it = ui->tableEmployes->item(empRow, col))
+            return it->text().trimmed();
+        return QString();
+    };
+
+    const QString matricule = textAt(0);
+    const QString nom = textAt(1);
+    const QString specialite = textAt(2);
+    const QString disponibilite = textAt(3);
+
+    QString cin;
+    QString email;
+    int idEmp = empRow + 1;
+    int salaire = 1200;
+    int perf = 0;
+    if (auto *matItem = ui->tableEmployes->item(empRow, 0)) {
+        idEmp = matItem->data(EMP_ROLE_ID).toInt();
+        cin = matItem->data(EMP_ROLE_CIN).toString().trimmed();
+        email = matItem->data(EMP_ROLE_EMAIL).toString().trimmed();
+        const QVariant s = matItem->data(EMP_ROLE_SALAIRE);
+        const QVariant p = matItem->data(EMP_ROLE_PERF);
+        if (s.isValid()) salaire = s.toInt();
+        if (p.isValid()) perf = p.toInt();
+    }
+
+    if (salaire <= 0) salaire = 1200;
+    if (perf < 0) perf = 0;
+
+    const QDate today = QDate::currentDate();
+    const QDate periodStart(today.year(), today.month(), 1);
+    const QDate periodEnd = periodStart.addMonths(1).addDays(-1);
+    const QDate paymentDate = periodEnd.addDays(3);
+
+    const double base = static_cast<double>(salaire);
+    const double primePerf = base * (static_cast<double>(perf) / 100.0) * 0.10;
+    const double primeDispo = disponibilite.contains("dispon", Qt::CaseInsensitive) ? base * 0.05 : 0.0;
+    const double brut = base + primePerf + primeDispo;
+    const double cnssRate = 9.18;
+    const double retraiteRate = 6.0;
+    const double irppRate = 10.0;
+    const double cotCnss = brut * (cnssRate / 100.0);
+    const double cotRetraite = brut * (retraiteRate / 100.0);
+    const double baseIrpp = qMax(0.0, brut - cotCnss - cotRetraite);
+    const double cotIrpp = baseIrpp * (irppRate / 100.0);
+    const double totalRetenues = cotCnss + cotRetraite + cotIrpp;
+    const double net = qMax(0.0, brut - totalRetenues);
+
+    const QString safeMatricule = QString(matricule).replace(QRegularExpression("[^A-Za-z0-9_-]"), "_");
+    const QString defaultName = QString("Fiche_Paie_%1_%2.pdf")
+                                    .arg(safeMatricule.isEmpty() ? QString("EMP") : safeMatricule,
+                                         today.toString("yyyy_MM"));
+    QString fileName = QFileDialog::getSaveFileName(
+        this,
+        "Enregistrer la fiche de paie",
+        QDir::homePath() + "/" + defaultName,
+        "PDF (*.pdf)");
+
+    if (fileName.isEmpty())
+        return;
+
+    if (!fileName.endsWith(".pdf", Qt::CaseInsensitive))
+        fileName += ".pdf";
+
+    QPdfWriter writer(fileName);
+    writer.setPageSize(QPageSize(QPageSize::A4));
+    writer.setPageMargins(QMarginsF(10, 10, 10, 10));
+    writer.setResolution(150);
+
+    QPainter painter(&writer);
+    if (!painter.isActive()) {
+        QMessageBox::critical(this, "Fiche de paie", "Impossible de creer le PDF.");
+        return;
+    }
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setRenderHint(QPainter::TextAntialiasing);
+
+    const int pageW = writer.width();
+    const int pageH = writer.height();
+    Q_UNUSED(pageH);
+
+    auto money = [](double value) {
+        return QString("%1 TND").arg(QString::number(value, 'f', 2));
+    };
+    auto drawCell = [&painter](const QRect &rect, const QString &txt,
+                               const QColor &bg, const QColor &fg,
+                               Qt::Alignment align, bool bold = false) {
+        painter.fillRect(rect, bg);
+        painter.setPen(QColor("#3b82f6"));
+        painter.drawRect(rect);
+        QFont f("Segoe UI", 9, bold ? QFont::Bold : QFont::Normal);
+        painter.setFont(f);
+        painter.setPen(fg);
+        painter.drawText(rect.adjusted(8, 0, -8, 0), align | Qt::AlignVCenter, txt);
+    };
+
+    int y = 0;
+
+    // Header: company card
+    QRect companyRect(0, y, static_cast<int>(pageW * 0.58), 170);
+    painter.setPen(QPen(QColor("#3b82f6"), 2));
+    painter.setBrush(QColor("#f8fbff"));
+    painter.drawRoundedRect(companyRect, 12, 12);
+
+    QPixmap logo(":/wasteguard_logo.png");
+    if (logo.isNull()) logo.load(":/logo2.png");
+    if (logo.isNull()) logo.load("wasteguard_logo.png");
+    QRect logoRect(companyRect.right() - 128, companyRect.top() + 14, 110, 62);
+    if (!logo.isNull()) {
+        painter.drawPixmap(logoRect, logo.scaled(logoRect.size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    } else {
+        painter.setPen(QColor("#0f2b4c"));
+        painter.setFont(QFont("Segoe UI", 11, QFont::Bold));
+        painter.drawText(logoRect, Qt::AlignCenter, "WASTEGUARD");
+    }
+
+    painter.setPen(QColor("#0f2b4c"));
+    painter.setFont(QFont("Segoe UI", 13, QFont::Bold));
+    painter.drawText(companyRect.adjusted(14, 12, -140, 0), Qt::AlignLeft | Qt::AlignTop, "WASTEGUARD");
+    painter.setFont(QFont("Segoe UI", 9));
+    painter.drawText(companyRect.adjusted(14, 42, -140, 0), Qt::AlignLeft | Qt::AlignTop,
+                     "Ariana Soghra, Tunis\nTunisie\nSiret: 35055055300010\nCode NAF: 4331Z");
+    painter.setFont(QFont("Segoe UI", 8));
+    painter.drawText(companyRect.adjusted(14, 120, -14, -10), Qt::AlignLeft | Qt::AlignBottom,
+                     "Convention collective nationale des entreprises de vente a distance");
+
+    // Header right
+    const int rightX = companyRect.right() + 24;
+    painter.setPen(QColor("#0f2b4c"));
+    painter.setFont(QFont("Segoe UI", 24, QFont::Bold));
+    painter.drawText(QRect(rightX, y + 16, pageW - rightX, 48), Qt::AlignLeft | Qt::AlignVCenter, "Fiche de paie");
+    painter.setFont(QFont("Segoe UI", 11, QFont::Bold));
+    painter.drawText(QRect(rightX, y + 72, pageW - rightX, 22), Qt::AlignLeft | Qt::AlignVCenter,
+                     QString("Periode du : %1 au : %2")
+                         .arg(periodStart.toString("dd/MM/yyyy"), periodEnd.toString("dd/MM/yyyy")));
+    painter.drawText(QRect(rightX, y + 98, pageW - rightX, 22), Qt::AlignLeft | Qt::AlignVCenter,
+                     QString("Paiement le : %1").arg(paymentDate.toString("dd/MM/yyyy")));
+
+    y += 190;
+
+    // Employee block
+    painter.setPen(QColor("#0f172a"));
+    painter.setFont(QFont("Segoe UI", 10, QFont::Bold));
+    painter.drawText(10, y, QString("Matricule : %1").arg(matricule));
+    painter.drawText(10, y + 22, QString("ID Employe : %1").arg(idEmp > 0 ? QString::number(idEmp) : "-"));
+    painter.drawText(10, y + 44, QString("CIN : %1").arg(cin.isEmpty() ? "-" : cin));
+    painter.drawText(10, y + 66, QString("Emploi : %1").arg(specialite.isEmpty() ? "-" : specialite));
+    painter.drawText(10, y + 88, QString("Statut : %1").arg(disponibilite.isEmpty() ? "-" : disponibilite));
+
+    painter.setFont(QFont("Segoe UI", 15, QFont::Bold));
+    painter.drawText(QRect(static_cast<int>(pageW * 0.52), y - 6, static_cast<int>(pageW * 0.46), 34),
+                     Qt::AlignLeft | Qt::AlignVCenter,
+                     nom.isEmpty() ? "Employe" : nom.toUpper());
+    painter.setFont(QFont("Segoe UI", 10));
+    painter.drawText(QRect(static_cast<int>(pageW * 0.52), y + 28, static_cast<int>(pageW * 0.46), 54),
+                     Qt::AlignLeft | Qt::TextWordWrap,
+                     email.isEmpty() ? "Email non renseigne" : email);
+
+    y += 120;
+
+    // Payroll table
+    const int tableX = 0;
+    const int tableW = pageW;
+    const int rowH = 30;
+    const int colRub = static_cast<int>(tableW * 0.44);
+    const int colBase = static_cast<int>(tableW * 0.20);
+    const int colTaux = static_cast<int>(tableW * 0.14);
+    const int colMont = tableW - colRub - colBase - colTaux;
+    const QColor headBg("#dbeafe");
+    const QColor altBg("#f8fbff");
+    const QColor whiteBg("#ffffff");
+
+    drawCell(QRect(tableX, y, colRub, rowH), "Rubriques", headBg, QColor("#0f2b4c"), Qt::AlignCenter, true);
+    drawCell(QRect(tableX + colRub, y, colBase, rowH), "Base", headBg, QColor("#0f2b4c"), Qt::AlignCenter, true);
+    drawCell(QRect(tableX + colRub + colBase, y, colTaux, rowH), "Taux", headBg, QColor("#0f2b4c"), Qt::AlignCenter, true);
+    drawCell(QRect(tableX + colRub + colBase + colTaux, y, colMont, rowH), "Montant", headBg, QColor("#0f2b4c"), Qt::AlignCenter, true);
+    y += rowH;
+
+    struct PayslipLine {
+        QString rubrique;
+        QString baseText;
+        QString tauxText;
+        QString montantText;
+        bool important = false;
+    };
+
+    QVector<PayslipLine> lines = {
+        {"Salaire de base", money(base), "-", money(base), false},
+        {"Prime performance", money(base), QString::number(perf, 'f', 0) + "% x 10%", money(primePerf), false},
+        {"Prime disponibilite", money(base), disponibilite.contains("dispon", Qt::CaseInsensitive) ? "5.00%" : "0.00%", money(primeDispo), false},
+        {"Salaire brut", "", "", money(brut), true},
+        {"Cotisation CNSS", money(brut), QString::number(cnssRate, 'f', 2) + "%", money(cotCnss), false},
+        {"Retraite", money(brut), QString::number(retraiteRate, 'f', 2) + "%", money(cotRetraite), false},
+        {"IRPP", money(baseIrpp), QString::number(irppRate, 'f', 2) + "%", money(cotIrpp), false},
+        {"Total retenues", "", "", money(totalRetenues), true}
+    };
+
+    for (int i = 0; i < lines.size(); ++i) {
+        const PayslipLine &line = lines.at(i);
+        const QColor bg = line.important ? QColor("#eff6ff") : ((i % 2 == 0) ? whiteBg : altBg);
+        drawCell(QRect(tableX, y, colRub, rowH), line.rubrique, bg, QColor("#1e293b"), Qt::AlignLeft, line.important);
+        drawCell(QRect(tableX + colRub, y, colBase, rowH), line.baseText, bg, QColor("#1e293b"), Qt::AlignRight, line.important);
+        drawCell(QRect(tableX + colRub + colBase, y, colTaux, rowH), line.tauxText, bg, QColor("#1e293b"), Qt::AlignRight, line.important);
+        drawCell(QRect(tableX + colRub + colBase + colTaux, y, colMont, rowH), line.montantText, bg, QColor("#1e293b"), Qt::AlignRight, line.important);
+        y += rowH;
+    }
+
+    y += 14;
+
+    // Net box
+    QRect netLabelRect(0, y, static_cast<int>(tableW * 0.78), 42);
+    QRect netValueRect(netLabelRect.x() + netLabelRect.width(), y, tableW - netLabelRect.width(), 42);
+    painter.fillRect(netLabelRect, QColor("#dbeafe"));
+    painter.fillRect(netValueRect, QColor("#bfdbfe"));
+    painter.setPen(QPen(QColor("#2563eb"), 2));
+    painter.drawRect(netLabelRect);
+    painter.drawRect(netValueRect);
+
+    painter.setPen(QColor("#0f2b4c"));
+    painter.setFont(QFont("Segoe UI", 14, QFont::Bold));
+    painter.drawText(netLabelRect.adjusted(10, 0, -10, 0), Qt::AlignLeft | Qt::AlignVCenter, "NET A PAYER");
+    painter.setFont(QFont("Segoe UI", 16, QFont::Bold));
+    painter.drawText(netValueRect.adjusted(0, 0, -10, 0), Qt::AlignRight | Qt::AlignVCenter, money(net));
+
+    y += 64;
+
+    painter.setPen(QColor("#64748b"));
+    painter.setFont(QFont("Segoe UI", 8));
+    painter.drawText(QRect(0, y, tableW, 36), Qt::AlignCenter | Qt::TextWordWrap,
+                     "Bulletin de paie simplifie - Conservez cette fiche pendant la duree legale.");
+
+    painter.end();
+
+    QMessageBox::information(this, "Fiche de paie", "PDF genere avec succes:\n" + fileName);
+
+>>>>>>> 51d1101 (ajout de fonctionnalité)
 }
 
 
@@ -8616,7 +9077,23 @@ void MainWindow::refreshEmpCardView()
     QTableWidget *t = ui->tableEmployes;
     if (!t) return;
 
+<<<<<<< HEAD
     int totalItems = t->rowCount();
+=======
+    QVector<int> visibleRows;
+    visibleRows.reserve(t->rowCount());
+    for (int r = 0; r < t->rowCount(); ++r) {
+        if (!t->isRowHidden(r)) {
+            visibleRows.append(r);
+        }
+    }
+
+    int totalItems = visibleRows.size();
+    int maxPages = qMax(1, (totalItems + m_empItemsPerPage - 1) / m_empItemsPerPage);
+    if (m_empCurrentPage >= maxPages) {
+        m_empCurrentPage = maxPages - 1;
+    }
+>>>>>>> 51d1101 (ajout de fonctionnalité)
     int startIdx = m_empCurrentPage * m_empItemsPerPage;
     int endIdx = qMin(startIdx + m_empItemsPerPage, totalItems);
 
@@ -8624,7 +9101,11 @@ void MainWindow::refreshEmpCardView()
     const int COLS = 2;
 
     for (int i = startIdx; i < endIdx; ++i) {
+<<<<<<< HEAD
         QWidget *card = createEmployeeCard(i);
+=======
+        QWidget *card = createEmployeeCard(visibleRows.at(i));
+>>>>>>> 51d1101 (ajout de fonctionnalité)
         if (card) {
             m_empCardLayout->addWidget(card, row, col);
             ++col;
@@ -8638,7 +9119,10 @@ void MainWindow::refreshEmpCardView()
         QLabel *lblPage = pBarRoot->findChild<QLabel*>("emp_pagination_lblPage");
         QPushButton *btnPrev = pBarRoot->findChild<QPushButton*>("emp_pagination_btnPrev");
         QPushButton *btnNext = pBarRoot->findChild<QPushButton*>("emp_pagination_btnNext");
+<<<<<<< HEAD
         int maxPages = qMax(1, (totalItems + m_empItemsPerPage - 1) / m_empItemsPerPage);
+=======
+>>>>>>> 51d1101 (ajout de fonctionnalité)
         if (lblPage) lblPage->setText(QString("Page %1 sur %2").arg(m_empCurrentPage + 1).arg(maxPages));
         if (btnPrev) btnPrev->setEnabled(m_empCurrentPage > 0);
         if (btnNext) btnNext->setEnabled(m_empCurrentPage < maxPages - 1);
@@ -8844,8 +9328,19 @@ void MainWindow::on_emp_pagination_btnPrev_clicked()
 void MainWindow::on_emp_pagination_btnNext_clicked()
 {
     if (!ui->tableEmployes) return;
+<<<<<<< HEAD
     int totalItems = ui->tableEmployes->rowCount();
     int maxPages = (totalItems + m_empItemsPerPage - 1) / m_empItemsPerPage;
+=======
+    int totalItems = 0;
+    for (int row = 0; row < ui->tableEmployes->rowCount(); ++row) {
+        if (!ui->tableEmployes->isRowHidden(row)) {
+            ++totalItems;
+        }
+    }
+
+    int maxPages = qMax(1, (totalItems + m_empItemsPerPage - 1) / m_empItemsPerPage);
+>>>>>>> 51d1101 (ajout de fonctionnalité)
     if (m_empCurrentPage < maxPages - 1) {
         m_empCurrentPage++;
         refreshEmpCardView();
