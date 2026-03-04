@@ -1,4 +1,5 @@
-cd /d "c:\Users\moham\OneDrive\Documents\ProjetQT\WasteGuard"
-qmake
+@echo off
+cd /d "%~dp0"
+qmake WasteGuard.pro
 mingw32-make clean
 mingw32-make

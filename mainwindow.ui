@@ -3473,7 +3473,7 @@ QLabel#userLabel_Aj {
                                  </attribute>
                                  <column>
                                   <property name="text">
-                                   <string>Reference</string>
+                                   <string>R&#x00E9;f&#x00E9;rence</string>
                                   </property>
                                  </column>
                                  <column>
@@ -4035,7 +4035,7 @@ text-align: center;</string>
                                   <item row="0" column="0">
                                    <widget class="QLabel" name="prod_l1">
                                     <property name="text">
-                                     <string>Reference</string>
+                                     <string>R&#x00E9;f&#x00E9;rence</string>
                                     </property>
                                    </widget>
                                   </item>
@@ -4079,7 +4079,7 @@ text-align: center;</string>
                                   <item row="1" column="2">
                                    <widget class="QLabel" name="prod_l_qty">
                                     <property name="text">
-                                     <string>Quantite</string>
+                                     <string>Quantit&#x00E9;</string>
                                     </property>
                                    </widget>
                                   </item>
@@ -4429,7 +4429,7 @@ text-align: center;</string>
                                   <item row="1" column="2">
                                    <widget class="QLabel" name="prod_l_qty_m">
                                     <property name="text">
-                                     <string>Quantite</string>
+                                     <string>Quantit&#x00E9;</string>
                                     </property>
                                    </widget>
                                   </item>
@@ -4485,7 +4485,7 @@ text-align: center;</string>
                                   <item row="0" column="0">
                                    <widget class="QLabel" name="prod_l1_m">
                                     <property name="text">
-                                     <string>Reference</string>
+                                     <string>R&#x00E9;f&#x00E9;rence</string>
                                     </property>
                                    </widget>
                                   </item>
@@ -5260,7 +5260,7 @@ font-weight: 700;
 text-align: center;</string>
                      </property>
                      <property name="text">
-                      <string>Alertes ?ch?ance</string>
+                      <string>Alertes &#x00E9;ch&#x00E9;ance</string>
                      </property>
                     </widget>
                    </item>
@@ -5326,7 +5326,7 @@ text-align: center;</string>
                       <item>
                        <widget class="QLineEdit" name="inputRef_add">
                         <property name="placeholderText">
-                         <string>Reference (ex: REF-001)</string>
+                         <string>R&#x00E9;f&#x00E9;rence (ex: REF-001)</string>
                         </property>
                        </widget>
                       </item>
@@ -5708,7 +5708,7 @@ Chef d'Atelier</string>
                       <widget class="QComboBox" name="cbSort">
                        <item>
                         <property name="text">
-                         <string>Reference</string>
+                         <string>R&#x00E9;f&#x00E9;rence</string>
                         </property>
                        </item>
                        <item>
@@ -5718,17 +5718,17 @@ Chef d'Atelier</string>
                        </item>
                        <item>
                         <property name="text">
-                         <string>Prix (Decroissant)</string>
+                         <string>Prix (D&#x00E9;croissant)</string>
                         </property>
                        </item>
                        <item>
                         <property name="text">
-                         <string>Quantite</string>
+                         <string>Quantit&#x00E9;</string>
                         </property>
                        </item>
                        <item>
                         <property name="text">
-                         <string>Priorite</string>
+                         <string>Priorit&#x00E9;</string>
                         </property>
                        </item>
                       </widget>
@@ -5772,7 +5772,7 @@ Chef d'Atelier</string>
                         </attribute>
                         <column>
                          <property name="text">
-                          <string>Reference</string>
+                          <string>R&#x00E9;f&#x00E9;rence</string>
                          </property>
                         </column>
                         <column>
@@ -5787,17 +5787,17 @@ Chef d'Atelier</string>
                         </column>
                         <column>
                          <property name="text">
-                          <string>Co?t (TND)</string>
+                          <string>Co&#x00FB;t (TND)</string>
                          </property>
                         </column>
                         <column>
                          <property name="text">
-                          <string>Dur?e</string>
+                          <string>Dur&#x00E9;e</string>
                          </property>
                         </column>
                         <column>
                          <property name="text">
-                          <string>Priorit?</string>
+                          <string>Priorit&#x00E9;</string>
                          </property>
                         </column>
                         <column>
@@ -6012,7 +6012,7 @@ Chef d'Atelier</string>
                   <item>
                    <widget class="QLabel" name="lblMiniChartTitle">
                     <property name="text">
-                     <string>Repartition par Priorite</string>
+                     <string>Repartition par Priorit&#x00E9;</string>
                     </property>
                    </widget>
                   </item>
@@ -6295,7 +6295,7 @@ Chef d'Atelier</string>
                         <item>
                          <widget class="QLabel" name="lblRefAdd">
                           <property name="text">
-                           <string>Reference</string>
+                           <string>R&#x00E9;f&#x00E9;rence</string>
                           </property>
                           <property name="class" stdset="0">
                            <string>formLabel</string>
@@ -6341,7 +6341,7 @@ Chef d'Atelier</string>
                         <item>
                          <widget class="QLabel" name="lblDurAdd">
                           <property name="text">
-                           <string>Duree</string>
+                           <string>Dur&#x00E9;e</string>
                           </property>
                           <property name="class" stdset="0">
                            <string>formLabel</string>
@@ -6378,7 +6378,7 @@ Chef d'Atelier</string>
                         <item>
                          <widget class="QLabel" name="lblCoutAdd">
                           <property name="text">
-                           <string>Co?t</string>
+                           <string>Co&#x00FB;t</string>
                           </property>
                           <property name="class" stdset="0">
                            <string>formLabel</string>
@@ -6420,7 +6420,7 @@ Chef d'Atelier</string>
                         <item>
                          <widget class="QLabel" name="lblPrioAdd">
                           <property name="text">
-                           <string>Priorite</string>
+                           <string>Priorit&#x00E9;</string>
                           </property>
                           <property name="class" stdset="0">
                            <string>formLabel</string>
@@ -6441,7 +6441,7 @@ Chef d'Atelier</string>
                           </item>
                           <item>
                            <property name="text">
-                            <string>?lev?e</string>
+                            <string>&#x00C9;lev&#x00E9;e</string>
                            </property>
                           </item>
                          </widget>
@@ -6836,7 +6836,7 @@ Chef d'Atelier</string>
                         <item>
                          <widget class="QLabel" name="lblRefMod">
                           <property name="text">
-                           <string>Reference</string>
+                           <string>R&#x00E9;f&#x00E9;rence</string>
                           </property>
                           <property name="class" stdset="0">
                            <string>formLabel</string>
@@ -6882,7 +6882,7 @@ Chef d'Atelier</string>
                         <item>
                          <widget class="QLabel" name="lblDurMod">
                           <property name="text">
-                           <string>Duree</string>
+                           <string>Dur&#x00E9;e</string>
                           </property>
                           <property name="class" stdset="0">
                            <string>formLabel</string>
@@ -6919,7 +6919,7 @@ Chef d'Atelier</string>
                         <item>
                          <widget class="QLabel" name="lblCoutMod">
                           <property name="text">
-                           <string>Co?t</string>
+                           <string>Co&#x00FB;t</string>
                           </property>
                           <property name="class" stdset="0">
                            <string>formLabel</string>
@@ -6961,7 +6961,7 @@ Chef d'Atelier</string>
                         <item>
                          <widget class="QLabel" name="lblPrioMod">
                           <property name="text">
-                           <string>Priorite</string>
+                           <string>Priorit&#x00E9;</string>
                           </property>
                           <property name="class" stdset="0">
                            <string>formLabel</string>
@@ -6982,7 +6982,7 @@ Chef d'Atelier</string>
                           </item>
                           <item>
                            <property name="text">
-                            <string>?lev?e</string>
+                            <string>&#x00C9;lev&#x00E9;e</string>
                            </property>
                           </item>
                          </widget>
@@ -7338,7 +7338,7 @@ Responsable Commercial</string>
                  <item>
                   <widget class="QLabel" name="rep">
                    <property name="text">
-                    <string>&lt;html&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:16pt; color:black;&quot;&gt;R?pertoire des Clients&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                    <string>&lt;html&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:16pt; color:black;&quot;&gt;R&#x00E9;pertoire des Clients&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                    </property>
                   </widget>
                  </item>
@@ -7384,7 +7384,7 @@ Responsable Commercial</string>
                    </property>
                    <item>
                     <property name="text">
-                     <string>R?ference</string>
+                     <string>R&#x00E9;f&#x00E9;rence</string>
                     </property>
                    </item>
                    <item>
@@ -8221,7 +8221,7 @@ Chef d'Atelier</string>
                       <widget class="QComboBox" name="cbSortDashboard">
                        <item>
                         <property name="text">
-                         <string>R�f�rence</string>
+                         <string>R&#x00E9;f&#x00E9;rence</string>
                         </property>
                        </item>
                        <item>
@@ -8231,7 +8231,7 @@ Chef d'Atelier</string>
                        </item>
                        <item>
                         <property name="text">
-                         <string>Prix (D�croissant)</string>
+                         <string>Prix (D&#x00E9;croissant)</string>
                         </property>
                        </item>
                        <item>
@@ -8282,12 +8282,12 @@ Chef d'Atelier</string>
                      </column>
                      <column>
                       <property name="text">
-                       <string>Quantit�</string>
+                       <string>Quantit&#x00E9;</string>
                       </property>
                      </column>
                      <column>
                       <property name="text">
-                       <string>Priorit�</string>
+                       <string>Priorit&#x00E9;</string>
                       </property>
                      </column>
                      <column>
@@ -8356,7 +8356,7 @@ Chef d'Atelier</string>
                       <widget class="QComboBox" name="cbSort_2">
                        <item>
                         <property name="text">
-                         <string>R?f?rence</string>
+                         <string>R&#x00E9;f&#x00E9;rence</string>
                         </property>
                        </item>
                        <item>
@@ -8366,7 +8366,7 @@ Chef d'Atelier</string>
                        </item>
                        <item>
                         <property name="text">
-                         <string>Prix (D?croissant)</string>
+                         <string>Prix (D&#x00E9;croissant)</string>
                         </property>
                        </item>
                        <item>
@@ -8423,12 +8423,12 @@ Chef d'Atelier</string>
                      </column>
                      <column>
                       <property name="text">
-                       <string>Quantit?</string>
+                       <string>Quantit&#x00E9;</string>
                       </property>
                      </column>
                      <column>
                       <property name="text">
-                       <string>Priorit?</string>
+                       <string>Priorit&#x00E9;</string>
                       </property>
                      </column>
                      <column>
@@ -8852,7 +8852,7 @@ Chef d'Atelier</string>
                     <item row="0" column="0">
                      <widget class="QLabel" name="l1_4">
                       <property name="text">
-                       <string>R?f?rence</string>
+                       <string>R&#x00E9;f&#x00E9;rence</string>
                       </property>
                      </widget>
                     </item>
@@ -8884,7 +8884,7 @@ Chef d'Atelier</string>
                       </item>
                       <item>
                        <property name="text">
-                        <string>tr?s importante</string>
+                        <string>tr&#x00E8;s importante</string>
                        </property>
                       </item>
                       <item>
@@ -8908,12 +8908,12 @@ Chef d'Atelier</string>
                       </item>
                       <item>
                        <property name="text">
-                        <string>Livr?e</string>
+                        <string>Livr&#x00E9;e</string>
                        </property>
                       </item>
                       <item>
                        <property name="text">
-                        <string>Annul?e</string>
+                        <string>Annul&#x00E9;e</string>
                        </property>
                       </item>
                       <item>
@@ -8929,14 +8929,14 @@ Chef d'Atelier</string>
                     <item row="1" column="2">
                      <widget class="QLabel" name="l_qty_4">
                       <property name="text">
-                       <string>Quantit?</string>
+                       <string>Quantit&#x00E9;</string>
                       </property>
                      </widget>
                     </item>
                     <item row="0" column="2">
                      <widget class="QLabel" name="l2_4">
                       <property name="text">
-                       <string>Priorit?</string>
+                       <string>Priorit&#x00E9;</string>
                       </property>
                      </widget>
                     </item>
@@ -9022,7 +9022,7 @@ Chef d'Atelier</string>
                     <item>
                      <widget class="QLabel" name="label_30">
                       <property name="text">
-                       <string>Ann?e</string>
+                       <string>Ann&#x00E9;e</string>
                       </property>
                      </widget>
                     </item>
@@ -9084,7 +9084,7 @@ Chef d'Atelier</string>
                     <item>
                      <widget class="QLabel" name="label_34">
                       <property name="text">
-                       <string>Ann?e</string>
+                       <string>Ann&#x00E9;e</string>
                       </property>
                      </widget>
                     </item>
@@ -9480,7 +9480,7 @@ Chef d'Atelier</string>
                     <item row="1" column="2">
                      <widget class="QLabel" name="l_qty_2">
                       <property name="text">
-                       <string>Quantit?</string>
+                       <string>Quantit&#x00E9;</string>
                       </property>
                      </widget>
                     </item>
@@ -9498,12 +9498,12 @@ Chef d'Atelier</string>
                       </item>
                       <item>
                        <property name="text">
-                        <string>Livr?e</string>
+                        <string>Livr&#x00E9;e</string>
                        </property>
                       </item>
                       <item>
                        <property name="text">
-                        <string>Annul?e</string>
+                        <string>Annul&#x00E9;e</string>
                        </property>
                       </item>
                       <item>
@@ -9523,14 +9523,14 @@ Chef d'Atelier</string>
                     <item row="0" column="2">
                      <widget class="QLabel" name="l2_2">
                       <property name="text">
-                       <string>Priorit?</string>
+                       <string>Priorit&#x00E9;</string>
                       </property>
                      </widget>
                     </item>
                     <item row="0" column="0">
                      <widget class="QLabel" name="l1_2">
                       <property name="text">
-                       <string>R?f?rence</string>
+                       <string>R&#x00E9;f&#x00E9;rence</string>
                       </property>
                      </widget>
                     </item>
@@ -9558,7 +9558,7 @@ Chef d'Atelier</string>
                       </item>
                       <item>
                        <property name="text">
-                        <string>tr?s importante</string>
+                        <string>tr&#x00E8;s importante</string>
                        </property>
                       </item>
                       <item>
@@ -9650,7 +9650,7 @@ Chef d'Atelier</string>
                     <item>
                      <widget class="QLabel" name="label_14">
                       <property name="text">
-                       <string>Ann?e</string>
+                       <string>Ann&#x00E9;e</string>
                       </property>
                      </widget>
                     </item>
@@ -9712,7 +9712,7 @@ Chef d'Atelier</string>
                     <item>
                      <widget class="QLabel" name="label_22">
                       <property name="text">
-                       <string>Ann?e</string>
+                       <string>Ann&#x00E9;e</string>
                       </property>
                      </widget>
                     </item>
@@ -10060,3 +10060,4 @@ QPushButton:hover {
   </connection>
  </connections>
 </ui>
+
