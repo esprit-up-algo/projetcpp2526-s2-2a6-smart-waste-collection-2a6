@@ -10155,7 +10155,7 @@ Chef d'Atelier</string>
                        <number>16</number>
                       </property>
                       <item>
-                       <widget class="QPushButton" name="btnSave_Mod">
+                       <widget class="QPushButton" name="btnSave_CmdMod">
                         <property name="sizePolicy">
                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
                           <horstretch>0</horstretch>

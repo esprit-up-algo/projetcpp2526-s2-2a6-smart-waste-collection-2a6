@@ -1,16 +1,56 @@
 ﻿#include "mainwindow.h"
-
 #include "ui_mainwindow.h"
+#include "commande.h"
 #include <QPdfWriter>
 #include <QPainter>
 #include <QPageSize>
 #include <QMarginsF>
 #include <QFileDialog>
-
+#include <QSqlQuery>
+#include <QSqlRecord>
 
 
 
 #include <QPushButton>
+#include <QSqlError>
+#include <QMap>
+
+// Custom item for numeric sorting
+class NumericTableWidgetItem : public QTableWidgetItem {
+public:
+    NumericTableWidgetItem(const QString &text, double val) : QTableWidgetItem(text) {
+        setData(Qt::UserRole, val);
+    }
+    bool operator<(const QTableWidgetItem &other) const override {
+        QVariant v1 = data(Qt::UserRole);
+        QVariant v2 = other.data(Qt::UserRole);
+        if (v1.isValid() && v2.isValid())
+            return v1.toDouble() < v2.toDouble();
+        return QTableWidgetItem::operator<(other);
+    }
+};
+
+// Custom item for logical status sorting
+class StatusTableWidgetItem : public QTableWidgetItem {
+public:
+    StatusTableWidgetItem(const QString &text) : QTableWidgetItem(text) {}
+    bool operator<(const QTableWidgetItem &other) const override {
+        // Priority weight (Lower number = Higher up in Ascending Sort)
+        auto getWeight = [](const QString &t) {
+            QString s = t.trimmed().toLower();
+            if (s.contains("en attente") || s.contains("preparation")) return 0;
+            if (s.contains("confirmation") || s.contains("valide"))    return 1;
+            if (s.contains("livraison") || s.contains("cours"))       return 2;
+            if (s.contains("livr"))                                   return 3; // Handles Livré, Livrée
+            if (s.contains("annul"))                                  return 4;
+            return 99;
+        };
+        int w1 = getWeight(this->text());
+        int w2 = getWeight(other.text());
+        if (w1 != w2) return w1 < w2;
+        return QTableWidgetItem::operator<(other);
+    }
+};
 
 #include <QHBoxLayout>
 
@@ -1349,27 +1389,52 @@ MainWindow::MainWindow(QWidget *parent)
 
             connect(btnEdit, &QPushButton::clicked, this, [this, btnEdit]() {
 
-                if (auto *sw = mainStacked()) {
+                const int currentRow = btnEdit->property("row").toInt();
 
-                    if (auto *page = sw->findChild<QWidget*>("pageCmdModifier", Qt::FindDirectChildrenOnly)) {
-
-                        sw->setCurrentWidget(page);
-
-                    }
-
+                // Navigate to modifier page
+                QStackedWidget *sw = findChild<QStackedWidget*>("stackedWidget");
+                if (sw) {
+                    QWidget *page = sw->findChild<QWidget*>("pageCmdModifier", Qt::FindDirectChildrenOnly);
+                    if (page) sw->setCurrentWidget(page);
                 }
 
-                if (ui->tableProduits_2) {
+                if (!ui->tableProduits_2 || currentRow < 0 || currentRow >= ui->tableProduits_2->rowCount()) return;
+                ui->tableProduits_2->selectRow(currentRow);
 
-                    const int currentRow = btnEdit->property("row").toInt();
+                // Pre-fill Modifier form fields
+                auto cellVal = [this, currentRow](int col) -> QString {
+                    auto *it = ui->tableProduits_2->item(currentRow, col);
+                    return it ? it->text() : QString();
+                };
 
-                    if (currentRow >= 0 && currentRow < ui->tableProduits_2->rowCount()) {
-
-                        ui->tableProduits_2->selectRow(currentRow);
-
-                    }
-
+                if (auto *cb = findChild<QComboBox*>("cb_client_mod"))
+                    cb->setCurrentText(cellVal(6));
+                if (ui->dsb_price_add_2) {
+                    QString priceStr = cellVal(8).remove(" TND").trimmed();
+                    ui->dsb_price_add_2->setValue(priceStr.toDouble());
                 }
+                if (ui->sb_qty_add_2)
+                    ui->sb_qty_add_2->setValue(cellVal(1).toInt());
+                if (ui->cb_model_add_2)
+                    ui->cb_model_add_2->setCurrentText(cellVal(2));
+                if (ui->cb_status_add_2)
+                    ui->cb_status_add_2->setCurrentText(cellVal(3));
+                if (ui->textEdit_2)
+                    ui->textEdit_2->setPlainText(cellVal(4));
+
+                // Pre-fill date commande (col 5: yyyy-MM-dd)
+                QDate dCmd = QDate::fromString(cellVal(5), "yyyy-MM-dd");
+                if (!dCmd.isValid()) dCmd = QDate::currentDate();
+                if (ui->comboBox_7) ui->comboBox_7->setCurrentText(dCmd.toString("dd"));
+                if (ui->comboBox_8) ui->comboBox_8->setCurrentText(dCmd.toString("MM"));
+                if (ui->comboBox_9) ui->comboBox_9->setCurrentText(dCmd.toString("yyyy"));
+
+                // Pre-fill date livraison (col 7: yyyy-MM-dd)
+                QDate dLiv = QDate::fromString(cellVal(7), "yyyy-MM-dd");
+                if (!dLiv.isValid()) dLiv = QDate::currentDate();
+                if (ui->comboBox_13) ui->comboBox_13->setCurrentText(dLiv.toString("dd"));
+                if (ui->comboBox_14) ui->comboBox_14->setCurrentText(dLiv.toString("MM"));
+                if (ui->comboBox_15) ui->comboBox_15->setCurrentText(dLiv.toString("yyyy"));
 
             });
 
@@ -10225,23 +10290,275 @@ void MainWindow::on_cmd_pagination_btnNext_clicked()
 // COMMANDE MODULE (Integration 24)
 // ============================================================
 
+#include "commande.h"
+#include <QSqlQuery>
+
 void MainWindow::setupCommandesModule()
 {
-    // Connect "Statistiques" button
-    // Note: btnGoStats_Cmd is already connected in setupStatistics() to the global stats page.
-    // If a specific inner page is needed later, we can add it here.
-
-    // Connect PDF button
-    QPushButton *btnPdf = findChild<QPushButton*>("btnPdf_Cmd");
-    if (btnPdf) {
-        connect(btnPdf, &QPushButton::clicked, this, &MainWindow::on_btnPdf_Cmd_clicked);
+    // ── Connect Save/Cancel on the Add page (pageCmdAjout) ──────────────────
+    if (auto *btn = findChild<QPushButton*>("btnSave_Mod_3"))
+        connect(btn, &QPushButton::clicked, this, &MainWindow::on_btnSave_Mod_3_clicked);
+    if (auto *btn = findChild<QPushButton*>("btnCancel_Mod_3")) {
+        connect(btn, &QPushButton::clicked, this, [this]() {
+            QStackedWidget *sw = findChild<QStackedWidget*>("stackedWidget");
+            if (sw) {
+                if (auto *p = sw->findChild<QWidget*>("pageCmdDashboard", Qt::FindDirectChildrenOnly))
+                    sw->setCurrentWidget(p);
+            }
+        });
     }
 
-    // Initial stats refresh
+    // ── Connect Save/Cancel on the Modify page (pageCmdModifier) ────────────
+    if (auto *btn = findChild<QPushButton*>("btnSave_CmdMod"))
+        connect(btn, &QPushButton::clicked, this, &MainWindow::on_btnSave_CmdMod_clicked);
+    if (auto *btn = findChild<QPushButton*>("btnCancel_CmdMod")) {
+        connect(btn, &QPushButton::clicked, this, [this]() {
+            QStackedWidget *sw = findChild<QStackedWidget*>("stackedWidget");
+            if (sw) {
+                if (auto *p = sw->findChild<QWidget*>("pageCmdDashboard", Qt::FindDirectChildrenOnly))
+                    sw->setCurrentWidget(p);
+            }
+        });
+    }
+
+    // ── Connect "Ajouter" button in the dashboard → go to Add page ──────────
+    if (auto *btn = findChild<QPushButton*>("btnAddProduct_2")) {
+        connect(btn, &QPushButton::clicked, this, [this]() {
+            QStackedWidget *sw = findChild<QStackedWidget*>("stackedWidget");
+            if (sw) {
+                if (auto *p = sw->findChild<QWidget*>("pageCmdAjout", Qt::FindDirectChildrenOnly))
+                    sw->setCurrentWidget(p);
+            }
+        });
+    }
+
+    // ── Connect PDF button ────────────────────────────────────────────────────
+    if (auto *btn = findChild<QPushButton*>("btnPdf_Cmd"))
+        connect(btn, &QPushButton::clicked, this, &MainWindow::on_btnPdf_Cmd_clicked);
+
+    // ── Initialize Date combo boxes ───────────────────────────────────────────
+    {
+        QStringList days, months, years;
+        for (int i = 1; i <= 31; ++i) days << QString::number(i).rightJustified(2, '0');
+        for (int i = 1; i <= 12; ++i) months << QString::number(i).rightJustified(2, '0');
+        int curY = QDate::currentDate().year();
+        for (int i = curY - 5; i <= curY + 5; ++i) years << QString::number(i);
+
+        QComboBox* allDays[]   = { ui->comboBox_19, ui->comboBox_22, ui->comboBox_7, ui->comboBox_13 };
+        QComboBox* allMonths[] = { ui->comboBox_20, ui->comboBox_23, ui->comboBox_8, ui->comboBox_14 };
+        QComboBox* allYears[]  = { ui->comboBox_21, ui->comboBox_24, ui->comboBox_9, ui->comboBox_15 };
+
+        for (auto* cb : allDays)   if (cb) { cb->clear(); cb->addItems(days);   cb->setCurrentText(QDate::currentDate().toString("dd")); }
+        for (auto* cb : allMonths) if (cb) { cb->clear(); cb->addItems(months); cb->setCurrentText(QDate::currentDate().toString("MM")); }
+        for (auto* cb : allYears)  if (cb) { cb->clear(); cb->addItems(years);  cb->setCurrentText(QString::number(curY)); }
+    }
+
+    // ── Add Client ID field dynamically (Safe fallback if UI is hard to edit) ──
+    if (ui->gl_inputs_4 && !findChild<QSpinBox*>("sb_idClient_add_4")) {
+        QLabel *lbl = new QLabel("ID Client:", this);
+        lbl->setObjectName("lbl_cid_add");
+        lbl->setStyleSheet("font-weight: bold; color: #333;");
+        ui->gl_inputs_4->addWidget(lbl, 2, 2);
+        QSpinBox *sb = new QSpinBox(this);
+        sb->setObjectName("sb_idClient_add_4");
+        sb->setMaximum(999999);
+        sb->setStyleSheet("padding: 8px; border: 1px solid #ccc; border-radius: 4px;");
+        ui->gl_inputs_4->addWidget(sb, 2, 3);
+    }
+    if (ui->gl_inputs_2 && !findChild<QSpinBox*>("sb_idClient_mod_2")) {
+        QLabel *lbl = new QLabel("ID Client:", this);
+        lbl->setObjectName("lbl_cid_mod");
+        lbl->setStyleSheet("font-weight: bold; color: #333;");
+        ui->gl_inputs_2->addWidget(lbl, 2, 2);
+        QSpinBox *sb = new QSpinBox(this);
+        sb->setObjectName("sb_idClient_mod_2");
+        sb->setMaximum(999999);
+        sb->setStyleSheet("padding: 8px; border: 1px solid #ccc; border-radius: 4px;");
+        ui->gl_inputs_2->addWidget(sb, 2, 3);
+    }
+
+    loadOrdersFromDB();
     refreshCmdStats();
+}
+
+void MainWindow::installCmdActionButtonsForRow(int row)
+{
+    if (!ui->tableProduits_2) return;
     
-    // Refresh stats when table changes (if needed, or just rely on manual refresh/module load)
-    // For now, we call it here.
+    QWidget *cell = new QWidget(ui->tableProduits_2);
+    auto *lay = new QHBoxLayout(cell);
+    lay->setContentsMargins(4, 0, 4, 0); lay->setSpacing(6); lay->setAlignment(Qt::AlignCenter);
+    auto *btnE = new QPushButton("Modifier",   cell);
+    auto *btnD = new QPushButton("Supprimer", cell);
+    btnE->setStyleSheet("QPushButton{background:#3498db;color:white;border-radius:4px;padding:4px 8px;font-weight:bold;}");
+    btnD->setStyleSheet("QPushButton{background:#e74c3c;color:white;border-radius:4px;padding:4px 8px;font-weight:bold;}");
+    btnE->setCursor(Qt::PointingHandCursor); btnD->setCursor(Qt::PointingHandCursor);
+    btnE->setProperty("row", row); btnD->setProperty("row", row);
+    lay->addWidget(btnE); lay->addWidget(btnD);
+    ui->tableProduits_2->setCellWidget(row, 9, cell);
+
+    connect(btnE, &QPushButton::clicked, this, [this, btnE]() {
+        int r = btnE->property("row").toInt();
+        if (r < 0 || r >= ui->tableProduits_2->rowCount()) return;
+        ui->tableProduits_2->selectRow(r);
+
+        // --- NEW: Pre-fill Reference and Client ID ---
+        QTableWidgetItem *itRef = ui->tableProduits_2->item(r, 0);
+        if (ui->ln_ref_add_2) ui->ln_ref_add_2->setText(itRef ? itRef->text() : "");
+        else if (auto *le = findChild<QLineEdit*>("ln_ref_add_2")) le->setText(itRef ? itRef->text() : "");
+
+        QTableWidgetItem *itCID = ui->tableProduits_2->item(r, 6); // Col 6 is Stock, ID_CLIENT in UserRole+1
+        if (itCID) {
+            int storedId = itCID->data(Qt::UserRole + 1).toInt();
+            if (storedId > 0) {
+                if (auto *sb = findChild<QSpinBox*>("sb_idClient_mod_2")) sb->setValue(storedId);
+            } else if (!itCID->text().isEmpty()) {
+                bool ok;
+                int directId = itCID->text().toInt(&ok);
+                if (ok) {
+                    if (auto *sb = findChild<QSpinBox*>("sb_idClient_mod_2")) sb->setValue(directId);
+                } else {
+                    Commande tmp;
+                    int foundId = tmp.findClientByMatricule(itCID->text());
+                    if (auto *sb = findChild<QSpinBox*>("sb_idClient_mod_2")) sb->setValue(foundId);
+                }
+            }
+        }
+        
+        // --- Restored fields ---
+        // Qte (Col 1)
+        if (ui->sb_qty_add_2) ui->sb_qty_add_2->setValue(ui->tableProduits_2->item(r, 1)->text().toInt());
+        // Priority (Col 2)
+        if (ui->cb_model_add_2) ui->cb_model_add_2->setCurrentText(ui->tableProduits_2->item(r, 2)->text());
+        // Status (Col 3)
+        if (ui->cb_status_add_2) ui->cb_status_add_2->setCurrentText(ui->tableProduits_2->item(r, 3)->text());
+        // Adresse (Col 4)
+        if (ui->textEdit_2) ui->textEdit_2->setPlainText(ui->tableProduits_2->item(r, 4)->text());
+        // Date Cmd (Col 5)
+        QDate dCmd = QDate::fromString(ui->tableProduits_2->item(r, 5)->text(), "yyyy-MM-dd");
+        if (ui->comboBox_9) ui->comboBox_9->setCurrentText(QString::number(dCmd.year()));
+        if (ui->comboBox_8) ui->comboBox_8->setCurrentText(QString::number(dCmd.month()).rightJustified(2, '0'));
+        if (ui->comboBox_7) ui->comboBox_7->setCurrentText(QString::number(dCmd.day()).rightJustified(2, '0'));
+        
+        // Date Liv (Col 7)
+        QDate dLiv = QDate::fromString(ui->tableProduits_2->item(r, 7)->text(), "yyyy-MM-dd");
+        if (ui->comboBox_15) ui->comboBox_15->setCurrentText(QString::number(dLiv.year()));
+        if (ui->comboBox_14) ui->comboBox_14->setCurrentText(QString::number(dLiv.month()).rightJustified(2, '0'));
+        if (ui->comboBox_13) ui->comboBox_13->setCurrentText(QString::number(dLiv.day()).rightJustified(2, '0'));
+
+        // Price (Col 8)
+        if (ui->dsb_price_add_2) {
+            double p = ui->tableProduits_2->item(r, 8)->text().remove(" TND").toDouble();
+            ui->dsb_price_add_2->setValue(p);
+        }
+
+        // Store active ID/Row on the SAVE button to be 100% sure we don't lose it
+        QTableWidgetItem *it0 = ui->tableProduits_2->item(r, 0);
+        int dbId = it0 ? it0->data(Qt::UserRole).toInt() : 0;
+        if (ui->btnSave_CmdMod) {
+            ui->btnSave_CmdMod->setProperty("activeId", dbId);
+            ui->btnSave_CmdMod->setProperty("activeRow", r);
+        }
+
+        if (auto *sw = findChild<QStackedWidget*>("stackedWidget")) {
+            if (auto *p = sw->findChild<QWidget*>("pageCmdModifier", Qt::FindDirectChildrenOnly))
+                sw->setCurrentWidget(p);
+        }
+    });
+
+    connect(btnD, &QPushButton::clicked, this, [this, btnD]() {
+        int r = btnD->property("row").toInt();
+        if (r < 0 || r >= ui->tableProduits_2->rowCount()) return;
+        ui->tableProduits_2->selectRow(r);
+        
+        QTableWidgetItem *it = ui->tableProduits_2->item(r, 0);
+        int dbId = it ? it->data(Qt::UserRole).toInt() : 0;
+
+        if (QMessageBox::question(this, "Supprimer", "Voulez-vous supprimer cette commande ?",
+                QMessageBox::Yes | QMessageBox::No) == QMessageBox::Yes) {
+            if (dbId > 0) {
+                Commande c;
+                if (c.supprimer(dbId)) {
+                    ui->tableProduits_2->removeRow(r);
+                    // Refresh rows property for remaining rows below
+                    for(int i = r; i < ui->tableProduits_2->rowCount(); ++i) {
+                         if(QWidget* w = ui->tableProduits_2->cellWidget(i, 9)) {
+                             for(auto* btn : w->findChildren<QPushButton*>()) {
+                                 btn->setProperty("row", i);
+                             }
+                         }
+                    }
+                    refreshCmdStats();
+                } else {
+                    QMessageBox::warning(this, "Erreur", "La suppression a \u00e9chou\u00e9: " + c.lastError());
+                }
+            } else {
+                ui->tableProduits_2->removeRow(r);
+                refreshCmdStats();
+            }
+        }
+    });
+}
+
+void MainWindow::loadOrdersFromDB()
+{
+    if (!ui->tableProduits_2) return;
+    ui->tableProduits_2->setRowCount(0);
+
+    Commande cmd;
+    QSqlQueryModel *model = cmd.afficher();
+    if (!model) {
+        qDebug() << "DEBUG: loadOrdersFromDB - model is NULL";
+        return;
+    }
+    if (model->lastError().isValid()) {
+        QMessageBox::critical(this, "Erreur Base de Données", 
+            "Impossible de charger les commandes: " + model->lastError().text());
+        delete model;
+        return;
+    }
+    qDebug() << "DEBUG: loadOrdersFromDB - count:" << model->rowCount();
+
+    for (int i = 0; i < model->rowCount(); ++i) {
+        int r = ui->tableProduits_2->rowCount();
+        ui->tableProduits_2->insertRow(r);
+
+        int id = model->record(i).value("ID_COMMANDE").toInt();
+        QString ref = model->record(i).value("REFERENCE").toString();
+        if (ref.isEmpty()) ref = QString("CMD-%1").arg(id, 3, 10, QChar('0'));
+
+        QTableWidgetItem *it0 = new QTableWidgetItem(ref);
+        it0->setData(Qt::UserRole, id); 
+        ui->tableProduits_2->setItem(r, 0, it0);
+        
+        // Col 1: Quantité
+        NumericTableWidgetItem *it1 = new NumericTableWidgetItem(model->record(i).value("QTE").toString(), model->record(i).value("QTE").toDouble());
+        ui->tableProduits_2->setItem(r, 1, it1);
+
+        ui->tableProduits_2->setItem(r, 2, new QTableWidgetItem(model->record(i).value("PRIORITE").toString()));
+        
+        // Col 3: Status
+        ui->tableProduits_2->setItem(r, 3, new StatusTableWidgetItem(model->record(i).value("STATUT").toString()));
+        
+        ui->tableProduits_2->setItem(r, 4, new QTableWidgetItem(model->record(i).value("ADRESSE").toString()));
+        ui->tableProduits_2->setItem(r, 5, new QTableWidgetItem(model->record(i).value("DATE_COMMANDE").toDate().toString("yyyy-MM-dd")));
+        
+        // Col 6: Stock (per requirement, showing QTE here too)
+        int idClient = model->record(i).value("ID_CLIENT").toInt();
+        NumericTableWidgetItem *it6 = new NumericTableWidgetItem(model->record(i).value("QTE").toString(), model->record(i).value("QTE").toDouble());
+        it6->setData(Qt::UserRole + 1, idClient); // Store ACTUAL Client ID in hidden role
+        ui->tableProduits_2->setItem(r, 6, it6);
+
+        ui->tableProduits_2->setItem(r, 7, new QTableWidgetItem(model->record(i).value("DATE_LIVRAISON").toDate().toString("yyyy-MM-dd")));
+        
+        // Col 8: Prix Total
+        double priceValue = model->record(i).value("PRIX_TOTAL").toDouble();
+        NumericTableWidgetItem *it8 = new NumericTableWidgetItem(QString::number(priceValue, 'f', 2) + " TND", priceValue);
+        ui->tableProduits_2->setItem(r, 8, it8);
+
+        installCmdActionButtonsForRow(r);
+    }
+    delete model;
 }
 
 void MainWindow::refreshCmdStats()
@@ -10344,6 +10661,180 @@ void MainWindow::on_btnPdf_Cmd_clicked()
     QMessageBox::information(this, "Export PDF", "Le rapport PDF a été généré avec succès.");
 }
 
+void MainWindow::on_btnSave_Mod_3_clicked()
+{
+    if (!ui->tableProduits_2) return;
+
+    // Read reference from the QLineEdit 'ln_ref_add_4' (labeled "Référence" in the UI)
+    QString refText = ui->ln_ref_add_4 ? ui->ln_ref_add_4->text().trimmed() : QString();
+    if (refText.isEmpty()) {
+        QMessageBox::warning(this, "Validation", "Veuillez saisir une r\u00e9f\u00e9rence.");
+        return;
+    }
+
+    Commande c;
+    c.setReference(refText);
+    c.setPrixTotal(ui->dsb_price_add_4 ? ui->dsb_price_add_4->value() : 0.0);
+    c.setQte(ui->sb_qty_add_4 ? ui->sb_qty_add_4->value() : 1);
+    c.setPriorite(ui->cb_model_add_4 ? ui->cb_model_add_4->currentText() : "Normale");
+    c.setStatut(ui->cb_status_add_4 ? ui->cb_status_add_4->currentText() : "En attente");
+    c.setAdresse(ui->textEdit ? ui->textEdit->toPlainText() : "");
+    
+    // Read Client ID from the new dynamic spinbox
+    int cid = 0;
+    if (auto *sb = findChild<QSpinBox*>("sb_idClient_add_4")) cid = sb->value();
+    if (cid <= 0) cid = c.findClientByMatricule(refText); // Fallback to matricule resolver
+    c.setIdClient(cid);
+
+    int cmdY = ui->comboBox_21 ? ui->comboBox_21->currentText().toInt() : QDate::currentDate().year();
+    int cmdM = ui->comboBox_20 ? ui->comboBox_20->currentText().toInt() : QDate::currentDate().month();
+    int cmdD = ui->comboBox_19 ? ui->comboBox_19->currentText().toInt() : QDate::currentDate().day();
+    c.setDateCommande(QDate(cmdY, cmdM, cmdD));
+
+    int livY = ui->comboBox_24 ? ui->comboBox_24->currentText().toInt() : QDate::currentDate().year();
+    int livM = ui->comboBox_23 ? ui->comboBox_23->currentText().toInt() : QDate::currentDate().month();
+    int livD = ui->comboBox_22 ? ui->comboBox_22->currentText().toInt() : QDate::currentDate().day();
+    c.setDateLivraison(QDate(livY, livM, livD));
+    
+    if (c.ajouter()) {
+        QMessageBox::information(this, "Succès", "Commande ajoutée avec succès !");
+
+        const int r = ui->tableProduits_2->rowCount();
+        ui->tableProduits_2->insertRow(r);
+        QTableWidgetItem *it0 = new QTableWidgetItem(refText);
+        it0->setData(Qt::UserRole, c.id());
+        ui->tableProduits_2->setItem(r, 0, it0);
+        ui->tableProduits_2->setItem(r, 1, new QTableWidgetItem(QString::number(c.qte())));
+        ui->tableProduits_2->setItem(r, 2, new QTableWidgetItem(c.priorite()));
+        ui->tableProduits_2->setItem(r, 3, new QTableWidgetItem(c.statut()));
+        ui->tableProduits_2->setItem(r, 4, new QTableWidgetItem(c.adresse()));
+        ui->tableProduits_2->setItem(r, 5, new QTableWidgetItem(c.dateCommande().toString("yyyy-MM-dd")));
+        {
+            auto *cb = findChild<QComboBox*>("cb_client_add");
+            ui->tableProduits_2->setItem(r, 6, new QTableWidgetItem(cb ? cb->currentText() : ""));
+        }
+        ui->tableProduits_2->setItem(r, 7, new QTableWidgetItem(c.dateLivraison().toString("yyyy-MM-dd")));
+        ui->tableProduits_2->setItem(r, 8, new QTableWidgetItem(QString::number(c.prixTotal(), 'f', 2) + " TND"));
+
+        installCmdActionButtonsForRow(r);
+
+        // Navigate back to the dashboard
+        if (auto *sw = findChild<QStackedWidget*>("stackedWidget")) {
+            if (auto *p = sw->findChild<QWidget*>("pageCmdDashboard", Qt::FindDirectChildrenOnly))
+                sw->setCurrentWidget(p);
+        }
+
+        refreshCmdStats();
+        refreshCmdCardView();
+        loadOrdersFromDB(); // Full refresh to ensure sync
+    } else {
+        QMessageBox::warning(this, "Erreur", "L'ajout a échoué: " + c.lastError());
+    }
+}
+
+void MainWindow::on_btnSave_CmdMod_clicked()
+{
+    if (!ui->tableProduits_2) return;
+
+    // Try to get IDs from the button properties (more reliable than current selection)
+    int idCmd = ui->btnSave_CmdMod ? ui->btnSave_CmdMod->property("activeId").toInt() : 0;
+    int row = ui->btnSave_CmdMod ? ui->btnSave_CmdMod->property("activeRow").toInt() : -1;
+
+    // Fallback if properties missing
+    if (idCmd <= 0) {
+        row = ui->tableProduits_2->currentRow();
+        if (row >= 0) {
+            QTableWidgetItem *it = ui->tableProduits_2->item(row, 0);
+            idCmd = it ? it->data(Qt::UserRole).toInt() : 0;
+        }
+    }
+
+    if (row < 0 || (idCmd <= 0 && row < 0)) {
+        QMessageBox::warning(this, "Attention", "Veuillez s\u00e9lectionner une commande \u00e0 modifier !");
+        return;
+    }
+
+    qDebug() << "DEBUG: Attempting to modify command. Row:" << row << " ID:" << idCmd;
+    // If no UserRole data, the row has no DB record yet (demo row) — skip DB update
+    bool hasDatabaseRecord = (idCmd > 0);
+    qDebug() << "DEBUG: hasDatabaseRecord:" << hasDatabaseRecord;
+
+    // Read new reference from the LineEdit 'ln_ref_add_2'
+    QString refText;
+    if (ui->ln_ref_add_2)
+        refText = ui->ln_ref_add_2->text().trimmed();
+    else if (auto *le = findChild<QLineEdit*>("ln_ref_add_2"))
+        refText = le->text().trimmed();
+    else if (auto *cb = findChild<QComboBox*>("cb_client_mod")) // Backup
+        refText = cb->currentText().trimmed();
+
+    Commande c;
+    c.setId(idCmd);
+    c.setReference(refText);
+    c.setPrixTotal(ui->dsb_price_add_2 ? ui->dsb_price_add_2->value() : 0.0);
+    c.setQte(ui->sb_qty_add_2 ? ui->sb_qty_add_2->value() : 1);
+    c.setPriorite(ui->cb_model_add_2 ? ui->cb_model_add_2->currentText() : "Normale");
+    c.setStatut(ui->cb_status_add_2 ? ui->cb_status_add_2->currentText() : "En attente");
+    c.setAdresse(ui->textEdit_2 ? ui->textEdit_2->toPlainText() : "");
+    
+    int cid = 0;
+    if (auto *sb = findChild<QSpinBox*>("sb_idClient_mod_2")) cid = sb->value();
+    if (cid <= 0) cid = c.findClientByMatricule(refText);
+    c.setIdClient(cid);
+
+    int cmdY = ui->comboBox_9  ? ui->comboBox_9->currentText().toInt()  : QDate::currentDate().year();
+    int cmdM = ui->comboBox_8  ? ui->comboBox_8->currentText().toInt()  : QDate::currentDate().month();
+    int cmdD = ui->comboBox_7  ? ui->comboBox_7->currentText().toInt()  : QDate::currentDate().day();
+    c.setDateCommande(QDate(cmdY, cmdM, cmdD));
+
+    int livY = ui->comboBox_15 ? ui->comboBox_15->currentText().toInt() : QDate::currentDate().year();
+    int livM = ui->comboBox_14 ? ui->comboBox_14->currentText().toInt() : QDate::currentDate().month();
+    int livD = ui->comboBox_13 ? ui->comboBox_13->currentText().toInt() : QDate::currentDate().day();
+    c.setDateLivraison(QDate(livY, livM, livD));
+
+    bool success = !hasDatabaseRecord || c.modifier();
+    if (success) {
+        if (hasDatabaseRecord)
+            QMessageBox::information(this, "Succès", "Commande modifiée avec succès !");
+        else
+            QMessageBox::information(this, "Succès", "Commande mise à jour localement.");
+
+        loadOrdersFromDB(); // Force reload to show official data
+
+        QString displayRef = refText.isEmpty()
+            ? (ui->tableProduits_2->item(row, 0) ? ui->tableProduits_2->item(row, 0)->text() : QString())
+            : refText;
+        // Keep UserRole ID intact
+        QTableWidgetItem *newIdItem = new QTableWidgetItem(displayRef);
+        newIdItem->setData(Qt::UserRole, idCmd);
+        ui->tableProduits_2->setItem(row, 0, newIdItem);
+        
+        ui->tableProduits_2->setItem(row, 1, new NumericTableWidgetItem(QString::number(c.qte()), c.qte()));
+        ui->tableProduits_2->setItem(row, 2, new QTableWidgetItem(c.priorite()));
+        ui->tableProduits_2->setItem(row, 3, new StatusTableWidgetItem(c.statut()));
+        ui->tableProduits_2->setItem(row, 4, new QTableWidgetItem(c.adresse()));
+        ui->tableProduits_2->setItem(row, 5, new QTableWidgetItem(c.dateCommande().toString("yyyy-MM-dd")));
+        
+        // Col 6 is Stock. Store the actual ID Client in UserRole+1
+        NumericTableWidgetItem *it6 = new NumericTableWidgetItem(QString::number(c.qte()), c.qte());
+        it6->setData(Qt::UserRole + 1, c.idClient());
+        ui->tableProduits_2->setItem(row, 6, it6);
+        
+        ui->tableProduits_2->setItem(row, 7, new QTableWidgetItem(c.dateLivraison().toString("yyyy-MM-dd")));
+        ui->tableProduits_2->setItem(row, 8, new NumericTableWidgetItem(QString::number(c.prixTotal(), 'f', 2) + " TND", c.prixTotal()));
+
+        // Navigate back to the dashboard
+        if (auto *sw = findChild<QStackedWidget*>("stackedWidget")) {
+            if (auto *p = sw->findChild<QWidget*>("pageCmdDashboard", Qt::FindDirectChildrenOnly))
+                sw->setCurrentWidget(p);
+        }
+
+        refreshCmdStats();
+        refreshCmdCardView();
+    } else {
+        QMessageBox::warning(this, "Erreur", "La modification a \u00e9chou\u00e9: " + c.lastError());
+    }
+}
 #include <QPrinter>
 #include <QPainter>
 #include <QTextDocument>
@@ -10624,9 +11115,9 @@ void MainWindow::applyCmdFilterAndSort() {
     if (sIdx == 0) ui->tableProduits_2->sortItems(0, Qt::AscendingOrder); // Référence
     else if (sIdx == 1) ui->tableProduits_2->sortItems(8, Qt::AscendingOrder); // Prix (Croissant)
     else if (sIdx == 2) ui->tableProduits_2->sortItems(8, Qt::DescendingOrder); // Prix (Décroissant)
-    else if (sIdx == 3) ui->tableProduits_2->sortItems(6, Qt::AscendingOrder); // Stock
-    else if (sIdx == 4) ui->tableProduits_2->sortItems(5, Qt::AscendingOrder); // Date de Commande
-    else if (sIdx == 5) ui->tableProduits_2->sortItems(3, Qt::AscendingOrder); // Status
+    else if (sIdx == 3) ui->tableProduits_2->sortItems(6, Qt::AscendingOrder); // Stock (Col 6 per header)
+    else if (sIdx == 4) ui->tableProduits_2->sortItems(5, Qt::AscendingOrder); // Date de Commande (Col 5)
+    else if (sIdx == 5) ui->tableProduits_2->sortItems(3, Qt::AscendingOrder); // Status (Col 3, Logical flow)
     for (int i=0; i<ui->tableProduits_2->rowCount(); i++) {
         bool m = false;
         for (int j=0; j<9; j++) {

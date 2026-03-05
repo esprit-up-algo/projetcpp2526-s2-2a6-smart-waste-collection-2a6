@@ -24,7 +24,7 @@ Connection::~Connection()
 bool Connection::createConnection()
 {
     db.setDatabaseName("Source_Projet2A");  // Your ODBC name
-    db.setUserName("bakwini");             // Your username
+    db.setUserName("wasteguard");             // Your username
     db.setPassword("123");                 // Your password
 
     if(db.open())

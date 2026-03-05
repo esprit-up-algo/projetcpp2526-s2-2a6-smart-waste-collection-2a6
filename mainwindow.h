@@ -178,7 +178,11 @@ private:
     // Commande Module
     void setupCommandesModule();
     void refreshCmdStats();
+    void loadOrdersFromDB();
+    void installCmdActionButtonsForRow(int row);
     void on_btnPdf_Cmd_clicked();
+    void on_btnSave_Mod_3_clicked();
+    void on_btnSave_CmdMod_clicked();
 
 
     // Helpers for merged UI
