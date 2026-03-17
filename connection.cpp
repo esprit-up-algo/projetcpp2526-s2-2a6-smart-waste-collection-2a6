@@ -4,6 +4,17 @@
 #include <QDebug>
 #include <QProcessEnvironment>
 
+namespace {
+void applyOdbcTimeoutOptions(QSqlDatabase &db)
+{
+    db.setConnectOptions(
+        "SQL_ATTR_LOGIN_TIMEOUT=5;"
+        "SQL_ATTR_CONNECTION_TIMEOUT=5;"
+        "SQL_ATTR_QUERY_TIMEOUT=5"
+    );
+}
+}
+
 Connection* Connection::p_instance = nullptr;
 
 Connection::Connection()
@@ -30,6 +41,7 @@ bool Connection::createConnect()
     const QString envPass = qEnvironmentVariable("WG_DB_PASS");
 
     // 1) Try DSN as configured in ODBC (no forced credentials).
+    applyOdbcTimeoutOptions(db);
     db.setDatabaseName(dsn);
     db.setUserName(QString());
     db.setPassword(QString());
@@ -40,6 +52,7 @@ bool Connection::createConnect()
     const QString errDsnNoCred = db.lastError().text();
 
     // 2) Try DSN connection string form.
+    applyOdbcTimeoutOptions(db);
     db.setDatabaseName(QString("DSN=%1;").arg(dsn));
     db.setUserName(QString());
     db.setPassword(QString());
@@ -77,6 +90,7 @@ bool Connection::createConnect(const QString &userName, const QString &password)
     const QString dsn = qEnvironmentVariable("WG_DSN", "Source_Projet2A").trimmed();
     const QString user = userName.trimmed();
 
+    applyOdbcTimeoutOptions(db);
     db.setDatabaseName(dsn);
     db.setUserName(user);
     db.setPassword(password);
@@ -88,6 +102,7 @@ bool Connection::createConnect(const QString &userName, const QString &password)
         const QString err1 = db.lastError().text();
 
         // Retry with ODBC connection string format.
+        applyOdbcTimeoutOptions(db);
         db.setDatabaseName(QString("DSN=%1;UID=%2;PWD=%3;")
                                .arg(dsn, user, password));
         db.setUserName(QString());

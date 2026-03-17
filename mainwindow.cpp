@@ -8,6 +8,7 @@
 #include <QMarginsF>
 #include <QFileDialog>
 #include <QFile>
+#include <QBuffer>
 #include <QDate>
 #include <QDir>
 
@@ -56,6 +57,7 @@
 #include <QPen>
 
 #include <QPixmap>
+#include <QImage>
 
 #include <QLineEdit>
 
@@ -64,10 +66,17 @@
 #include <QListWidget>
 
 #include <QListWidgetItem>
+#include <QStringList>
 
 #include <QLabel>
 #include <QVector>
 #include <algorithm>
+#include <QDialog>
+#include <QCamera>
+#include <QMediaCaptureSession>
+#include <QMediaDevices>
+#include <QVideoSink>
+#include <QVideoFrame>
 
 
 
@@ -103,6 +112,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <cmath>
 
 static constexpr int ACTIONS_COL = 7;
 static constexpr int EMP_ROLE_ID = Qt::UserRole + 1;
@@ -128,6 +138,26 @@ const QRegularExpression &emailRegex()
 bool isValidEmail(const QString &email)
 {
     return emailRegex().match(email.trimmed()).hasMatch();
+}
+
+bool isValidCinInput(const QString &cin)
+{
+    const QString v = cin.trimmed();
+    if (v.isEmpty()) return true;
+    static const QRegularExpression re(R"(^\d{8}$)");
+    return re.match(v).hasMatch();
+}
+
+void setValidationStyle(QLineEdit *field, bool valid, const QString &message)
+{
+    if (!field) return;
+    if (valid) {
+        field->setStyleSheet("border: 1px solid #16a34a; border-radius: 4px; padding: 4px;");
+        field->setToolTip(QString());
+    } else {
+        field->setStyleSheet("border: 1px solid #dc2626; border-radius: 4px; padding: 4px;");
+        field->setToolTip(message);
+    }
 }
 
 QString normalizedStatus(QString value)
@@ -162,6 +192,15 @@ QString friendlySqlErrorMessage(const QString &rawError, const QString &action)
     if (upper.contains("ORA-02292")) {
         return QString("Impossible de %1: element utilise dans d'autres donnees.").arg(action);
     }
+    if (upper.contains("ORA-00054") || upper.contains("ORA-30006")) {
+        return QString("Impossible de %1: fiche employe verrouillee par une autre session. Reessayez dans quelques secondes.").arg(action);
+    }
+    if (upper.contains("ORA-03114") || upper.contains("ORA-03113") || upper.contains("ORA-01012")) {
+        return QString("Impossible de %1: session Oracle coupee. Reconnexion automatique requise.").arg(action);
+    }
+    if (upper.contains("HYT00") || upper.contains("HYT01") || upper.contains("TIMEOUT")) {
+        return QString("Impossible de %1: delai depasse (base lente ou bloquee). Reessayez.").arg(action);
+    }
     if (upper.contains("DRIVER NOT LOADED")) {
         return "Connexion base indisponible: driver SQL non charge.";
     }
@@ -171,14 +210,41 @@ QString friendlySqlErrorMessage(const QString &rawError, const QString &action)
     return QString("Impossible de %1. Verifiez les donnees saisies.").arg(action);
 }
 
+QString cleanSqlErrorDetails(const QString &rawError)
+{
+    QStringList oraLines;
+    const QRegularExpression oraRe(R"((ORA-\d{5}:[^\r\n]*))", QRegularExpression::CaseInsensitiveOption);
+    QRegularExpressionMatchIterator it = oraRe.globalMatch(rawError);
+    while (it.hasNext()) {
+        const QString line = it.next().captured(1).trimmed();
+        if (!line.isEmpty() && !oraLines.contains(line)) {
+            oraLines << line;
+        }
+    }
+    if (!oraLines.isEmpty()) {
+        return oraLines.join("\n");
+    }
+
+    QString out;
+    out.reserve(rawError.size());
+    for (const QChar ch : rawError) {
+        const ushort u = ch.unicode();
+        if (ch == '\n' || ch == '\r' || ch == '\t' || (u >= 32 && u != 0xFFFD)) {
+            out.append(ch);
+        }
+    }
+    return out.trimmed();
+}
+
 void showFriendlySqlError(QWidget *parent, const QString &action, const QString &rawError)
 {
     QMessageBox msg(parent);
     msg.setIcon(QMessageBox::Critical);
     msg.setWindowTitle("Erreur SQL");
     msg.setText(friendlySqlErrorMessage(rawError, action));
-    if (!rawError.trimmed().isEmpty()) {
-        msg.setDetailedText(rawError);
+    const QString details = cleanSqlErrorDetails(rawError);
+    if (!details.isEmpty()) {
+        msg.setDetailedText(details);
     }
     msg.exec();
 }
@@ -222,6 +288,105 @@ void ensureEmployePhotoColumnExists()
     QSqlQuery alterFallback;
     alterFallback.exec("ALTER TABLE EMPLOYE ADD photo BLOB");
     checked = true;
+}
+
+void ensureEmployeFaceColumnsExist()
+{
+    static bool checked = false;
+    if (checked) return;
+
+    const QSqlDatabase db = QSqlDatabase::database();
+    if (!db.isValid() || !db.isOpen()) {
+        return;
+    }
+
+    QSqlQuery probe;
+    if (probe.exec("SELECT face_template, face_template_updated_at, face_enabled FROM EMPLOYE WHERE 1=0")) {
+        checked = true;
+        return;
+    }
+
+    if (!isMissingPhotoColumnError(probe.lastError().text())) {
+        checked = true;
+        return;
+    }
+
+    QSqlQuery q;
+    q.exec("ALTER TABLE EMPLOYE ADD (face_template CLOB)");
+    q.exec("ALTER TABLE EMPLOYE ADD (face_template_updated_at DATE)");
+    q.exec("ALTER TABLE EMPLOYE ADD (face_enabled NUMBER(1) DEFAULT 1)");
+    q.exec("UPDATE EMPLOYE SET face_enabled = 1 WHERE face_enabled IS NULL");
+    checked = true;
+}
+
+QImage makeFaceCropForTemplate(const QImage &src)
+{
+    if (src.isNull()) return QImage();
+
+    QImage gray = src.convertToFormat(QImage::Format_Grayscale8);
+    const int minSide = qMin(gray.width(), gray.height());
+    if (minSide < 40) return QImage();
+
+    const int cropSide = qMax(40, static_cast<int>(minSide * 0.62));
+    const int x = (gray.width() - cropSide) / 2;
+    const int y = (gray.height() - cropSide) / 2;
+    const QRect roi(x, y, cropSide, cropSide);
+    return gray.copy(roi).scaled(64, 64, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+}
+
+QVector<float> computeFaceDescriptorForTemplate(const QImage &src)
+{
+    QImage img = makeFaceCropForTemplate(src);
+    if (img.isNull()) return {};
+
+    QVector<float> descriptor;
+    descriptor.reserve(16 + 64);
+
+    float hist[16] = {0.0f};
+    for (int y = 0; y < img.height(); ++y) {
+        const uchar *row = img.constScanLine(y);
+        for (int x = 0; x < img.width(); ++x) {
+            const int bin = row[x] / 16;
+            hist[bin] += 1.0f;
+        }
+    }
+
+    const float totalPix = static_cast<float>(img.width() * img.height());
+    for (float &v : hist) {
+        descriptor.append(v / totalPix);
+    }
+
+    const int cell = 8;
+    for (int gy = 0; gy < 8; ++gy) {
+        for (int gx = 0; gx < 8; ++gx) {
+            float sum = 0.0f;
+            for (int y = gy * cell; y < (gy + 1) * cell; ++y) {
+                const uchar *row = img.constScanLine(y);
+                for (int x = gx * cell; x < (gx + 1) * cell; ++x) {
+                    sum += static_cast<float>(row[x]) / 255.0f;
+                }
+            }
+            descriptor.append(sum / static_cast<float>(cell * cell));
+        }
+    }
+
+    float norm = 0.0f;
+    for (const float v : descriptor) norm += v * v;
+    norm = std::sqrt(norm);
+    if (norm > 1e-6f) {
+        for (float &v : descriptor) v /= norm;
+    }
+    return descriptor;
+}
+
+QString faceDescriptorToString(const QVector<float> &desc)
+{
+    QStringList parts;
+    parts.reserve(desc.size());
+    for (const float v : desc) {
+        parts << QString::number(static_cast<double>(v), 'f', 6);
+    }
+    return parts.join(';');
 }
 
 QPixmap circularPixmap(const QPixmap &source, int diameter)
@@ -299,6 +464,248 @@ void setEmployeePhotoPreview(QLabel *label, const QByteArray &photoData)
     label->setPixmap(scaled);
 }
 
+bool validateEmployeePhotoQuality(const QImage &image, QString &reason)
+{
+    reason.clear();
+    if (image.isNull()) {
+        reason = "Image invalide.";
+        return false;
+    }
+
+    if (image.width() < 320 || image.height() < 320) {
+        reason = "Image trop petite (minimum 320x320).";
+        return false;
+    }
+
+    const QImage gray = image.convertToFormat(QImage::Format_Grayscale8);
+    const int w = gray.width();
+    const int h = gray.height();
+    const int step = 2;
+
+    const int roiW = qMax(160, static_cast<int>(w * 0.58));
+    const int roiH = qMax(160, static_cast<int>(h * 0.58));
+    const int roiX = qMax(0, (w - roiW) / 2);
+    const int roiY = qMax(0, (h - roiH) / 2);
+    const QRect roi(roiX, roiY, qMin(roiW, w - roiX), qMin(roiH, h - roiY));
+
+    double sum = 0.0;
+    double sumSq = 0.0;
+    int count = 0;
+
+    for (int y = roi.top(); y < roi.bottom(); y += step) {
+        const uchar *row = gray.constScanLine(y);
+        for (int x = roi.left(); x < roi.right(); x += step) {
+            const double v = static_cast<double>(row[x]);
+            sum += v;
+            sumSq += v * v;
+            ++count;
+        }
+    }
+
+    if (count <= 0) {
+        reason = "Image non exploitable.";
+        return false;
+    }
+
+    const double mean = sum / static_cast<double>(count);
+    const double variance = qMax(0.0, (sumSq / static_cast<double>(count)) - (mean * mean));
+    const double stddev = std::sqrt(variance);
+
+    if (mean < 30.0) {
+        reason = "Image trop sombre. Augmentez la lumiere.";
+        return false;
+    }
+    if (mean > 235.0) {
+        reason = "Image surexposee. Reduisez la lumiere.";
+        return false;
+    }
+    if (stddev < 10.0) {
+        reason = "Contraste trop faible. Utilisez un fond plus net.";
+        return false;
+    }
+
+    double edgeSum = 0.0;
+    int edgeCount = 0;
+    for (int y = qMax(1, roi.top() + 1); y < qMin(h - 1, roi.bottom() - 1); y += step) {
+        const uchar *prev = gray.constScanLine(y - 1);
+        const uchar *curr = gray.constScanLine(y);
+        const uchar *next = gray.constScanLine(y + 1);
+        for (int x = qMax(1, roi.left() + 1); x < qMin(w - 1, roi.right() - 1); x += step) {
+            const double gx = std::abs(static_cast<double>(curr[x + 1]) - static_cast<double>(curr[x - 1]));
+            const double gy = std::abs(static_cast<double>(next[x]) - static_cast<double>(prev[x]));
+            edgeSum += (gx + gy) * 0.5;
+            ++edgeCount;
+        }
+    }
+
+    if (edgeCount <= 0) {
+        reason = "Image non exploitable.";
+        return false;
+    }
+
+    const double sharpness = edgeSum / static_cast<double>(edgeCount);
+    const double sharpnessThreshold = 3.0;
+    if (sharpness < sharpnessThreshold) {
+        reason = "Image floue. Approchez-vous un peu et gardez le visage stable 1 seconde.";
+        return false;
+    }
+
+    return true;
+}
+
+QByteArray captureEmployeePhotoFromCamera(QWidget *parent, QString &faceTemplate, QString &errorText)
+{
+    faceTemplate.clear();
+    errorText.clear();
+
+    const QList<QCameraDevice> cameras = QMediaDevices::videoInputs();
+    if (cameras.isEmpty()) {
+        errorText = "Aucune camera detectee sur ce poste.";
+        return QByteArray();
+    }
+
+    QDialog dialog(parent);
+    dialog.setWindowTitle("Capture visage employe");
+    dialog.setModal(true);
+    dialog.resize(760, 560);
+
+    auto *layout = new QVBoxLayout(&dialog);
+    layout->setContentsMargins(12, 12, 12, 12);
+    layout->setSpacing(10);
+
+    auto *title = new QLabel("Cadrez le visage puis cliquez Capturer");
+    title->setStyleSheet("font-weight: 700; font-size: 14px;");
+    layout->addWidget(title);
+
+    auto *preview = new QLabel(&dialog);
+    preview->setMinimumSize(700, 420);
+    preview->setAlignment(Qt::AlignCenter);
+    preview->setStyleSheet("background:#0b1220; color:#cbd5e1; border:1px solid #334155; border-radius:8px;");
+    preview->setText("Initialisation camera...");
+    layout->addWidget(preview);
+
+    auto *status = new QLabel("Verifiez l'eclairage et gardez le visage net.");
+    status->setStyleSheet("color:#475569;");
+    layout->addWidget(status);
+
+    auto *buttonRow = new QHBoxLayout();
+    auto *btnRetry = new QPushButton("Recharger camera", &dialog);
+    auto *btnCapture = new QPushButton("Capturer", &dialog);
+    auto *btnCancel = new QPushButton("Annuler", &dialog);
+    btnCapture->setEnabled(false);
+    btnCapture->setDefault(true);
+    buttonRow->addWidget(btnRetry);
+    buttonRow->addStretch();
+    buttonRow->addWidget(btnCancel);
+    buttonRow->addWidget(btnCapture);
+    layout->addLayout(buttonRow);
+
+    QMediaCaptureSession session;
+    QCamera camera(cameras.first(), &dialog);
+    QVideoSink sink(&dialog);
+    session.setCamera(&camera);
+    session.setVideoSink(&sink);
+
+    QImage lastFrame;
+    QByteArray capturedBytes;
+    int frameCount = 0;
+
+    QObject::connect(&sink, &QVideoSink::videoFrameChanged, &dialog, [&](const QVideoFrame &frame) {
+        if (!frame.isValid()) return;
+        const QImage img = frame.toImage();
+        if (img.isNull()) return;
+        lastFrame = img;
+        ++frameCount;
+        preview->setPixmap(QPixmap::fromImage(img).scaled(preview->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        if (frameCount >= 1 && !btnCapture->isEnabled()) {
+            btnCapture->setEnabled(true);
+        }
+        if (frameCount > 10) {
+            status->setText("Camera prete. Gardez le visage stable puis capturez.");
+        }
+    });
+
+    QObject::connect(btnRetry, &QPushButton::clicked, &dialog, [&]() {
+        camera.stop();
+        camera.start();
+        frameCount = 0;
+        btnCapture->setEnabled(false);
+        status->setText("Camera rechargee. Recadrez le visage.");
+    });
+
+    QObject::connect(btnCancel, &QPushButton::clicked, &dialog, [&]() {
+        dialog.reject();
+    });
+
+    QObject::connect(btnCapture, &QPushButton::clicked, &dialog, [&]() {
+        if (lastFrame.isNull()) {
+            status->setText("Aucune image recue. Verifiez la camera.");
+            return;
+        }
+
+        QString qualityReason;
+        if (!validateEmployeePhotoQuality(lastFrame, qualityReason)) {
+            const bool isSoftWarning =
+                qualityReason.contains("floue", Qt::CaseInsensitive) ||
+                qualityReason.contains("contraste", Qt::CaseInsensitive) ||
+                qualityReason.contains("sombre", Qt::CaseInsensitive);
+            if (isSoftWarning) {
+                const auto answer = QMessageBox::question(
+                    &dialog,
+                    "Qualite limite",
+                    qualityReason + "\n\nVoulez-vous capturer quand meme ?",
+                    QMessageBox::Yes | QMessageBox::No,
+                    QMessageBox::No);
+                if (answer != QMessageBox::Yes) {
+                    status->setText(qualityReason);
+                    return;
+                }
+            } else {
+                status->setText(qualityReason);
+                return;
+            }
+        }
+
+        const QVector<float> descriptor = computeFaceDescriptorForTemplate(lastFrame);
+        if (descriptor.isEmpty()) {
+            status->setText("Visage non detecte. Recadrez le visage et reessayez.");
+            return;
+        }
+
+        QByteArray jpegData;
+        QBuffer buffer(&jpegData);
+        if (!buffer.open(QIODevice::WriteOnly) || !lastFrame.save(&buffer, "JPG", 92)) {
+            status->setText("Capture impossible. Reessayez.");
+            return;
+        }
+
+        capturedBytes = jpegData;
+        faceTemplate = faceDescriptorToString(descriptor);
+        dialog.accept();
+    });
+
+    camera.start();
+    if (camera.error() != QCamera::NoError) {
+        errorText = camera.errorString().trimmed().isEmpty()
+                        ? "Impossible de demarrer la camera."
+                        : camera.errorString().trimmed();
+        camera.stop();
+        return QByteArray();
+    }
+    const int rc = dialog.exec();
+    camera.stop();
+
+    if (rc != QDialog::Accepted || capturedBytes.isEmpty()) {
+        if (errorText.isEmpty()) {
+            errorText = "Capture annulee.";
+        }
+        faceTemplate.clear();
+        return QByteArray();
+    }
+
+    return capturedBytes;
+}
+
 QByteArray chooseEmployeePhotoBytes(QWidget *parent)
 {
     const QString filePath = QFileDialog::getOpenFileName(
@@ -318,9 +725,15 @@ QByteArray chooseEmployeePhotoBytes(QWidget *parent)
     }
 
     const QByteArray data = file.readAll();
-    QPixmap validation;
+    QImage validation;
     if (!validation.loadFromData(data)) {
         QMessageBox::warning(parent, "Photo", "Image invalide. Choisissez un autre fichier.");
+        return QByteArray();
+    }
+
+    QString qualityReason;
+    if (!validateEmployeePhotoQuality(validation, qualityReason)) {
+        QMessageBox::warning(parent, "Qualite photo", qualityReason);
         return QByteArray();
     }
 
@@ -2080,6 +2493,69 @@ MainWindow::MainWindow(QWidget *parent)
         ui->txtEmailModif->setValidator(new QRegularExpressionValidator(emailRegex(), ui->txtEmailModif));
     }
 
+    auto updateEmployeAddValidation = [this]() {
+        const QString nom = ui->txtNom_Ajout ? ui->txtNom_Ajout->text().trimmed() : QString();
+        const QString email = ui->txtEmailAjout ? ui->txtEmailAjout->text().trimmed() : QString();
+        const QString cin = ui->txtCIN_Ajout ? ui->txtCIN_Ajout->text().trimmed() : QString();
+        const QString specialite = ui->cbSpecialite_Ajout ? ui->cbSpecialite_Ajout->currentText().trimmed() : QString();
+        const QString statut = ui->cbStatut_Ajout ? ui->cbStatut_Ajout->currentText().trimmed() : QString();
+        const bool photoOk = !m_employeePhotoAjout.isEmpty();
+
+        const bool nomOk = !nom.isEmpty();
+        const bool emailOk = !email.isEmpty() && isValidEmail(email);
+        const bool cinOk = isValidCinInput(cin);
+        const bool specialiteOk = !specialite.isEmpty() && !foldTextKey(specialite).contains("selection");
+        const bool statutOk = !statut.isEmpty() && !foldTextKey(statut).contains("selection");
+
+        setValidationStyle(ui->txtNom_Ajout, nomOk, "Le nom est obligatoire.");
+        setValidationStyle(ui->txtEmailAjout, emailOk, "Email invalide. Exemple: nom@domaine.com");
+        setValidationStyle(ui->txtCIN_Ajout, cinOk, "Le CIN doit contenir 8 chiffres.");
+
+        if (ui->btnAjouter) {
+            ui->btnAjouter->setEnabled(nomOk && emailOk && cinOk && specialiteOk && statutOk && photoOk);
+        }
+    };
+
+    auto updateEmployeModifValidation = [this]() {
+        const QString matricule = ui->txtMatricule ? ui->txtMatricule->text().trimmed() : QString();
+        const QString nom = ui->txtNom ? ui->txtNom->text().trimmed() : QString();
+        const QString email = ui->txtEmailModif ? ui->txtEmailModif->text().trimmed() : QString();
+        const QString cin = ui->txtCIN_Modif ? ui->txtCIN_Modif->text().trimmed() : QString();
+        const QString specialite = ui->cbSpecialite ? ui->cbSpecialite->currentText().trimmed() : QString();
+        const QString statut = ui->cbStatut ? ui->cbStatut->currentText().trimmed() : QString();
+
+        const bool matriculeOk = !matricule.isEmpty();
+        const bool nomOk = !nom.isEmpty();
+        const bool emailOk = !email.isEmpty() && isValidEmail(email);
+        const bool cinOk = isValidCinInput(cin);
+        const bool specialiteOk = !specialite.isEmpty() && !foldTextKey(specialite).contains("selection");
+        const bool statutOk = !statut.isEmpty() && !foldTextKey(statut).contains("selection");
+
+        setValidationStyle(ui->txtNom, nomOk, "Le nom est obligatoire.");
+        setValidationStyle(ui->txtEmailModif, emailOk, "Email invalide. Exemple: nom@domaine.com");
+        setValidationStyle(ui->txtCIN_Modif, cinOk, "Le CIN doit contenir 8 chiffres.");
+
+        if (ui->btnSave) {
+            ui->btnSave->setEnabled(matriculeOk && nomOk && emailOk && cinOk && specialiteOk && statutOk);
+        }
+    };
+
+    if (ui->txtNom_Ajout) connect(ui->txtNom_Ajout, &QLineEdit::textChanged, this, updateEmployeAddValidation);
+    if (ui->txtEmailAjout) connect(ui->txtEmailAjout, &QLineEdit::textChanged, this, updateEmployeAddValidation);
+    if (ui->txtCIN_Ajout) connect(ui->txtCIN_Ajout, &QLineEdit::textChanged, this, updateEmployeAddValidation);
+    if (ui->cbSpecialite_Ajout) connect(ui->cbSpecialite_Ajout, &QComboBox::currentTextChanged, this, updateEmployeAddValidation);
+    if (ui->cbStatut_Ajout) connect(ui->cbStatut_Ajout, &QComboBox::currentTextChanged, this, updateEmployeAddValidation);
+
+    if (ui->txtMatricule) connect(ui->txtMatricule, &QLineEdit::textChanged, this, updateEmployeModifValidation);
+    if (ui->txtNom) connect(ui->txtNom, &QLineEdit::textChanged, this, updateEmployeModifValidation);
+    if (ui->txtEmailModif) connect(ui->txtEmailModif, &QLineEdit::textChanged, this, updateEmployeModifValidation);
+    if (ui->txtCIN_Modif) connect(ui->txtCIN_Modif, &QLineEdit::textChanged, this, updateEmployeModifValidation);
+    if (ui->cbSpecialite) connect(ui->cbSpecialite, &QComboBox::currentTextChanged, this, updateEmployeModifValidation);
+    if (ui->cbStatut) connect(ui->cbStatut, &QComboBox::currentTextChanged, this, updateEmployeModifValidation);
+
+    updateEmployeAddValidation();
+    updateEmployeModifValidation();
+
 
 
     // Connexions
@@ -2098,11 +2574,33 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(ui->btnFichePaie, &QPushButton::clicked, this, &MainWindow::on_btnFichePaie_clicked);
     if (ui->btnUploadPhoto_Ajout) {
+        ui->btnUploadPhoto_Ajout->setText("Ouvrir camera visage");
         connect(ui->btnUploadPhoto_Ajout, &QPushButton::clicked, this, [this]() {
-            const QByteArray photoData = chooseEmployeePhotoBytes(this);
-            if (photoData.isEmpty()) return;
+            QString faceTemplate;
+            QString captureError;
+            const QByteArray photoData = captureEmployeePhotoFromCamera(this, faceTemplate, captureError);
+            if (photoData.isEmpty()) {
+                if (!captureError.isEmpty() && captureError != "Capture annulee.") {
+                    QMessageBox::warning(this, "Camera", captureError);
+                }
+                return;
+            }
             m_employeePhotoAjout = photoData;
+            m_employeeFaceTemplateAjout = faceTemplate;
             setEmployeePhotoPreview(ui->imageLabel_2, m_employeePhotoAjout);
+            if (ui->btnAjouter) {
+                const QString nom = ui->txtNom_Ajout ? ui->txtNom_Ajout->text().trimmed() : QString();
+                const QString email = ui->txtEmailAjout ? ui->txtEmailAjout->text().trimmed() : QString();
+                const QString cin = ui->txtCIN_Ajout ? ui->txtCIN_Ajout->text().trimmed() : QString();
+                const QString specialite = ui->cbSpecialite_Ajout ? ui->cbSpecialite_Ajout->currentText().trimmed() : QString();
+                const QString statut = ui->cbStatut_Ajout ? ui->cbStatut_Ajout->currentText().trimmed() : QString();
+                const bool nomOk = !nom.isEmpty();
+                const bool emailOk = !email.isEmpty() && isValidEmail(email);
+                const bool cinOk = isValidCinInput(cin);
+                const bool specialiteOk = !specialite.isEmpty() && !foldTextKey(specialite).contains("selection");
+                const bool statutOk = !statut.isEmpty() && !foldTextKey(statut).contains("selection");
+                ui->btnAjouter->setEnabled(nomOk && emailOk && cinOk && specialiteOk && statutOk && !m_employeePhotoAjout.isEmpty());
+            }
         });
     }
     if (ui->btnUploadPhoto) {
@@ -2362,6 +2860,11 @@ void MainWindow::refreshEmployes()
         delete model;
         return;
     }
+    if (model->rowCount() == 0 && !Etmp.lastError().trimmed().isEmpty()) {
+        showFriendlySqlError(this, "charger les employes", Etmp.lastError());
+        delete model;
+        return;
+    }
 
     for (int i = 0; i < model->rowCount(); ++i) {
         int id_emp = model->data(model->index(i, 0)).toInt();
@@ -2581,6 +3084,7 @@ void MainWindow::on_btnNouveau_clicked()
     }
 
     m_employeePhotoAjout.clear();
+    m_employeeFaceTemplateAjout.clear();
     setEmployeePhotoPreview(ui->imageLabel_2, m_employeePhotoAjout);
 
 
@@ -2627,6 +3131,7 @@ void MainWindow::on_btnAnnuler_Ajout_clicked()
 
 {
     m_employeePhotoAjout.clear();
+    m_employeeFaceTemplateAjout.clear();
     setEmployeePhotoPreview(ui->imageLabel_2, m_employeePhotoAjout);
 
     showEmployesPage();
@@ -2796,9 +3301,26 @@ void MainWindow::on_btnAjouter_clicked()
     }
 
     const QString cin = ui->txtCIN_Ajout ? ui->txtCIN_Ajout->text().trimmed() : QString();
+    if (!isValidCinInput(cin)) {
+        QMessageBox::warning(this, "Ajout", "Le CIN doit contenir exactement 8 chiffres.");
+        return;
+    }
+    if (specialite.isEmpty() || foldTextKey(specialite).contains("selection")) {
+        QMessageBox::warning(this, "Ajout", "Veuillez choisir une specialite.");
+        return;
+    }
+    if (statut.isEmpty() || foldTextKey(statut).contains("selection")) {
+        QMessageBox::warning(this, "Ajout", "Veuillez choisir un statut.");
+        return;
+    }
+    if (m_employeePhotoAjout.isEmpty()) {
+        QMessageBox::warning(this, "Ajout", "La photo est obligatoire pour creer le compte.");
+        return;
+    }
 
     const QString disponibiliteDb = toDbDisponibilite(statut);
     ensureEmployePhotoColumnExists();
+    ensureEmployeFaceColumnsExist();
 
     Etmp.setIdEmp(0);
     Etmp.setMatricule(matricule);
@@ -2811,6 +3333,19 @@ void MainWindow::on_btnAjouter_clicked()
     if (!Etmp.ajouter()) {
         showFriendlySqlError(this, "ajouter l'employe", Etmp.lastError());
         return;
+    }
+
+    if (!m_employeeFaceTemplateAjout.trimmed().isEmpty()) {
+        QSqlQuery faceQuery;
+        faceQuery.prepare(
+            "UPDATE EMPLOYE "
+            "SET face_template=:tpl, face_template_updated_at=SYSDATE, face_enabled=1 "
+            "WHERE LOWER(TRIM(email)) = LOWER(TRIM(:email))");
+        faceQuery.bindValue(":tpl", m_employeeFaceTemplateAjout);
+        faceQuery.bindValue(":email", email);
+        if (!faceQuery.exec()) {
+            qWarning() << "Face template save failed:" << faceQuery.lastError().text();
+        }
     }
 
     refreshEmployes();
@@ -2858,6 +3393,7 @@ void MainWindow::on_btnAjouter_clicked()
     }
 
     m_employeePhotoAjout.clear();
+    m_employeeFaceTemplateAjout.clear();
     setEmployeePhotoPreview(ui->imageLabel_2, m_employeePhotoAjout);
 
     if (m_isEmpCardView)
@@ -3230,6 +3766,18 @@ void MainWindow::on_btnSave_clicked()
         QMessageBox::warning(this, "Modification", "Format d'email invalide. Exemple: nom@domaine.com");
         return;
     }
+    if (!isValidCinInput(cin)) {
+        QMessageBox::warning(this, "Modification", "Le CIN doit contenir exactement 8 chiffres.");
+        return;
+    }
+    if (specialite.isEmpty() || foldTextKey(specialite).contains("selection")) {
+        QMessageBox::warning(this, "Modification", "Veuillez choisir une specialite.");
+        return;
+    }
+    if (statut.isEmpty() || foldTextKey(statut).contains("selection")) {
+        QMessageBox::warning(this, "Modification", "Veuillez choisir un statut.");
+        return;
+    }
 
     int idEmp = -1;
     int perf = 0;
@@ -3394,7 +3942,11 @@ void MainWindow::on_btnSupprimer_clicked()
         return;
     }
 
-    if (!Etmp.supprimer(idEmp)) {
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+    const bool deleted = Etmp.supprimer(idEmp);
+    QApplication::restoreOverrideCursor();
+
+    if (!deleted) {
         showFriendlySqlError(this, "supprimer l'employe", Etmp.lastError());
         return;
     }
@@ -3408,12 +3960,16 @@ void MainWindow::on_btnSupprimer_clicked()
         ui->tableEmployes->selectRow(rowToSelect);
     }
 
-    if (m_isEmpCardView)
-        refreshEmpCardView();
+    bool shouldRunShowPage = true;
+    if (auto *sw = mainStacked()) {
+        if (auto *page = sw->findChild<QWidget*>("affichage", Qt::FindDirectChildrenOnly)) {
+            shouldRunShowPage = (sw->currentWidget() != page);
+        }
+    }
 
-
-
-    showEmployesPage();
+    if (shouldRunShowPage) {
+        showEmployesPage();
+    }
 
 }
 

@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include <QButtonGroup>
 #include <QByteArray>
+#include <QString>
 
 #include <QtCharts>
 #include <QChartView>
@@ -191,6 +192,7 @@ private:
     QWidget *homeDashboardPage;
     int currentEmployeRow; // To track which row is being modified in employee table
     QByteArray m_employeePhotoAjout;
+    QString m_employeeFaceTemplateAjout;
     QByteArray m_employeePhotoModif;
     int currentClientRow; // To track which row is being modified in client table
     int currentMaintRow;  // To track which row is being modified in maintenance table

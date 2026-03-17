@@ -1,4 +1,5 @@
 #include "employe.h"
+#include "connection.h"
 #include <QSqlError>
 #include <QVariant>
 
@@ -10,6 +11,88 @@ bool isMissingPhotoColumnError(const QString &errorText)
         || upper.contains("INVALID IDENTIFIER")
         || upper.contains("NO SUCH COLUMN")
         || upper.contains("UNKNOWN COLUMN");
+}
+
+bool isDisconnectedSessionError(const QString &errorText)
+{
+    const QString upper = errorText.toUpper();
+    return upper.contains("ORA-03114")
+        || upper.contains("ORA-03113")
+        || upper.contains("ORA-01012")
+        || upper.contains("NOT CONNECTED TO ORACLE")
+        || upper.contains("CONNECTION IS BROKEN")
+        || upper.contains("COMMUNICATION LINK FAILURE");
+}
+
+bool pingCurrentSession(QString &errorText)
+{
+    errorText.clear();
+    QSqlQuery ping;
+    if (ping.exec("SELECT 1")) {
+        return true;
+    }
+    if (ping.exec("SELECT 1 FROM DUAL")) {
+        return true;
+    }
+    errorText = ping.lastError().text();
+    return false;
+}
+
+bool ensureSessionAlive(QString &errorText)
+{
+    errorText.clear();
+
+    Connection *connection = Connection::instance();
+    if (!connection) {
+        errorText = "Connexion base introuvable.";
+        return false;
+    }
+
+    if (!connection->isOpen()) {
+        if (!connection->createConnect()) {
+            errorText = connection->lastError();
+            return false;
+        }
+        return true;
+    }
+
+    QString pingError;
+    if (pingCurrentSession(pingError)) {
+        return true;
+    }
+
+    if (!isDisconnectedSessionError(pingError)) {
+        errorText = pingError;
+        return false;
+    }
+
+    connection->closeConnection();
+    if (!connection->createConnect()) {
+        errorText = connection->lastError();
+        return false;
+    }
+
+    if (!pingCurrentSession(pingError)) {
+        errorText = pingError;
+        return false;
+    }
+
+    return true;
+}
+
+bool tryDeleteEmployeeRow(int idEmp, QString &errorText)
+{
+    errorText.clear();
+
+    QSqlQuery query;
+    query.prepare("DELETE FROM EMPLOYE WHERE id_emp = :id_emp");
+    query.bindValue(":id_emp", idEmp);
+    if (query.exec()) {
+        return true;
+    }
+
+    errorText = query.lastError().text();
+    return false;
 }
 
 void bindPhotoValue(QSqlQuery &query, const QByteArray &photo)
@@ -64,6 +147,12 @@ void Employe::setPhoto(const QByteArray &value) { photo = value; }
 
 bool Employe::ajouter()
 {
+    QString sessionError;
+    if (!ensureSessionAlive(sessionError)) {
+        m_lastError = sessionError;
+        return false;
+    }
+
     QSqlQuery query;
     if (id_emp > 0) {
         query.prepare(
@@ -123,17 +212,41 @@ bool Employe::ajouter()
 
 bool Employe::supprimer(int id_emp)
 {
-    QSqlQuery query;
-    query.prepare("DELETE FROM EMPLOYE WHERE id_emp = :id_emp");
-    query.bindValue(":id_emp", id_emp);
-    const bool ok = query.exec();
-    m_lastError = ok ? QString() : query.lastError().text();
-    return ok;
+    QString lastSqlError;
+
+    for (int attempt = 0; attempt < 2; ++attempt) {
+        QString sessionError;
+        if (!ensureSessionAlive(sessionError)) {
+            m_lastError = sessionError;
+            return false;
+        }
+
+        if (tryDeleteEmployeeRow(id_emp, lastSqlError)) {
+            m_lastError.clear();
+            return true;
+        }
+
+        if (attempt == 0 && isDisconnectedSessionError(lastSqlError)) {
+            continue;
+        }
+
+        m_lastError = lastSqlError;
+        return false;
+    }
+
+    m_lastError = lastSqlError.isEmpty() ? "Suppression employe impossible." : lastSqlError;
+    return false;
 }
 
 
 bool Employe::modifier()
 {
+    QString sessionError;
+    if (!ensureSessionAlive(sessionError)) {
+        m_lastError = sessionError;
+        return false;
+    }
+
     QSqlQuery query;
     query.prepare(
         "UPDATE EMPLOYE SET "
@@ -183,6 +296,16 @@ bool Employe::modifier()
 
 QSqlQueryModel *Employe::afficher()
 {
+    QString sessionError;
+    if (!ensureSessionAlive(sessionError)) {
+        QSqlQueryModel *failedModel = new QSqlQueryModel();
+        QSqlQuery failedQuery;
+        failedQuery.exec("SELECT id_emp FROM EMPLOYE WHERE 1=0");
+        failedModel->setQuery(failedQuery);
+        m_lastError = sessionError;
+        return failedModel;
+    }
+
     QSqlQueryModel *model = new QSqlQueryModel();
     model->setQuery("SELECT id_emp, matricule, cin, nom, email, specialite, disponibilite, photo FROM EMPLOYE");
     if (model->lastError().isValid() && isMissingPhotoColumnError(model->lastError().text())) {
@@ -195,6 +318,13 @@ QSqlQueryModel *Employe::afficher()
 bool Employe::findIdByMatricule(const QString &matricule, int &id_emp)
 {
     id_emp = -1;
+
+    QString sessionError;
+    if (!ensureSessionAlive(sessionError)) {
+        m_lastError = sessionError;
+        return false;
+    }
+
     QSqlQuery query;
     query.prepare("SELECT id_emp FROM EMPLOYE WHERE matricule = :matricule");
     query.bindValue(":matricule", matricule);
