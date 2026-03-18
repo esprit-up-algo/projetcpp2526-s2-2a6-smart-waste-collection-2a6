@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include "connection.h"
 
 #include "ui_mainwindow.h"
 #include <QPdfWriter>
@@ -10,6 +11,7 @@
 #include <QFile>
 #include <QBuffer>
 #include <QDate>
+#include <QDateTime>
 #include <QDir>
 
 
@@ -121,6 +123,8 @@ static constexpr int EMP_ROLE_CIN = Qt::UserRole + 3;
 static constexpr int EMP_ROLE_SALAIRE = Qt::UserRole + 4;
 static constexpr int EMP_ROLE_PERF = Qt::UserRole + 5;
 static constexpr int EMP_ROLE_PHOTO = Qt::UserRole + 6;
+static constexpr int MISSION_ROLE_ID = Qt::UserRole + 100;
+static constexpr int MISSION_ROLE_SCORE = Qt::UserRole + 101;
 
 
 
@@ -257,6 +261,990 @@ bool isMissingPhotoColumnError(const QString &errorText)
         || upper.contains("NO SUCH COLUMN")
         || upper.contains("UNKNOWN COLUMN");
 }
+
+bool isMissingTableError(const QString &errorText)
+{
+    const QString upper = errorText.toUpper();
+    return upper.contains("ORA-00942")
+        || upper.contains("NO SUCH TABLE")
+        || upper.contains("DOESN'T EXIST");
+}
+
+bool isDisconnectedSessionError(const QString &errorText)
+{
+    const QString upper = errorText.toUpper();
+    return upper.contains("ORA-03114")
+        || upper.contains("ORA-03113")
+        || upper.contains("ORA-01012")
+        || upper.contains("NOT CONNECTED TO ORACLE")
+        || upper.contains("CONNECTION IS BROKEN")
+        || upper.contains("COMMUNICATION LINK FAILURE")
+        || upper.contains("END-OF-FILE ON COMMUNICATION CHANNEL");
+}
+
+bool pingCurrentDbSession(QString &errorText)
+{
+    errorText.clear();
+    QSqlQuery ping;
+    if (ping.exec("SELECT 1")) {
+        return true;
+    }
+    if (ping.exec("SELECT 1 FROM DUAL")) {
+        return true;
+    }
+    errorText = ping.lastError().text();
+    return false;
+}
+
+bool ensureMainWindowDbSessionAlive(QString &errorText)
+{
+    errorText.clear();
+
+    Connection *connection = Connection::instance();
+    if (!connection) {
+        errorText = "Connexion base introuvable.";
+        return false;
+    }
+
+    if (!connection->isOpen()) {
+        if (!connection->createConnect()) {
+            errorText = connection->lastError();
+            return false;
+        }
+        return true;
+    }
+
+    QString pingError;
+    if (pingCurrentDbSession(pingError)) {
+        return true;
+    }
+    if (!isDisconnectedSessionError(pingError)) {
+        errorText = pingError;
+        return false;
+    }
+
+    connection->closeConnection();
+    if (!connection->createConnect()) {
+        errorText = connection->lastError();
+        return false;
+    }
+
+    if (!pingCurrentDbSession(pingError)) {
+        errorText = pingError;
+        return false;
+    }
+    return true;
+}
+
+bool isColumnAlreadyExistsError(const QString &errorText)
+{
+    const QString upper = errorText.toUpper();
+    return upper.contains("ORA-01430")
+        || upper.contains("ORA-00957")
+        || upper.contains("DUPLICATE COLUMN")
+        || upper.contains("ALREADY EXISTS");
+}
+
+struct AssignedTaskItem
+{
+    int idAffect = 0;
+    QString missionText;
+    double score = 0.0;
+    double rewardAmount = 0.0;
+    int experienceGain = 0;
+    QString assignedAt;
+    QString status;
+    QString completedAt;
+};
+
+bool isMissionTaskDoneStatus(const QString &status)
+{
+    QString s = status;
+    s = s.normalized(QString::NormalizationForm_D).toLower().trimmed();
+    return s.contains("termine")
+        || s.contains("deja fait")
+        || s.contains("fait")
+        || s.contains("done")
+        || s.contains("complete");
+}
+
+int missionDifficultyLevel(const QString &missionText);
+QStringList missionSpecialityHints(const QString &missionText);
+
+int missionDifficultyForRewards(const QString &missionText)
+{
+    int level = missionDifficultyLevel(missionText);
+    const int hintCount = missionSpecialityHints(missionText).size();
+    if (hintCount >= 2) {
+        level = qMin(3, level + 1);
+    }
+    return qBound(1, level, 3);
+}
+
+double missionTaskMonthlyBonusFromScore(double score, const QString &missionText)
+{
+    const double bounded = qBound(0.0, score, 100.0);
+    const int difficulty = missionDifficultyForRewards(missionText);
+
+    if (difficulty <= 1) {
+        // Mission facile: prime tres faible, souvent 0.
+        if (bounded < 75.0) return 0.0;
+        if (bounded < 90.0) return 5.0;
+        return 10.0;
+    }
+
+    if (difficulty == 2) {
+        if (bounded < 60.0) return 8.0;
+        return qRound((12.0 + (bounded * 0.48)) * 100.0) / 100.0; // ~12 .. 60
+    }
+
+    // Mission difficile/urgente: prime plus elevee selon performance.
+    if (bounded < 55.0) return 25.0;
+    return qRound((35.0 + (bounded * 0.95)) * 100.0) / 100.0; // ~35 .. 130
+}
+
+int missionTaskExperienceGainFromScore(double score, const QString &missionText)
+{
+    const double bounded = qBound(0.0, score, 100.0);
+    const int difficulty = missionDifficultyForRewards(missionText);
+
+    if (difficulty <= 1) {
+        if (bounded < 90.0) return 0;
+        return 1;
+    }
+
+    if (difficulty == 2) {
+        if (bounded < 60.0) return 0;
+        if (bounded < 85.0) return 1;
+        return 2;
+    }
+
+    if (bounded < 50.0) return 1;
+    if (bounded < 75.0) return 2;
+    if (bounded < 90.0) return 3;
+    return 4;
+}
+
+QDateTime parseSqlDateTimeValue(const QVariant &value)
+{
+    const QDateTime asDt = value.toDateTime();
+    if (asDt.isValid()) return asDt;
+
+    const QString raw = value.toString().trimmed();
+    if (raw.isEmpty()) return QDateTime();
+
+    const QStringList formats = {
+        "yyyy-MM-dd HH:mm:ss",
+        "yyyy-MM-dd HH:mm",
+        "yyyy-MM-ddTHH:mm:ss",
+        "yyyy-MM-ddTHH:mm:ssZ",
+        "dd/MM/yyyy HH:mm:ss",
+        "dd/MM/yyyy HH:mm",
+        "yyyy-MM-dd"
+    };
+    for (const QString &fmt : formats) {
+        QDateTime dt = QDateTime::fromString(raw, fmt);
+        if (dt.isValid()) return dt;
+    }
+
+    QDateTime iso = QDateTime::fromString(raw, Qt::ISODate);
+    if (iso.isValid()) return iso;
+    iso = QDateTime::fromString(raw, Qt::ISODateWithMs);
+    return iso;
+}
+
+bool ensureEmployeExperienceColumnExists(QString &errorText)
+{
+    errorText.clear();
+
+    QSqlQuery probe;
+    if (probe.exec("SELECT experience FROM EMPLOYE WHERE 1=0")) {
+        return true;
+    }
+    if (!isMissingPhotoColumnError(probe.lastError().text())) {
+        errorText = probe.lastError().text();
+        return false;
+    }
+
+    QSqlQuery alterOracle;
+    if (alterOracle.exec("ALTER TABLE EMPLOYE ADD (experience NUMBER(6) DEFAULT 0)")) {
+        return true;
+    }
+    if (isColumnAlreadyExistsError(alterOracle.lastError().text())) {
+        return true;
+    }
+
+    QSqlQuery alterFallback;
+    if (alterFallback.exec("ALTER TABLE EMPLOYE ADD COLUMN experience INTEGER DEFAULT 0")) {
+        return true;
+    }
+    if (isColumnAlreadyExistsError(alterFallback.lastError().text())) {
+        return true;
+    }
+
+    errorText = alterOracle.lastError().text();
+    if (errorText.trimmed().isEmpty()) {
+        errorText = alterFallback.lastError().text();
+    }
+    return false;
+}
+
+bool ensureMissionAffectationColumns(QString &errorText)
+{
+    static bool checked = false;
+    if (checked) return true;
+
+    errorText.clear();
+
+    QSqlQuery probeAll;
+    if (probeAll.exec(
+            "SELECT status, completed_at, reward_amount, experience_gain "
+            "FROM MISSION_AFFECTATION WHERE 1=0")) {
+        checked = true;
+        return true;
+    }
+    if (!isMissingPhotoColumnError(probeAll.lastError().text())) {
+        errorText = probeAll.lastError().text();
+        return false;
+    }
+    probeAll.finish();
+
+    auto addColumn = [&](const QString &oracleSql, const QString &sqliteSql) -> bool {
+        QSqlQuery q;
+        if (q.exec(oracleSql)) return true;
+        if (isColumnAlreadyExistsError(q.lastError().text())) return true;
+
+        QSqlQuery fallback;
+        if (fallback.exec(sqliteSql)) return true;
+        if (isColumnAlreadyExistsError(fallback.lastError().text())) return true;
+
+        errorText = q.lastError().text();
+        if (errorText.trimmed().isEmpty()) {
+            errorText = fallback.lastError().text();
+        }
+        return false;
+    };
+
+    if (!addColumn(
+            "ALTER TABLE MISSION_AFFECTATION ADD (status VARCHAR2(20) DEFAULT 'EN_ATTENTE')",
+            "ALTER TABLE MISSION_AFFECTATION ADD COLUMN status TEXT DEFAULT 'EN_ATTENTE'")) {
+        return false;
+    }
+
+    if (!addColumn(
+            "ALTER TABLE MISSION_AFFECTATION ADD (completed_at DATE)",
+            "ALTER TABLE MISSION_AFFECTATION ADD COLUMN completed_at TEXT")) {
+        return false;
+    }
+
+    if (!addColumn(
+            "ALTER TABLE MISSION_AFFECTATION ADD (reward_amount NUMBER(10,2) DEFAULT 0)",
+            "ALTER TABLE MISSION_AFFECTATION ADD COLUMN reward_amount REAL DEFAULT 0")) {
+        return false;
+    }
+
+    if (!addColumn(
+            "ALTER TABLE MISSION_AFFECTATION ADD (experience_gain NUMBER(5) DEFAULT 0)",
+            "ALTER TABLE MISSION_AFFECTATION ADD COLUMN experience_gain INTEGER DEFAULT 0")) {
+        return false;
+    }
+
+    QSqlQuery normalize;
+    normalize.exec("UPDATE MISSION_AFFECTATION SET status='EN_ATTENTE' WHERE status IS NULL OR TRIM(status)=''");
+    normalize.exec("UPDATE MISSION_AFFECTATION SET reward_amount=0 WHERE reward_amount IS NULL");
+    normalize.exec("UPDATE MISSION_AFFECTATION SET experience_gain=0 WHERE experience_gain IS NULL");
+    checked = true;
+    return true;
+}
+
+bool ensureMissionAffectationTableExists(QString &errorText)
+{
+    errorText.clear();
+
+    QSqlQuery probe;
+    if (probe.exec("SELECT id_emp, mission_text, score, assigned_at FROM MISSION_AFFECTATION WHERE 1=0")) {
+        return ensureMissionAffectationColumns(errorText);
+    }
+    if (!isMissingTableError(probe.lastError().text())) {
+        errorText = probe.lastError().text();
+        return false;
+    }
+
+    QSqlQuery createOracle;
+    const bool oracleTableReady = createOracle.exec(
+                                      "CREATE TABLE MISSION_AFFECTATION ("
+                                      "id_affect NUMBER PRIMARY KEY, "
+                                      "id_emp NUMBER NOT NULL, "
+                                      "mission_text VARCHAR2(1000), "
+                                      "score NUMBER(6,2), "
+                                      "assigned_at DATE DEFAULT SYSDATE, "
+                                      "status VARCHAR2(20) DEFAULT 'EN_ATTENTE', "
+                                      "completed_at DATE, "
+                                      "reward_amount NUMBER(10,2) DEFAULT 0, "
+                                      "experience_gain NUMBER(5) DEFAULT 0)")
+                                  || createOracle.lastError().text().toUpper().contains("ORA-00955");
+    if (oracleTableReady) {
+        QSqlQuery createSeq;
+        if (!createSeq.exec(
+                "CREATE SEQUENCE MISSION_AFFECTATION_SEQ "
+                "START WITH 1 INCREMENT BY 1 NOCACHE")
+            && !createSeq.lastError().text().toUpper().contains("ORA-00955")) {
+            errorText = createSeq.lastError().text();
+            return false;
+        }
+        QSqlQuery createTrigger;
+        if (!createTrigger.exec(
+                "CREATE OR REPLACE TRIGGER MISSION_AFFECTATION_BI "
+                "BEFORE INSERT ON MISSION_AFFECTATION "
+                "FOR EACH ROW "
+                "WHEN (NEW.id_affect IS NULL) "
+                "BEGIN "
+                "SELECT MISSION_AFFECTATION_SEQ.NEXTVAL INTO :NEW.id_affect FROM DUAL; "
+                "END;")) {
+            // Not blocking: insert() also tries explicit sequence usage.
+        }
+        return ensureMissionAffectationColumns(errorText);
+    }
+
+    QSqlQuery createFallback;
+    if (createFallback.exec(
+            "CREATE TABLE MISSION_AFFECTATION ("
+            "id_affect INTEGER PRIMARY KEY AUTOINCREMENT, "
+            "id_emp INTEGER NOT NULL, "
+            "mission_text TEXT, "
+            "score REAL, "
+            "assigned_at TEXT DEFAULT CURRENT_TIMESTAMP, "
+            "status TEXT DEFAULT 'EN_ATTENTE', "
+            "completed_at TEXT, "
+            "reward_amount REAL DEFAULT 0, "
+            "experience_gain INTEGER DEFAULT 0)")) {
+        return ensureMissionAffectationColumns(errorText);
+    }
+    if (createFallback.lastError().text().toUpper().contains("ALREADY EXISTS")) {
+        return ensureMissionAffectationColumns(errorText);
+    }
+
+    errorText = createOracle.lastError().text();
+    if (errorText.trimmed().isEmpty()) {
+        errorText = createFallback.lastError().text();
+    }
+    return false;
+}
+
+bool insertMissionAffectationRow(int idEmp, const QString &missionText, double score, QString &errorText)
+{
+    errorText.clear();
+    if (!ensureMissionAffectationTableExists(errorText)) {
+        return false;
+    }
+
+    QSqlQuery insertOracleSeq;
+    insertOracleSeq.prepare(
+        "INSERT INTO MISSION_AFFECTATION (id_affect, id_emp, mission_text, score, assigned_at, status, completed_at, reward_amount, experience_gain) "
+        "VALUES (MISSION_AFFECTATION_SEQ.NEXTVAL, :id_emp, :mission_text, :score, SYSDATE, 'EN_ATTENTE', NULL, 0, 0)");
+    insertOracleSeq.bindValue(":id_emp", idEmp);
+    insertOracleSeq.bindValue(":mission_text", missionText);
+    insertOracleSeq.bindValue(":score", score);
+    if (insertOracleSeq.exec()) {
+        return true;
+    }
+
+    QSqlQuery insertOracle;
+    insertOracle.prepare(
+        "INSERT INTO MISSION_AFFECTATION (id_emp, mission_text, score, assigned_at, status, completed_at, reward_amount, experience_gain) "
+        "VALUES (:id_emp, :mission_text, :score, SYSDATE, 'EN_ATTENTE', NULL, 0, 0)");
+    insertOracle.bindValue(":id_emp", idEmp);
+    insertOracle.bindValue(":mission_text", missionText);
+    insertOracle.bindValue(":score", score);
+    if (insertOracle.exec()) {
+        return true;
+    }
+
+    QSqlQuery insertFallback;
+    insertFallback.prepare(
+        "INSERT INTO MISSION_AFFECTATION (id_emp, mission_text, score, assigned_at, status, completed_at, reward_amount, experience_gain) "
+        "VALUES (:id_emp, :mission_text, :score, CURRENT_TIMESTAMP, 'EN_ATTENTE', NULL, 0, 0)");
+    insertFallback.bindValue(":id_emp", idEmp);
+    insertFallback.bindValue(":mission_text", missionText);
+    insertFallback.bindValue(":score", score);
+    if (insertFallback.exec()) {
+        return true;
+    }
+
+    errorText = insertOracleSeq.lastError().text();
+    if (errorText.trimmed().isEmpty()) {
+        errorText = insertOracle.lastError().text();
+    }
+    if (errorText.trimmed().isEmpty()) {
+        errorText = insertFallback.lastError().text();
+    }
+    return false;
+}
+
+bool loadEmployeeAssignedTasks(const QString &email,
+                               QVector<AssignedTaskItem> &pending,
+                               QVector<AssignedTaskItem> &done,
+                               QString &errorText)
+{
+    pending.clear();
+    done.clear();
+    errorText.clear();
+
+    const QString normalizedEmail = email.trimmed();
+    if (normalizedEmail.isEmpty()) {
+        errorText = "Email employe manquant.";
+        return false;
+    }
+
+    for (int attempt = 0; attempt < 2; ++attempt) {
+        QString sessionError;
+        if (!ensureMainWindowDbSessionAlive(sessionError)) {
+            errorText = sessionError;
+            return false;
+        }
+
+        if (!ensureMissionAffectationTableExists(errorText)) {
+            if (attempt == 0 && isDisconnectedSessionError(errorText)) {
+                continue;
+            }
+            return false;
+        }
+
+        QSqlQuery query;
+        query.prepare(
+            "SELECT a.id_affect, a.mission_text, a.score, "
+            "COALESCE(a.reward_amount,0), COALESCE(a.experience_gain,0), "
+            "a.assigned_at, COALESCE(a.status, 'EN_ATTENTE') AS status, a.completed_at "
+            "FROM MISSION_AFFECTATION a "
+            "JOIN EMPLOYE e ON e.id_emp = a.id_emp "
+            "WHERE LOWER(TRIM(e.email)) = LOWER(TRIM(:email)) "
+            "ORDER BY a.assigned_at DESC");
+        query.bindValue(":email", normalizedEmail);
+        if (!query.exec()) {
+            errorText = query.lastError().text();
+            if (attempt == 0 && isDisconnectedSessionError(errorText)) {
+                continue;
+            }
+            return false;
+        }
+
+        auto stringifyTime = [](const QVariant &value) -> QString {
+            if (!value.isValid() || value.isNull()) return QString();
+            const QDateTime dt = parseSqlDateTimeValue(value);
+            if (dt.isValid()) return dt.toString("yyyy-MM-dd HH:mm");
+            return value.toString();
+        };
+
+        while (query.next()) {
+            AssignedTaskItem task;
+            task.idAffect = query.value(0).toInt();
+            task.missionText = query.value(1).toString().trimmed();
+            task.score = query.value(2).toDouble();
+            task.rewardAmount = query.value(3).toDouble();
+            task.experienceGain = query.value(4).toInt();
+            task.assignedAt = stringifyTime(query.value(5));
+            task.status = query.value(6).toString().trimmed();
+            if (task.status.isEmpty()) task.status = "EN_ATTENTE";
+            task.completedAt = stringifyTime(query.value(7));
+
+            if (isMissionTaskDoneStatus(task.status)) {
+                done.push_back(task);
+            } else {
+                pending.push_back(task);
+            }
+        }
+
+        return true;
+    }
+    return false;
+}
+
+double computeEmployeeMonthlyTaskBonus(int idEmp, const QDate &periodStart, const QDate &periodEnd, QString &errorText)
+{
+    errorText.clear();
+    if (idEmp <= 0) return 0.0;
+    if (!periodStart.isValid() || !periodEnd.isValid()) return 0.0;
+
+    for (int attempt = 0; attempt < 2; ++attempt) {
+        QString sessionError;
+        if (!ensureMainWindowDbSessionAlive(sessionError)) {
+            errorText = sessionError;
+            return 0.0;
+        }
+
+        if (!ensureMissionAffectationTableExists(errorText)) {
+            if (attempt == 0 && isDisconnectedSessionError(errorText)) {
+                continue;
+            }
+            return 0.0;
+        }
+
+        QSqlQuery query;
+        query.prepare(
+            "SELECT mission_text, score, COALESCE(reward_amount,0), completed_at, COALESCE(status,'EN_ATTENTE') "
+            "FROM MISSION_AFFECTATION "
+            "WHERE id_emp=:id");
+        query.bindValue(":id", idEmp);
+        if (!query.exec()) {
+            errorText = query.lastError().text();
+            if (attempt == 0 && isDisconnectedSessionError(errorText)) {
+                continue;
+            }
+            return 0.0;
+        }
+
+        double total = 0.0;
+        while (query.next()) {
+            const QString missionText = query.value(0).toString();
+            const QString status = query.value(4).toString();
+            if (!isMissionTaskDoneStatus(status)) continue;
+
+            const QDateTime completedAt = parseSqlDateTimeValue(query.value(3));
+            if (!completedAt.isValid()) continue;
+            const QDate doneDate = completedAt.date();
+            if (doneDate < periodStart || doneDate > periodEnd) continue;
+
+            double reward = query.value(2).toDouble();
+            if (reward <= 0.0) {
+                reward = missionTaskMonthlyBonusFromScore(query.value(1).toDouble(), missionText);
+            }
+            total += reward;
+        }
+
+        errorText.clear();
+        return qRound(total * 100.0) / 100.0;
+    }
+    return 0.0;
+}
+
+bool markMissionTaskAsDoneById(int idAffect, QString &errorText, double *appliedBonus = nullptr, int *appliedExperienceGain = nullptr)
+{
+    errorText.clear();
+    if (appliedBonus) *appliedBonus = 0.0;
+    if (appliedExperienceGain) *appliedExperienceGain = 0;
+    if (idAffect <= 0) {
+        errorText = "Tache invalide.";
+        return false;
+    }
+
+    QString lastError;
+    for (int attempt = 0; attempt < 2; ++attempt) {
+        QString sessionError;
+        if (!ensureMainWindowDbSessionAlive(sessionError)) {
+            errorText = sessionError;
+            return false;
+        }
+
+        if (!ensureMissionAffectationTableExists(lastError)) {
+            if (attempt == 0 && isDisconnectedSessionError(lastError)) continue;
+            errorText = lastError;
+            return false;
+        }
+        if (!ensureEmployeExperienceColumnExists(lastError)) {
+            if (attempt == 0 && isDisconnectedSessionError(lastError)) continue;
+            errorText = lastError;
+            return false;
+        }
+
+        QSqlQuery readTask;
+        readTask.prepare(
+            "SELECT id_emp, mission_text, COALESCE(score,0), COALESCE(status,'EN_ATTENTE') "
+            "FROM MISSION_AFFECTATION WHERE id_affect=:id");
+        readTask.bindValue(":id", idAffect);
+        if (!readTask.exec()) {
+            lastError = readTask.lastError().text();
+            if (attempt == 0 && isDisconnectedSessionError(lastError)) continue;
+            errorText = lastError;
+            return false;
+        }
+        if (!readTask.next()) {
+            errorText = "Tache introuvable.";
+            return false;
+        }
+
+        const int idEmp = readTask.value(0).toInt();
+        const QString missionText = readTask.value(1).toString();
+        const double taskScore = readTask.value(2).toDouble();
+        const QString currentStatus = readTask.value(3).toString();
+        if (isMissionTaskDoneStatus(currentStatus)) {
+            return true;
+        }
+
+        const double reward = missionTaskMonthlyBonusFromScore(taskScore, missionText);
+        const int expGain = missionTaskExperienceGainFromScore(taskScore, missionText);
+
+        QSqlDatabase db = QSqlDatabase::database();
+        bool txStarted = false;
+        if (db.isValid()) {
+            txStarted = db.transaction();
+            if (!txStarted) {
+                lastError = db.lastError().text();
+                if (attempt == 0 && isDisconnectedSessionError(lastError)) {
+                    continue;
+                }
+            }
+        }
+
+        bool updatedTask = false;
+        QSqlQuery updateOracle;
+        updateOracle.prepare(
+            "UPDATE MISSION_AFFECTATION "
+            "SET status='TERMINEE', completed_at=SYSDATE, reward_amount=:reward, experience_gain=:exp "
+            "WHERE id_affect=:id");
+        updateOracle.bindValue(":reward", reward);
+        updateOracle.bindValue(":exp", expGain);
+        updateOracle.bindValue(":id", idAffect);
+        if (updateOracle.exec() && updateOracle.numRowsAffected() != 0) {
+            updatedTask = true;
+        } else {
+            QSqlQuery updateFallback;
+            updateFallback.prepare(
+                "UPDATE MISSION_AFFECTATION "
+                "SET status='TERMINEE', completed_at=CURRENT_TIMESTAMP, reward_amount=:reward, experience_gain=:exp "
+                "WHERE id_affect=:id");
+            updateFallback.bindValue(":reward", reward);
+            updateFallback.bindValue(":exp", expGain);
+            updateFallback.bindValue(":id", idAffect);
+            if (updateFallback.exec() && updateFallback.numRowsAffected() != 0) {
+                updatedTask = true;
+            } else {
+                lastError = updateOracle.lastError().text();
+                if (lastError.trimmed().isEmpty()) {
+                    lastError = updateFallback.lastError().text();
+                }
+            }
+        }
+
+        if (!updatedTask) {
+            if (txStarted) db.rollback();
+            if (attempt == 0 && isDisconnectedSessionError(lastError)) {
+                continue;
+            }
+            if (lastError.trimmed().isEmpty()) lastError = "Mise a jour de la tache impossible.";
+            errorText = lastError;
+            return false;
+        }
+
+        if (idEmp > 0 && expGain > 0) {
+            QSqlQuery incExp;
+            incExp.prepare(
+                "UPDATE EMPLOYE "
+                "SET experience = COALESCE(experience,0) + :gain "
+                "WHERE id_emp=:id");
+            incExp.bindValue(":gain", expGain);
+            incExp.bindValue(":id", idEmp);
+            if (!incExp.exec()) {
+                lastError = incExp.lastError().text();
+                if (txStarted) db.rollback();
+                if (attempt == 0 && isDisconnectedSessionError(lastError)) {
+                    continue;
+                }
+                errorText = lastError;
+                return false;
+            }
+        }
+
+        if (txStarted && !db.commit()) {
+            lastError = db.lastError().text();
+            if (attempt == 0 && isDisconnectedSessionError(lastError)) {
+                continue;
+            }
+            errorText = lastError;
+            return false;
+        }
+
+        if (appliedBonus) *appliedBonus = reward;
+        if (appliedExperienceGain) *appliedExperienceGain = expGain;
+        return true;
+    }
+
+    errorText = lastError.trimmed().isEmpty()
+                    ? QString("Session Oracle coupee. Reessayez.")
+                    : lastError;
+    return false;
+}
+
+void updateMissionSelectionUi(Ui::MainWindow *ui)
+{
+    if (!ui || !ui->tableResultat) return;
+
+    int selectedCount = 0;
+    const int total = ui->tableResultat->rowCount();
+    for (int row = 0; row < total; ++row) {
+        QTableWidgetItem *it = ui->tableResultat->item(row, 0);
+        if (it && it->checkState() == Qt::Checked) {
+            ++selectedCount;
+        }
+    }
+
+    QWidget *missionPage = ui->tableResultat;
+    while (missionPage && missionPage->objectName() != "mission") {
+        missionPage = missionPage->parentWidget();
+    }
+    if (!missionPage) {
+        missionPage = ui->tableResultat->parentWidget();
+    }
+    if (missionPage) {
+        if (QLabel *lbl = missionPage->findChild<QLabel*>("lblMissionSelection")) {
+            lbl->setText(QString("Selection: %1 / %2 employe(s)").arg(selectedCount).arg(total));
+        }
+        if (QPushButton *btn = missionPage->findChild<QPushButton*>("btnAffecterMission")) {
+            btn->setEnabled(selectedCount > 0 && total > 0);
+        }
+    }
+}
+
+class EmployeeTaskBoardDialog : public QDialog
+{
+public:
+    explicit EmployeeTaskBoardDialog(const QString &employeeEmail, QWidget *parent = nullptr)
+        : QDialog(parent)
+        , m_email(employeeEmail.trimmed())
+    {
+        setWindowTitle("Mes taches IA");
+        resize(980, 620);
+        setModal(true);
+        setStyleSheet(
+            "QDialog { background: #f8fafc; }"
+            "QFrame#hero { background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #0f2b4c, stop:1 #1d4f91); border-radius:14px; }"
+            "QLabel#heroTitle { color:white; font-size:20px; font-weight:900; }"
+            "QLabel#heroSub { color:#bfdbfe; font-size:12px; font-weight:600; }"
+            "QFrame.taskCard { border-radius:10px; border:1px solid #cbd5e1; }"
+            "QFrame#cardPending { background:#eff6ff; }"
+            "QFrame#cardDone { background:#f0fdf4; }"
+            "QLabel.cardValue { font-size:24px; font-weight:900; color:#0f172a; }"
+            "QLabel.cardLabel { font-size:12px; font-weight:700; color:#475569; }"
+            "QTableWidget { background:white; border:1px solid #dbeafe; border-radius:10px; gridline-color:#e2e8f0; }"
+            "QHeaderView::section { background:#0f2e57; color:white; font-weight:700; border:none; padding:6px; }"
+            "QPushButton#btnRefresh { background:#2563eb; color:white; border:none; border-radius:8px; padding:8px 12px; font-weight:700; }"
+            "QPushButton#btnRefresh:hover { background:#1d4ed8; }"
+            "QPushButton#btnDone { background:#16a34a; color:white; border:none; border-radius:8px; padding:8px 12px; font-weight:800; }"
+            "QPushButton#btnDone:hover { background:#15803d; }"
+            "QPushButton#btnDone:disabled { background:#94a3b8; }");
+
+        auto *root = new QVBoxLayout(this);
+        root->setContentsMargins(14, 14, 14, 14);
+        root->setSpacing(10);
+
+        auto *hero = new QFrame(this);
+        hero->setObjectName("hero");
+        auto *heroLayout = new QVBoxLayout(hero);
+        heroLayout->setContentsMargins(14, 12, 14, 12);
+        heroLayout->setSpacing(4);
+        auto *heroTitle = new QLabel("Centre personnel des missions", hero);
+        heroTitle->setObjectName("heroTitle");
+        auto *heroSub = new QLabel(QString("Compte: %1").arg(m_email), hero);
+        heroSub->setObjectName("heroSub");
+        heroLayout->addWidget(heroTitle);
+        heroLayout->addWidget(heroSub);
+        root->addWidget(hero);
+
+        auto *cards = new QHBoxLayout();
+        cards->setSpacing(10);
+
+        auto *cardPending = new QFrame(this);
+        cardPending->setObjectName("cardPending");
+        cardPending->setProperty("class", "taskCard");
+        auto *pendingLayout = new QVBoxLayout(cardPending);
+        pendingLayout->setContentsMargins(12, 10, 12, 10);
+        m_lblPendingCount = new QLabel("0", cardPending);
+        m_lblPendingCount->setProperty("class", "cardValue");
+        auto *pendingText = new QLabel("Taches en attente", cardPending);
+        pendingText->setProperty("class", "cardLabel");
+        pendingLayout->addWidget(m_lblPendingCount);
+        pendingLayout->addWidget(pendingText);
+
+        auto *cardDone = new QFrame(this);
+        cardDone->setObjectName("cardDone");
+        cardDone->setProperty("class", "taskCard");
+        auto *doneLayout = new QVBoxLayout(cardDone);
+        doneLayout->setContentsMargins(12, 10, 12, 10);
+        m_lblDoneCount = new QLabel("0", cardDone);
+        m_lblDoneCount->setProperty("class", "cardValue");
+        auto *doneText = new QLabel("Taches deja faites", cardDone);
+        doneText->setProperty("class", "cardLabel");
+        doneLayout->addWidget(m_lblDoneCount);
+        doneLayout->addWidget(doneText);
+
+        cards->addWidget(cardPending, 1);
+        cards->addWidget(cardDone, 1);
+        root->addLayout(cards);
+
+        auto *actions = new QHBoxLayout();
+        actions->setSpacing(8);
+        m_lblHint = new QLabel("Double-cliquez une tache en attente pour la terminer.", this);
+        m_lblHint->setStyleSheet("color:#475569; font-size:12px; font-weight:600;");
+        m_btnRefresh = new QPushButton("Actualiser", this);
+        m_btnRefresh->setObjectName("btnRefresh");
+        m_btnDone = new QPushButton("Marquer la selection comme faite", this);
+        m_btnDone->setObjectName("btnDone");
+        m_btnDone->setEnabled(false);
+        actions->addWidget(m_lblHint, 1);
+        actions->addWidget(m_btnRefresh);
+        actions->addWidget(m_btnDone);
+        root->addLayout(actions);
+
+        m_tablePending = new QTableWidget(this);
+        m_tablePending->setColumnCount(4);
+        m_tablePending->setHorizontalHeaderLabels({"Mission", "Score IA", "Affectee le", "Etat"});
+        m_tablePending->setSelectionBehavior(QAbstractItemView::SelectRows);
+        m_tablePending->setSelectionMode(QAbstractItemView::SingleSelection);
+        m_tablePending->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        m_tablePending->setAlternatingRowColors(true);
+        m_tablePending->verticalHeader()->setVisible(false);
+        if (auto *h = m_tablePending->horizontalHeader()) {
+            h->setSectionResizeMode(0, QHeaderView::Stretch);
+            h->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+            h->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+            h->setSectionResizeMode(3, QHeaderView::ResizeToContents);
+        }
+        root->addWidget(m_tablePending, 1);
+
+        auto *doneTitle = new QLabel("Historique des taches terminees", this);
+        doneTitle->setStyleSheet("color:#14532d; font-weight:800; margin-top:4px;");
+        root->addWidget(doneTitle);
+
+        m_tableDone = new QTableWidget(this);
+        m_tableDone->setColumnCount(7);
+        m_tableDone->setHorizontalHeaderLabels({"Mission", "Score IA", "Prime", "Exp+", "Affectee le", "Terminee le", "Etat"});
+        m_tableDone->setSelectionBehavior(QAbstractItemView::SelectRows);
+        m_tableDone->setSelectionMode(QAbstractItemView::NoSelection);
+        m_tableDone->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        m_tableDone->setAlternatingRowColors(true);
+        m_tableDone->verticalHeader()->setVisible(false);
+        if (auto *h = m_tableDone->horizontalHeader()) {
+            h->setSectionResizeMode(0, QHeaderView::Stretch);
+            h->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+            h->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+            h->setSectionResizeMode(3, QHeaderView::ResizeToContents);
+            h->setSectionResizeMode(4, QHeaderView::ResizeToContents);
+            h->setSectionResizeMode(5, QHeaderView::ResizeToContents);
+            h->setSectionResizeMode(6, QHeaderView::ResizeToContents);
+        }
+        root->addWidget(m_tableDone, 1);
+
+        connect(m_btnRefresh, &QPushButton::clicked, this, [this]() { refreshTables(); });
+        connect(m_btnDone, &QPushButton::clicked, this, [this]() { markSelectedAsDone(); });
+        connect(m_tablePending, &QTableWidget::itemDoubleClicked, this, [this](QTableWidgetItem *) {
+            markSelectedAsDone();
+        });
+        connect(m_tablePending, &QTableWidget::itemSelectionChanged, this, [this]() {
+            m_btnDone->setEnabled(m_tablePending->currentRow() >= 0);
+        });
+
+        refreshTables();
+    }
+
+private:
+    void refreshTables()
+    {
+        QVector<AssignedTaskItem> pending;
+        QVector<AssignedTaskItem> done;
+        QString errorText;
+        if (!loadEmployeeAssignedTasks(m_email, pending, done, errorText)) {
+            showFriendlySqlError(this, "charger les taches", errorText);
+            return;
+        }
+
+        auto fillPending = [&](const QVector<AssignedTaskItem> &rows) {
+            m_tablePending->setRowCount(0);
+            for (const AssignedTaskItem &task : rows) {
+                const int row = m_tablePending->rowCount();
+                m_tablePending->insertRow(row);
+
+                QTableWidgetItem *missionItem = new QTableWidgetItem(task.missionText.isEmpty() ? "-" : task.missionText);
+                missionItem->setData(Qt::UserRole, task.idAffect);
+                m_tablePending->setItem(row, 0, missionItem);
+                m_tablePending->setItem(row, 1, new QTableWidgetItem(QString::number(task.score, 'f', 1) + "%"));
+                m_tablePending->setItem(row, 2, new QTableWidgetItem(task.assignedAt.isEmpty() ? "-" : task.assignedAt));
+                QTableWidgetItem *statusItem = new QTableWidgetItem("En attente");
+                statusItem->setForeground(QBrush(QColor("#d97706")));
+                m_tablePending->setItem(row, 3, statusItem);
+            }
+        };
+
+        auto fillDone = [&](const QVector<AssignedTaskItem> &rows) {
+            m_tableDone->setRowCount(0);
+            for (const AssignedTaskItem &task : rows) {
+                const int row = m_tableDone->rowCount();
+                m_tableDone->insertRow(row);
+
+                m_tableDone->setItem(row, 0, new QTableWidgetItem(task.missionText.isEmpty() ? "-" : task.missionText));
+                m_tableDone->setItem(row, 1, new QTableWidgetItem(QString::number(task.score, 'f', 1) + "%"));
+                m_tableDone->setItem(row, 2, new QTableWidgetItem(QString::number(task.rewardAmount, 'f', 2) + " TND"));
+                m_tableDone->setItem(row, 3, new QTableWidgetItem("+" + QString::number(task.experienceGain)));
+                m_tableDone->setItem(row, 4, new QTableWidgetItem(task.assignedAt.isEmpty() ? "-" : task.assignedAt));
+                m_tableDone->setItem(row, 5, new QTableWidgetItem(task.completedAt.isEmpty() ? "-" : task.completedAt));
+                QTableWidgetItem *statusItem = new QTableWidgetItem("Deja fait");
+                statusItem->setForeground(QBrush(QColor("#16a34a")));
+                m_tableDone->setItem(row, 6, statusItem);
+            }
+        };
+
+        fillPending(pending);
+        fillDone(done);
+
+        m_lblPendingCount->setText(QString::number(pending.size()));
+        m_lblDoneCount->setText(QString::number(done.size()));
+        m_btnDone->setEnabled(m_tablePending->currentRow() >= 0);
+
+        if (pending.isEmpty()) {
+            m_lblHint->setText("Aucune tache en attente. Excellent rythme.");
+        } else {
+            m_lblHint->setText("Selectionnez une tache en attente puis validez.");
+        }
+    }
+
+    void markSelectedAsDone()
+    {
+        const int row = m_tablePending->currentRow();
+        if (row < 0) {
+            QMessageBox::information(this, "Mes taches", "Selectionnez une tache en attente.");
+            return;
+        }
+
+        QTableWidgetItem *missionItem = m_tablePending->item(row, 0);
+        if (!missionItem) return;
+        const int idAffect = missionItem->data(Qt::UserRole).toInt();
+        if (idAffect <= 0) {
+            QMessageBox::warning(this, "Mes taches", "Identifiant de tache invalide.");
+            return;
+        }
+
+        const QString missionText = missionItem->text().trimmed();
+        const auto confirm = QMessageBox::question(
+            this,
+            "Confirmer",
+            QString("Marquer cette tache comme faite ?\n\n%1").arg(missionText));
+        if (confirm != QMessageBox::Yes) return;
+
+        QString errorText;
+        double rewardApplied = 0.0;
+        int expGainApplied = 0;
+        if (!markMissionTaskAsDoneById(idAffect, errorText, &rewardApplied, &expGainApplied)) {
+            showFriendlySqlError(this, "mettre a jour la tache", errorText);
+            return;
+        }
+
+        refreshTables();
+        QMessageBox::information(
+            this,
+            "Mission terminee",
+            QString("Tache marquee comme faite.\nPrime du mois: %1 TND\nExperience +%2")
+                .arg(QString::number(rewardApplied, 'f', 2))
+                .arg(expGainApplied));
+    }
+
+private:
+    QString m_email;
+    QLabel *m_lblPendingCount = nullptr;
+    QLabel *m_lblDoneCount = nullptr;
+    QLabel *m_lblHint = nullptr;
+    QPushButton *m_btnRefresh = nullptr;
+    QPushButton *m_btnDone = nullptr;
+    QTableWidget *m_tablePending = nullptr;
+    QTableWidget *m_tableDone = nullptr;
+};
 
 void ensureEmployePhotoColumnExists()
 {
@@ -897,7 +1885,7 @@ bool inferMissionByApi(const QString &missionText,
                        QString &errorText)
 {
     
-    static const QString kHardcodedApiKey = "sk";
+    static const QString kHardcodedApiKey = "";
     static const QString kHardcodedModel = "gpt-4.1-mini";
     static const QString kHardcodedBaseUrl = "https://api.openai.com/v1";
 
@@ -1353,6 +2341,12 @@ MainWindow::MainWindow(QWidget *parent)
     , sidebarGroup(nullptr)
 
     , homeDashboardPage(nullptr)
+
+    , m_isAdminSession(true)
+
+    , m_sessionEmail()
+
+    , m_employeeTaskPromptShown(false)
 
     , currentEmployeRow(-1)
 
@@ -2562,6 +3556,214 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(ui->btnAnalyser, &QPushButton::clicked, this, &MainWindow::on_btnAnalyser_clicked);
 
+    if (ui->tableResultat && !ui->tableResultat->property("missionUiReady").toBool()) {
+        ui->tableResultat->setSelectionBehavior(QAbstractItemView::SelectRows);
+        ui->tableResultat->setSelectionMode(QAbstractItemView::NoSelection);
+        ui->tableResultat->setAlternatingRowColors(true);
+        ui->tableResultat->setShowGrid(false);
+        ui->tableResultat->setStyleSheet(
+            "QTableWidget#tableResultat { background: #ffffff; border: 1px solid #dbeafe; border-radius: 10px; }"
+            "QTableWidget#tableResultat::item { padding: 6px; }"
+            "QTableWidget#tableResultat::item:selected { background: #dbeafe; color: #0f172a; }"
+            "QHeaderView::section { background:#0f2e57; color:white; font-weight:700; padding:6px; border:none; }");
+        ui->tableResultat->setProperty("missionUiReady", true);
+    }
+
+    QWidget *missionPage = nullptr;
+    if (auto *sw = mainStacked()) {
+        missionPage = sw->findChild<QWidget*>("mission", Qt::FindDirectChildrenOnly);
+    }
+    if (!missionPage && ui->tableResultat) {
+        missionPage = ui->tableResultat->parentWidget();
+        while (missionPage && missionPage->objectName() != "mission") {
+            missionPage = missionPage->parentWidget();
+        }
+    }
+
+    if (missionPage) {
+        if (!missionPage->findChild<QWidget*>("missionAssignPanel")) {
+            auto *missionLayout = qobject_cast<QVBoxLayout*>(missionPage->layout());
+            if (missionLayout) {
+                auto *panel = new QFrame(missionPage);
+                panel->setObjectName("missionAssignPanel");
+                panel->setStyleSheet(
+                    "QFrame#missionAssignPanel {"
+                    " background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 #eff6ff, stop:1 #e0f2fe);"
+                    " border: 1px solid #bfdbfe; border-radius: 12px; }");
+
+                auto *panelLayout = new QVBoxLayout(panel);
+                panelLayout->setContentsMargins(12, 10, 12, 10);
+                panelLayout->setSpacing(8);
+
+                auto *title = new QLabel("Affectation intelligente de la mission", panel);
+                title->setStyleSheet("font-weight: 800; color: #0f172a;");
+                panelLayout->addWidget(title);
+
+                auto *selectionLbl = new QLabel("Selection: 0 / 0 employe(s)", panel);
+                selectionLbl->setObjectName("lblMissionSelection");
+                selectionLbl->setStyleSheet("color: #1e3a8a; font-weight: 700;");
+                panelLayout->addWidget(selectionLbl);
+
+                auto *actions = new QHBoxLayout();
+                actions->setSpacing(8);
+                auto *btnSelectAll = new QPushButton("Tout selectionner", panel);
+                btnSelectAll->setObjectName("btnSelectAllMission");
+                btnSelectAll->setStyleSheet(
+                    "QPushButton#btnSelectAllMission {"
+                    " background:#2563eb; color:white; font-weight:700; border:none; border-radius:8px; padding:7px 12px; }"
+                    "QPushButton#btnSelectAllMission:hover { background:#1d4ed8; }");
+                auto *btnClear = new QPushButton("Effacer selection", panel);
+                btnClear->setObjectName("btnClearMissionSelection");
+                btnClear->setStyleSheet(
+                    "QPushButton#btnClearMissionSelection {"
+                    " background:#64748b; color:white; font-weight:700; border:none; border-radius:8px; padding:7px 12px; }"
+                    "QPushButton#btnClearMissionSelection:hover { background:#475569; }");
+                auto *btnAssign = new QPushButton("Affecter la tache", panel);
+                btnAssign->setObjectName("btnAffecterMission");
+                btnAssign->setStyleSheet(
+                    "QPushButton#btnAffecterMission {"
+                    " background:#16a34a; color:white; font-weight:800; border:none; border-radius:8px; padding:8px 14px; }"
+                    "QPushButton#btnAffecterMission:hover { background:#15803d; }"
+                    "QPushButton#btnAffecterMission:disabled { background:#94a3b8; }");
+
+                actions->addWidget(btnSelectAll);
+                actions->addWidget(btnClear);
+                actions->addStretch();
+                actions->addWidget(btnAssign);
+                panelLayout->addLayout(actions);
+
+                int insertIndex = missionLayout->count();
+                if (ui->btnAnnulerMission) {
+                    for (int i = 0; i < missionLayout->count(); ++i) {
+                        if (QLayoutItem *item = missionLayout->itemAt(i)) {
+                            if (item->widget() == ui->btnAnnulerMission) {
+                                insertIndex = i;
+                                break;
+                            }
+                        }
+                    }
+                }
+                missionLayout->insertWidget(insertIndex, panel);
+            }
+        }
+
+        if (QPushButton *btnSelectAll = missionPage->findChild<QPushButton*>("btnSelectAllMission")) {
+            if (!btnSelectAll->property("connected").toBool()) {
+                connect(btnSelectAll, &QPushButton::clicked, this, [this]() {
+                    if (!ui->tableResultat) return;
+                    QSignalBlocker blocker(ui->tableResultat);
+                    for (int row = 0; row < ui->tableResultat->rowCount(); ++row) {
+                        if (QTableWidgetItem *it = ui->tableResultat->item(row, 0)) {
+                            it->setCheckState(Qt::Checked);
+                        }
+                    }
+                    updateMissionSelectionUi(ui);
+                });
+                btnSelectAll->setProperty("connected", true);
+            }
+        }
+
+        if (QPushButton *btnClear = missionPage->findChild<QPushButton*>("btnClearMissionSelection")) {
+            if (!btnClear->property("connected").toBool()) {
+                connect(btnClear, &QPushButton::clicked, this, [this]() {
+                    if (!ui->tableResultat) return;
+                    QSignalBlocker blocker(ui->tableResultat);
+                    for (int row = 0; row < ui->tableResultat->rowCount(); ++row) {
+                        if (QTableWidgetItem *it = ui->tableResultat->item(row, 0)) {
+                            it->setCheckState(Qt::Unchecked);
+                        }
+                    }
+                    updateMissionSelectionUi(ui);
+                });
+                btnClear->setProperty("connected", true);
+            }
+        }
+
+        if (QPushButton *btnAssign = missionPage->findChild<QPushButton*>("btnAffecterMission")) {
+            if (!btnAssign->property("connected").toBool()) {
+                connect(btnAssign, &QPushButton::clicked, this, [this]() {
+                    if (!ui->tableResultat) return;
+                    const QString missionText = ui->txtMission ? ui->txtMission->text().trimmed() : QString();
+                    if (missionText.isEmpty()) {
+                        QMessageBox::warning(this, "Affectation", "Veuillez saisir la mission avant l'affectation.");
+                        return;
+                    }
+
+                    struct SelectedEmp {
+                        int idEmp = 0;
+                        QString matricule;
+                        QString nom;
+                        double score = 0.0;
+                    };
+                    QVector<SelectedEmp> selected;
+
+                    for (int row = 0; row < ui->tableResultat->rowCount(); ++row) {
+                        QTableWidgetItem *selItem = ui->tableResultat->item(row, 0);
+                        if (!selItem || selItem->checkState() != Qt::Checked) continue;
+
+                        const int idEmp = selItem->data(MISSION_ROLE_ID).toInt();
+                        if (idEmp <= 0) continue;
+
+                        SelectedEmp s;
+                        s.idEmp = idEmp;
+                        s.score = selItem->data(MISSION_ROLE_SCORE).toDouble();
+                        s.matricule = ui->tableResultat->item(row, 1) ? ui->tableResultat->item(row, 1)->text() : QString();
+                        s.nom = ui->tableResultat->item(row, 2) ? ui->tableResultat->item(row, 2)->text() : QString();
+                        selected.append(s);
+                    }
+
+                    if (selected.isEmpty()) {
+                        QMessageBox::information(this, "Affectation", "Selectionnez au moins un employe.");
+                        return;
+                    }
+
+                    QString tableError;
+                    if (!ensureMissionAffectationTableExists(tableError)) {
+                        showFriendlySqlError(this, "preparer l'affectation", tableError);
+                        return;
+                    }
+
+                    int assigned = 0;
+                    QString lastError;
+                    for (const SelectedEmp &s : selected) {
+                        if (!insertMissionAffectationRow(s.idEmp, missionText, s.score, lastError)) {
+                            continue;
+                        }
+                        ++assigned;
+
+                        QSqlQuery markBusy;
+                        markBusy.prepare("UPDATE EMPLOYE SET disponibilite='INDISPONIBLE' WHERE id_emp=:id");
+                        markBusy.bindValue(":id", s.idEmp);
+                        markBusy.exec();
+                    }
+
+                    if (assigned <= 0) {
+                        showFriendlySqlError(this, "enregistrer l'affectation", lastError);
+                        return;
+                    }
+
+                    if (ui->lblResultat) {
+                        ui->lblResultat->setText(
+                            QString("Affectation enregistree: %1 employe(s) sur la mission.").arg(assigned));
+                    }
+                    QMessageBox::information(this, "Affectation",
+                                             QString("Mission affectee a %1 employe(s) avec succes.").arg(assigned));
+                    refreshEmployes();
+                });
+                btnAssign->setProperty("connected", true);
+            }
+        }
+    }
+
+    if (ui->tableResultat && !ui->tableResultat->property("missionSelectionConnected").toBool()) {
+        connect(ui->tableResultat, &QTableWidget::itemChanged, this, [this](QTableWidgetItem *item) {
+            if (!item || item->column() != 0) return;
+            updateMissionSelectionUi(ui);
+        });
+        ui->tableResultat->setProperty("missionSelectionConnected", true);
+    }
+    updateMissionSelectionUi(ui);
+
     connect(ui->btnSimulerBadge, &QPushButton::clicked, this, &MainWindow::on_btnSimulerBadge_clicked);
 
     connect(ui->btnNouveau, &QPushButton::clicked, this, &MainWindow::on_btnNouveau_clicked);
@@ -2839,6 +4041,77 @@ MainWindow::~MainWindow()
 
     delete ui;
 
+}
+
+void MainWindow::setSessionContext(bool isAdmin, const QString &email)
+{
+    m_isAdminSession = isAdmin;
+    m_sessionEmail = email.trimmed();
+
+    QPushButton *btnEmployeeTasks = findChild<QPushButton*>("btnMesTachesIA");
+    if (!m_isAdminSession) {
+        if (!btnEmployeeTasks && ui && ui->sidebar) {
+            btnEmployeeTasks = new QPushButton("Mes taches IA", ui->sidebar);
+            btnEmployeeTasks->setObjectName("btnMesTachesIA");
+            btnEmployeeTasks->setCheckable(true);
+            btnEmployeeTasks->setCursor(Qt::PointingHandCursor);
+
+            if (auto *layout = qobject_cast<QVBoxLayout*>(ui->sidebar->layout())) {
+                int insertIndex = layout->count();
+                for (int i = 0; i < layout->count(); ++i) {
+                    QLayoutItem *item = layout->itemAt(i);
+                    if (item && item->spacerItem()) {
+                        insertIndex = i;
+                        break;
+                    }
+                }
+                layout->insertWidget(insertIndex, btnEmployeeTasks);
+            }
+            if (sidebarGroup) {
+                sidebarGroup->addButton(btnEmployeeTasks);
+            }
+        }
+
+        if (btnEmployeeTasks) {
+            btnEmployeeTasks->show();
+            connect(btnEmployeeTasks, &QPushButton::clicked,
+                    this, &MainWindow::openEmployeeTasksDialog,
+                    Qt::UniqueConnection);
+        }
+    } else if (btnEmployeeTasks) {
+        btnEmployeeTasks->hide();
+    }
+
+    if (!m_isAdminSession) {
+        if (QPushButton *btnMission = findChild<QPushButton*>("btnGoMission")) {
+            btnMission->disconnect(this);
+            btnMission->setText("Mes taches");
+            connect(btnMission, &QPushButton::clicked,
+                    this, &MainWindow::openEmployeeTasksDialog,
+                    Qt::UniqueConnection);
+        }
+    }
+
+    forceApplySidebarStyles();
+    if (!m_employeeTaskPromptShown && !m_isAdminSession) {
+        m_employeeTaskPromptShown = true;
+    }
+}
+
+void MainWindow::openEmployeeTasksDialog()
+{
+    if (m_isAdminSession) {
+        QMessageBox::information(this, "Mes taches", "Cette vue est reservee aux comptes employes.");
+        return;
+    }
+
+    if (m_sessionEmail.trimmed().isEmpty()) {
+        QMessageBox::warning(this, "Mes taches", "Email de session introuvable.");
+        return;
+    }
+
+    EmployeeTaskBoardDialog dialog(m_sessionEmail, this);
+    dialog.exec();
 }
 
 
@@ -3984,6 +5257,9 @@ void MainWindow::on_btnAnalyser_clicked()
 
     const QString missionText = ui->txtMission ? ui->txtMission->text().trimmed() : QString();
     if (missionText.isEmpty()) {
+        ui->tableResultat->clearContents();
+        ui->tableResultat->setRowCount(0);
+        updateMissionSelectionUi(ui);
         QMessageBox::warning(this, "Affectation IA", "Veuillez decrire la mission.");
         return;
     }
@@ -4015,7 +5291,9 @@ void MainWindow::on_btnAnalyser_clicked()
     const bool missionInDomain = missionLooksInDomain(missionText, requiredHints);
 
     if (!missionInDomain) {
+        ui->tableResultat->clearContents();
         ui->tableResultat->setRowCount(0);
+        updateMissionSelectionUi(ui);
         if (ui->lblResultat) {
             ui->lblResultat->setText("Aucune recommandation: mission hors domaine ou trop vague.");
         }
@@ -4098,6 +5376,9 @@ void MainWindow::on_btnAnalyser_clicked()
     }
 
     if (candidates.isEmpty()) {
+        ui->tableResultat->clearContents();
+        ui->tableResultat->setRowCount(0);
+        updateMissionSelectionUi(ui);
         QMessageBox::warning(this, "Affectation IA", "Aucun employe disponible pour l'analyse.");
         return;
     }
@@ -4157,10 +5438,29 @@ void MainWindow::on_btnAnalyser_clicked()
 
     const int selectedCount = qMin(targetTeamSize, eligibleOrder.size());
 
+    QSignalBlocker missionBlocker(ui->tableResultat);
+    ui->tableResultat->clearContents();
     ui->tableResultat->setRowCount(0);
-    ui->tableResultat->setColumnCount(4);
+    ui->tableResultat->setColumnCount(5);
+    ui->tableResultat->setHorizontalHeaderLabels({"Choix", "Matricule", "Nom", "Competence cible", "Score Match"});
+    if (auto *header = ui->tableResultat->horizontalHeader()) {
+        header->setStretchLastSection(false);
+        header->setMinimumSectionSize(80);
+        header->setSectionResizeMode(0, QHeaderView::Fixed);
+        header->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+        header->setSectionResizeMode(2, QHeaderView::Stretch);
+        header->setSectionResizeMode(3, QHeaderView::Stretch);
+        header->setSectionResizeMode(4, QHeaderView::ResizeToContents);
+    }
+    ui->tableResultat->setColumnWidth(0, 70);
+    ui->tableResultat->verticalHeader()->setVisible(false);
+    ui->tableResultat->verticalHeader()->setDefaultSectionSize(38);
+    ui->tableResultat->setAlternatingRowColors(true);
+    ui->tableResultat->setShowGrid(false);
 
     if (selectedCount == 0) {
+        missionBlocker.unblock();
+        updateMissionSelectionUi(ui);
         if (ui->lblResultat) {
             ui->lblResultat->setText("Aucune recommandation fiable pour cette mission.");
         }
@@ -4175,14 +5475,22 @@ void MainWindow::on_btnAnalyser_clicked()
         const int row = ui->tableResultat->rowCount();
         ui->tableResultat->insertRow(row);
 
-        ui->tableResultat->setItem(row, 0, new QTableWidgetItem(c.matricule));
-        ui->tableResultat->setItem(row, 1, new QTableWidgetItem(c.nom));
+        QTableWidgetItem *selectItem = new QTableWidgetItem();
+        selectItem->setFlags((selectItem->flags() | Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsUserCheckable) & ~Qt::ItemIsEditable);
+        selectItem->setCheckState(Qt::Checked);
+        selectItem->setTextAlignment(Qt::AlignCenter);
+        selectItem->setData(MISSION_ROLE_ID, c.idEmp);
+        selectItem->setData(MISSION_ROLE_SCORE, c.score);
+        ui->tableResultat->setItem(row, 0, selectItem);
+
+        ui->tableResultat->setItem(row, 1, new QTableWidgetItem(c.matricule));
+        ui->tableResultat->setItem(row, 2, new QTableWidgetItem(c.nom));
 
         const QString skillText = QString("%1 | %2 ans | %3")
                                       .arg(c.specialite.isEmpty() ? "-" : c.specialite)
                                       .arg(c.experienceYears)
                                       .arg(c.available ? "Disponible" : "Indisponible");
-        ui->tableResultat->setItem(row, 2, new QTableWidgetItem(skillText));
+        ui->tableResultat->setItem(row, 3, new QTableWidgetItem(skillText));
 
         const double displayScore = qRound(c.score * 10.0) / 10.0;
         QTableWidgetItem *scoreItem = new QTableWidgetItem(QString::number(displayScore, 'f', 1) + "%");
@@ -4194,11 +5502,14 @@ void MainWindow::on_btnAnalyser_clicked()
         } else {
             scoreItem->setForeground(QBrush(QColor("#dc2626")));
         }
-        ui->tableResultat->setItem(row, 3, scoreItem);
+        ui->tableResultat->setItem(row, 4, scoreItem);
 
         totalScore += c.score;
         if (c.available) ++availableCount;
     }
+
+    missionBlocker.unblock();
+    updateMissionSelectionUi(ui);
 
     if (ui->lblResultat) {
         const double avgScore = (selectedCount > 0) ? (totalScore / static_cast<double>(selectedCount)) : 0.0;
@@ -4348,7 +5659,12 @@ void MainWindow::on_btnFichePaie_clicked()
     const double base = static_cast<double>(salaire);
     const double primePerf = base * (static_cast<double>(perf) / 100.0) * 0.10;
     const double primeDispo = disponibilite.contains("dispon", Qt::CaseInsensitive) ? base * 0.05 : 0.0;
-    const double brut = base + primePerf + primeDispo;
+    QString bonusError;
+    const double primeMissionMois = computeEmployeeMonthlyTaskBonus(idEmp, periodStart, periodEnd, bonusError);
+    if (!bonusError.trimmed().isEmpty()) {
+        qWarning() << "Mission bonus calc warning:" << bonusError;
+    }
+    const double brut = base + primePerf + primeDispo + primeMissionMois;
     const double cnssRate = 9.18;
     const double retraiteRate = 6.0;
     const double irppRate = 10.0;
@@ -4501,6 +5817,7 @@ void MainWindow::on_btnFichePaie_clicked()
         {"Salaire de base", money(base), "-", money(base), false},
         {"Prime performance", money(base), QString::number(perf, 'f', 0) + "% x 10%", money(primePerf), false},
         {"Prime disponibilite", money(base), disponibilite.contains("dispon", Qt::CaseInsensitive) ? "5.00%" : "0.00%", money(primeDispo), false},
+        {"Prime mission (mois en cours)", "", "", money(primeMissionMois), false},
         {"Salaire brut", "", "", money(brut), true},
         {"Cotisation CNSS", money(brut), QString::number(cnssRate, 'f', 2) + "%", money(cotCnss), false},
         {"Retraite", money(brut), QString::number(retraiteRate, 'f', 2) + "%", money(cotRetraite), false},
@@ -9764,6 +11081,7 @@ void MainWindow::updateSidebarState()
     const QString emoProd = QString::fromUcs4(U"\U0001F6CD") + vs;
     const QString emoClient = QString::fromUcs4(U"\U0001F465") + vs;
     const QString emoEmp = QString::fromUcs4(U"\U0001F477") + vs;
+    const QString emoTasks = QString::fromUcs4(U"\U0001F4CB") + vs;
     const QString emoStats = QString::fromUcs4(U"\U0001F4CA") + vs;
     const QString emoMaint = QString::fromUcs4(U"\U0001F527") + vs;
     const QString emoCmd = QString::fromUcs4(U"\U0001F4DD") + vs;
@@ -9773,6 +11091,11 @@ void MainWindow::updateSidebarState()
     if (ui->btnProduits) buttons.append({ui->btnProduits, emoProd + " Produits", emoProd});
     if (ui->btnClient) buttons.append({ui->btnClient, emoClient + " Clients", emoClient});
     if (ui->btnEmployes) buttons.append({ui->btnEmployes, emoEmp + " Employes", emoEmp});
+    if (QPushButton *btnTasks = this->findChild<QPushButton*>("btnMesTachesIA")) {
+        if (btnTasks->isVisible()) {
+            buttons.append({btnTasks, emoTasks + " Mes taches IA", emoTasks});
+        }
+    }
     if (ui->btnStatistiques) buttons.append({ui->btnStatistiques, emoStats + " Statistiques", emoStats});
     if (ui->btnMaintenance) buttons.append({ui->btnMaintenance, emoMaint + " Maintenances", emoMaint});
     

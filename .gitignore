@@ -1,37 +1,28 @@
-<<<<<<< HEAD
-# Qt Creator / IDE
+# IDE / Qt Creator
 *.pro.user
-.qtcreator/
-.qtc_clangd/
+*.pro.user*
 *.user*
 *.autosave
+.qtcreator/
+.qtc_clangd/
+*.qtc_clangd/
 
-# Build folders
+# Build output
 build/
 debug/
 release/
-
-# Object/binary
-=======
-build/
-*.pro.user*
-*.qtc_clangd/
-.qtc_clangd/
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
 
-# Compiled
->>>>>>> origin/gestion-employee
+# Compiled / binaries
 *.o
 *.obj
 *.exe
 *.dll
-<<<<<<< HEAD
-*.so
-=======
 *.a
 *.so
+
+# Logs / temp
 *.log
 *.tmp
->>>>>>> origin/gestion-employee

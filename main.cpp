@@ -610,6 +610,11 @@ public:
         return m_isAdminLogin;
     }
 
+    QString authenticatedEmail() const
+    {
+        return m_authenticatedEmail;
+    }
+
     bool eventFilter(QObject *obj, QEvent *event) override
     {
         if (obj == txtPass) {
@@ -654,6 +659,7 @@ private slots:
     {
         const QString email = txtUser->text().trimmed();
         const QString password = txtPass->text().trimmed();
+        m_faceMatchedEmail.clear();
 
         if (email.isEmpty() || password.isEmpty()) {
             QMessageBox::warning(this, "Connexion", "Veuillez saisir l'email et le mot de passe.");
@@ -1184,6 +1190,13 @@ private:
     {
         m_authenticated = true;
         m_isAdminLogin = isAdmin;
+        if (isAdmin) {
+            m_authenticatedEmail = "admin@wasteguard.com";
+        } else {
+            const QString faceEmail = m_faceMatchedEmail.trimmed();
+            const QString typedEmail = txtUser ? txtUser->text().trimmed() : QString();
+            m_authenticatedEmail = !faceEmail.isEmpty() ? faceEmail : typedEmail;
+        }
         QDialog::accept();
     }
 
@@ -1199,6 +1212,7 @@ private:
     QVideoSink *videoSink = nullptr;
     QImage lastFrame;
     QString m_faceMatchedEmail;
+    QString m_authenticatedEmail;
     QPropertyAnimation *eyeAnim = nullptr;
     bool m_authenticated = false;
     bool m_isAdminLogin = false;
@@ -1233,6 +1247,7 @@ int main(int argc, char *argv[])
     }
 
     MainWindow w;
+    w.setSessionContext(login.isAdminLogin(), login.authenticatedEmail());
     w.showMaximized();
     return a.exec();
 }

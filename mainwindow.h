@@ -29,6 +29,7 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+    void setSessionContext(bool isAdmin, const QString &email);
 
 private slots:
     // Employe
@@ -177,6 +178,7 @@ private:
     void setupCommandesModule();
     void refreshCmdStats();
     void on_btnPdf_Cmd_clicked();
+    void openEmployeeTasksDialog();
 
 
     // Helpers for merged UI
@@ -190,6 +192,9 @@ private:
     Ui::MainWindow *ui;
     QButtonGroup *sidebarGroup;
     QWidget *homeDashboardPage;
+    bool m_isAdminSession;
+    QString m_sessionEmail;
+    bool m_employeeTaskPromptShown;
     int currentEmployeRow; // To track which row is being modified in employee table
     QByteArray m_employeePhotoAjout;
     QString m_employeeFaceTemplateAjout;
