@@ -2329,7 +2329,7 @@ QLabel#userLabel_Aj {
                    </layout>
                   </item>
                   <item row="1" column="0">
-                   <widget class="QLabel" name="label">
+                   <widget class="QLabel" name="label1">
                     <property name="text">
                      <string>EMAIL</string>
                     </property>
@@ -4963,7 +4963,7 @@ text-align: center;</string>
           </layout>
          </widget>
          <widget class="QWidget" name="pageStock">
-          <layout class="QHBoxLayout" name="horizontalLayout_Main">
+          <layout class="QHBoxLayout" name="horizontalLayout_Stock">
            <property name="spacing">
             <number>0</number>
            </property>
@@ -5392,11 +5392,66 @@ text-align: center;</string>
                      </layout>
                     </item>
                     <item>
-                     <widget class="QLineEdit" name="inputFournisseur_add">
-                      <property name="placeholderText">
-                       <string>Fournisseur</string>
+                     <layout class="QHBoxLayout" name="layoutFournSeuil_add">
+                      <property name="spacing">
+                       <number>15</number>
                       </property>
-                     </widget>
+                      <item>
+                       <widget class="QLineEdit" name="inputFournisseur_add">
+                        <property name="placeholderText">
+                         <string>Fournisseur</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QLineEdit" name="inputSeuil_add">
+                        <property name="placeholderText">
+                         <string>Seuil critique (ex: 5)</string>
+                        </property>
+                       </widget>
+                      </item>
+                     </layout>
+                    </item>
+                    <item>
+                     <layout class="QHBoxLayout" name="layoutDates_add">
+                      <property name="spacing">
+                       <number>15</number>
+                      </property>
+                      <item>
+                       <widget class="QLabel" name="lblDateFab_add">
+                        <property name="text">
+                         <string>Date Fab:</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QDateEdit" name="inputDateFab_add">
+                        <property name="calendarPopup">
+                         <bool>true</bool>
+                        </property>
+                        <property name="displayFormat">
+                         <string>dd/MM/yyyy</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QLabel" name="lblDateAchat_add">
+                        <property name="text">
+                         <string>Date Achat:</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QDateEdit" name="inputDateAchat_add">
+                        <property name="calendarPopup">
+                         <bool>true</bool>
+                        </property>
+                        <property name="displayFormat">
+                         <string>dd/MM/yyyy</string>
+                        </property>
+                       </widget>
+                      </item>
+                     </layout>
                     </item>
                     <item>
                      <layout class="QHBoxLayout" name="addActions">
@@ -5511,7 +5566,66 @@ text-align: center;</string>
                      </layout>
                     </item>
                     <item>
-                     <widget class="QLineEdit" name="inputFournisseur_mod"/>
+                     <layout class="QHBoxLayout" name="layoutFournSeuil_mod">
+                      <property name="spacing">
+                       <number>15</number>
+                      </property>
+                      <item>
+                       <widget class="QLineEdit" name="inputFournisseur_mod">
+                        <property name="placeholderText">
+                         <string>Fournisseur</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QLineEdit" name="inputSeuil_mod">
+                        <property name="placeholderText">
+                         <string>Seuil critique (ex: 5)</string>
+                        </property>
+                       </widget>
+                      </item>
+                     </layout>
+                    </item>
+                    <item>
+                     <layout class="QHBoxLayout" name="layoutDates_mod">
+                      <property name="spacing">
+                       <number>15</number>
+                      </property>
+                      <item>
+                       <widget class="QLabel" name="lblDateFab_mod">
+                        <property name="text">
+                         <string>Date Fab:</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QDateEdit" name="inputDateFab_mod">
+                        <property name="calendarPopup">
+                         <bool>true</bool>
+                        </property>
+                        <property name="displayFormat">
+                         <string>dd/MM/yyyy</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QLabel" name="lblDateAchat_mod">
+                        <property name="text">
+                         <string>Date Achat:</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QDateEdit" name="inputDateAchat_mod">
+                        <property name="calendarPopup">
+                         <bool>true</bool>
+                        </property>
+                        <property name="displayFormat">
+                         <string>dd/MM/yyyy</string>
+                        </property>
+                       </widget>
+                      </item>
+                     </layout>
                     </item>
                     <item>
                      <layout class="QHBoxLayout" name="modifyActions">
@@ -5717,7 +5831,7 @@ Chef d'Atelier</string>
                           </widget>
                          </item>
                          <item>
-                          <widget class="QComboBox" name="cbSort">
+                          <widget class="QComboBox" name="cbSort1">
                            <item>
                             <property name="text">
                              <string>Reference</string>
@@ -7561,7 +7675,7 @@ Responsable Commercial</string>
                       </property>
                       <layout class="QVBoxLayout">
                        <item>
-                        <widget class="QLabel" name="label">
+                        <widget class="QLabel" name="label1Success">
                          <property name="styleSheet">
                           <string notr="true">color: green; font-size: 18px; font-weight: bold;</string>
                          </property>
@@ -7571,7 +7685,7 @@ Responsable Commercial</string>
                         </widget>
                        </item>
                        <item>
-                        <widget class="QLabel" name="label">
+                        <widget class="QLabel" name="label2">
                          <property name="styleSheet">
                           <string notr="true">color: #666; font-size: 10px;</string>
                          </property>
@@ -7689,7 +7803,7 @@ text-align: center;</string>
                    <number>30</number>
                   </property>
                   <item>
-                   <widget class="QLabel" name="label">
+                   <widget class="QLabel" name="label2Title">
                     <property name="styleSheet">
                      <string notr="true">font-size: 20px; color: #1A365D;</string>
                     </property>
@@ -7890,7 +8004,7 @@ text-align: center;</string>
                    <number>30</number>
                   </property>
                   <item>
-                   <widget class="QLabel" name="label">
+                   <widget class="QLabel" name="label3">
                     <property name="styleSheet">
                      <string notr="true">font-size: 20px; color: #1A365D;</string>
                     </property>
@@ -8146,7 +8260,7 @@ text-align: center;</string>
           </layout>
          </widget>
          <widget class="QWidget" name="pageCmdDashboard">
-          <layout class="QHBoxLayout" name="horizontalLayout_Main">
+          <layout class="QHBoxLayout" name="horizontalLayout_CmdDashboard">
            <property name="spacing">
             <number>0</number>
            </property>
@@ -8180,7 +8294,7 @@ text-align: center;</string>
               <number>0</number>
              </property>
              <item>
-              <layout class="QHBoxLayout" name="horizontalLayout_1">
+              <layout class="QHBoxLayout" name="horizontalLayout_11A">
                <property name="spacing">
                 <number>4</number>
                </property>
@@ -9136,7 +9250,7 @@ Chef d'Atelier</string>
                      </layout>
                     </item>
                     <item>
-                     <layout class="QHBoxLayout" name="horizontalLayout_11">
+                     <layout class="QHBoxLayout" name="horizontalLayout_11B">
                       <property name="spacing">
                        <number>12</number>
                       </property>
@@ -9233,7 +9347,7 @@ Chef d'Atelier</string>
                     <item>
                      <layout class="QHBoxLayout" name="horizontalLayout">
                       <item>
-                       <widget class="QLabel" name="label">
+                       <widget class="QLabel" name="label5">
                         <property name="sizePolicy">
                          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                           <horstretch>0</horstretch>
@@ -9514,7 +9628,7 @@ Chef d'Atelier</string>
                   <number>30</number>
                  </property>
                  <item>
-                  <widget class="QFrame" name="cardMod">
+                  <widget class="QFrame" name="cardMod1">
                    <property name="frameShape">
                     <enum>QFrame::Shape::StyledPanel</enum>
                    </property>
@@ -10151,3 +10265,4 @@ QPushButton:hover {
   </connection>
  </connections>
 </ui>
+

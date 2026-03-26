@@ -1,8 +1,9 @@
-﻿#ifndef STOCK_H
+#ifndef STOCK_H
 #define STOCK_H
 
 #include <QSqlQueryModel>
 #include <QString>
+#include <QDate>
 
 class Stock
 {
@@ -14,7 +15,9 @@ public:
           int quantite,
           int seuilCritique,
           double prix,
-          const QString &fournisseurInput = QString());
+          const QString &fournisseurInput = QString(),
+          const QDate &dateFabrication = QDate::currentDate(),
+          const QDate &dateAchat = QDate::currentDate());
 
     bool ajouter();
     bool modifier();
@@ -31,6 +34,8 @@ public:
     int seuilCritique() const;
     double prix() const;
     QString fournisseurInput() const;
+    QDate dateFabrication() const;
+    QDate dateAchat() const;
 
     void setIdMp(int value);
     void setReference(const QString &value);
@@ -39,6 +44,8 @@ public:
     void setSeuilCritique(int value);
     void setPrix(double value);
     void setFournisseurInput(const QString &value);
+    void setDateFabrication(const QDate &value);
+    void setDateAchat(const QDate &value);
 
 private:
     int resolveNextMpId();
@@ -53,6 +60,8 @@ private:
     int m_seuilCritique;
     double m_prix;
     QString m_fournisseurInput;
+    QDate m_dateFabrication;
+    QDate m_dateAchat;
     QString m_lastError;
 };
 

@@ -16,7 +16,10 @@ SOURCES += \
     produit.cpp \
     stock.cpp \
     commande.cpp \
-    stockmapwidget.cpp
+    stockmapwidget.cpp \
+    videogenerationdialog.cpp \
+    accessibilityhelper.cpp \
+    voiceassistant.cpp
 
 HEADERS += \
     client.h \
@@ -28,10 +31,21 @@ HEADERS += \
     produit.h \
     stock.h \
     commande.h \
-    stockmapwidget.h
+    stockmapwidget.h \
+    videogenerationdialog.h \
+    accessibilityhelper.h \
+    voiceassistant.h
 
 FORMS += \
     mainwindow.ui
 
 RESOURCES += \
     logo.qrc
+
+# Copier voice_engine.py dans le dossier de build
+win32 {
+    QMAKE_POST_LINK += $$quote(cmd /c "(copy /Y \"$$PWD\\voice_engine.py\" \"$$OUT_PWD\\voice_engine.py\" >nul || ver >nul)")
+}
+unix {
+    QMAKE_POST_LINK += cp -f \"$$PWD/voice_engine.py\" \"$$OUT_PWD/voice_engine.py\" || true
+}
