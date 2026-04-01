@@ -16,7 +16,7 @@ public:
     bool ajouter();
     bool modifier();
     bool supprimer(int id);
-    QSqlQueryModel *afficher();
+    QSqlQueryModel *afficher(const QString &searchField = "", const QString &searchValue = "", const QString &sortCriteria = "id_commande ASC");
     
     // Helper to resolve client
     int findClientByMatricule(const QString &matricule);

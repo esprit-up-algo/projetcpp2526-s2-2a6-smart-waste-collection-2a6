@@ -1,4 +1,4 @@
-QT       += core gui widgets sql charts multimedia multimediawidgets
+QT       += core gui widgets sql charts multimedia multimediawidgets printsupport network concurrent
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -15,7 +15,13 @@ SOURCES += \
     mainwindow.cpp \
     mascotwidget.cpp \
     produit.cpp \
-    stock.cpp
+    stock.cpp \
+    stockmapwidget.cpp \
+    videogenerationdialog.cpp \
+    accessibilityhelper.cpp \
+    voiceassistant.cpp \
+    labibassistant.cpp \
+    emailnotificationmanager.cpp
 
 HEADERS += \
     connection.h \
@@ -23,7 +29,13 @@ HEADERS += \
     mainwindow.h \
     mascotwidget.h \
     produit.h \
-    stock.h
+    stock.h \
+    stockmapwidget.h \
+    videogenerationdialog.h \
+    accessibilityhelper.h \
+    voiceassistant.h \
+    labibassistant.h \
+    emailnotificationmanager.h
 
 FORMS += \
     mainwindow.ui

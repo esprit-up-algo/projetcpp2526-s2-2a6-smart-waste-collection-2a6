@@ -99,14 +99,55 @@ bool Commande::supprimer(int id)
     return false;
 }
 
-QSqlQueryModel *Commande::afficher()
+QSqlQueryModel *Commande::afficher(const QString &searchField, const QString &searchValue, const QString &sortCriteria)
 {
     QSqlQueryModel *model = new QSqlQueryModel();
+<<<<<<< Updated upstream
     // Joining with CLIENT to show Matricule
     model->setQuery("SELECT c.ID_COMMANDE, cl.MATRICULE, c.QTE, c.PRIORITE, c.STATUT, c.DATE_COMMANDE, c.DATE_LIVRAISON, c.PRIX_TOTAL, c.ID_CLIENT "
                     "FROM COMMANDE c "
                     "LEFT JOIN CLIENT cl ON c.ID_CLIENT = cl.ID_CLIENT "
                     "ORDER BY c.ID_COMMANDE");
+=======
+    QSqlQuery query;
+    
+    // Validate sort criteria against whitelist to prevent SQL injection
+    QStringList allowedSortColumns = {
+        "c.id_commande", "c.id_commande ASC", "c.id_commande DESC",
+        "cl.matricule", "cl.matricule ASC", "cl.matricule DESC",
+        "c.qte", "c.qte ASC", "c.qte DESC",
+        "c.priorite", "c.priorite ASC", "c.priorite DESC",
+        "c.statut", "c.statut ASC", "c.statut DESC",
+        "c.date_commande", "c.date_commande ASC", "c.date_commande DESC",
+        "c.date_livraison", "c.date_livraison ASC", "c.date_livraison DESC",
+        "c.prix_total", "c.prix_total ASC", "c.prix_total DESC"
+    };
+    
+    QString safeSortCriteria = "c.id_commande ASC";
+    if (!sortCriteria.isEmpty() && allowedSortColumns.contains(sortCriteria.trimmed().toLower())) {
+        safeSortCriteria = sortCriteria.trimmed();
+    }
+    
+    // Validate search field (map user input to table columns)
+    QStringList validSearchFields = {"matricule", "priorite", "statut"};
+    
+    QString queryString = 
+        "SELECT c.ID_COMMANDE, cl.MATRICULE, c.QTE, c.PRIORITE, c.STATUT, c.DATE_COMMANDE, c.DATE_LIVRAISON, c.PRIX_TOTAL, c.ID_CLIENT, c.ADRESSE "
+        "FROM COMMANDE c "
+        "LEFT JOIN CLIENT cl ON c.ID_CLIENT = cl.ID_CLIENT ";
+    
+    if (!searchValue.isEmpty() && validSearchFields.contains(searchField.toLower())) {
+        QString searchColumn = (searchField.toLower() == "matricule") ? "cl.matricule" : "c." + searchField;
+        queryString += "WHERE UPPER(" + searchColumn + ") LIKE '%' || UPPER(:search) || '%' ";
+        query.prepare(queryString + "ORDER BY " + safeSortCriteria);
+        query.bindValue(":search", searchValue);
+    } else {
+        query.prepare(queryString + "ORDER BY " + safeSortCriteria);
+    }
+    
+    query.exec();
+    model->setQuery(std::move(query));
+>>>>>>> Stashed changes
     if (model->lastError().isValid()) {
         m_lastError = model->lastError().text();
     }

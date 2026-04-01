@@ -107,7 +107,30 @@ bool Produit::supprimer(int id_mp)
 QSqlQueryModel *Produit::afficher()
 {
     QSqlQueryModel *model = new QSqlQueryModel();
+<<<<<<< Updated upstream
     model->setQuery(
+=======
+    QSqlQuery query;
+    
+    // Validate sort criteria against whitelist to prevent SQL injection
+    QStringList allowedSortColumns = {
+        "id_bac", "id_bac ASC", "id_bac DESC",
+        "modele", "modele ASC", "modele DESC",
+        "num_serie", "num_serie ASC", "num_serie DESC",
+        "stock", "stock ASC", "stock DESC",
+        "prix", "prix ASC", "prix DESC",
+        "remplissage", "remplissage ASC", "remplissage DESC",
+        "capacite_batterie", "capacite_batterie ASC", "capacite_batterie DESC",
+        "localisation_stock", "localisation_stock ASC", "localisation_stock DESC"
+    };
+    
+    QString safeSortCriteria = "id_bac ASC"; // Default safe sort
+    if (!sortCriteria.isEmpty() && allowedSortColumns.contains(sortCriteria.trimmed())) {
+        safeSortCriteria = sortCriteria.trimmed();
+    }
+    
+    QString queryString = 
+>>>>>>> Stashed changes
         "SELECT "
         "id_bac AS id_mp, "
         "num_serie AS reference, "
@@ -115,10 +138,35 @@ QSqlQueryModel *Produit::afficher()
         "NVL(stock, NVL(ROUND(remplissage), 0)) AS quantite, "
         "NVL(ROUND(remplissage), 100) AS seuil_critique, "
         "NVL(prix, 0) AS prix, "
+<<<<<<< Updated upstream
         "NVL(ROUND(capacite_batterie), 10000) AS capacite_batterie "
         "FROM BAC_INTEL "
         "ORDER BY id_bac"
     );
+=======
+        "NVL(ROUND(capacite_batterie), 10000) AS capacite_batterie, "
+        "image_path, "
+        "caracteristiques, "
+        "localisation_stock "
+        "FROM BAC_INTEL ";
+        
+    if (!searchModel.isEmpty()) {
+        queryString +=
+            "WHERE UPPER(modele) LIKE '%' || UPPER(:search) || '%' "
+            "   OR UPPER(num_serie) LIKE '%' || UPPER(:search) || '%' ";
+    }
+    
+    queryString += "ORDER BY " + safeSortCriteria;
+
+    query.prepare(queryString);
+    if (!searchModel.isEmpty()) {
+        query.bindValue(":search", searchModel);
+    }
+    
+    query.exec();
+    model->setQuery(std::move(query));
+    
+>>>>>>> Stashed changes
     m_lastError = model->lastError().isValid() ? model->lastError().text() : QString();
     return model;
 }

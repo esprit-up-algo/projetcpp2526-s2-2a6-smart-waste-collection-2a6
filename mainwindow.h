@@ -3,6 +3,9 @@
 
 #include <QMainWindow>
 #include <QButtonGroup>
+#include <QByteArray>
+#include <QString>
+#include <QMap>
 #include <QGridLayout> 
 #include <QtCharts>
 #include <QChartView>
@@ -18,11 +21,41 @@
 #include <QtCharts/QBarCategoryAxis>
 #include <QtCharts/QValueAxis>
 #include <QtCharts/QChart>
+<<<<<<< Updated upstream
+=======
+#include <QFileDialog>
+#include <QPdfWriter>
+#include <QTextDocument>
+#include <QDesktopServices>
+#include <QBuffer>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QSettings>
+#include <QInputDialog>
+#include <QProgressDialog>
+#include <QTimer>
+#include <QSystemTrayIcon>
+#include <QMenu>
+>>>>>>> Stashed changes
 
 #include "employe.h"
 #include "produit.h"
 #include "stock.h"
 #include "commande.h"
+<<<<<<< Updated upstream
+=======
+#include "client.h"
+#include "intervention.h"
+#include "stockmapwidget.h"
+#include "accessibilityhelper.h"
+#include "voiceassistant.h"
+#include "labibassistant.h"
+#include "emailnotificationmanager.h"
+>>>>>>> Stashed changes
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
@@ -30,6 +63,7 @@ QT_END_NAMESPACE
 class QStackedWidget;
 class QTableWidget;
 class QWidget;
+class QPushButton;
 
 class MainWindow : public QMainWindow
 {
@@ -38,6 +72,11 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+<<<<<<< Updated upstream
+=======
+    void setSessionContext(bool isAdmin, const QString &email);
+    bool eventFilter(QObject *obj, QEvent *event) override;
+>>>>>>> Stashed changes
 
 private slots:
     // Employe
@@ -60,8 +99,14 @@ private slots:
     void on_btn_modifier_client_clicked();
     void on_btn_annuler_client_clicked();
     void on_btnNouveau_client_clicked();
-    void onClientAdded(QString matricule, QString nom, QString email, QString bacs, QString score, QString paiement);
-    void onClientModified(int row, QString matricule, QString nom, QString email, QString bacs, QString score, QString paiement);
+    void onClientAdded(QString matricule, QString nom, QString email, QString type_contrat, QString date_expiration, QString paiement);
+    void onClientModified(int row, QString matricule, QString nom, QString email, QString type_contrat, QString date_expiration, QString paiement);
+
+    // Stock
+    void on_btnSave_add_clicked();
+    void on_btnSave_mod_clicked();
+    void exportStockExcel();
+    void on_btnPrediction_clicked();
 
     // Maintenance
     void on_btnSave_Add_clicked();
@@ -76,6 +121,18 @@ private slots:
     void goStatistiques();
     void on_prod_btnSave_Add_clicked();
     void on_prod_btnSave_Mod_clicked();
+<<<<<<< Updated upstream
+=======
+    void on_prod_btnUpload_Add_clicked();
+    void on_prod_btnUpload_Mod_clicked();
+    void applyProduitFilterAndSort();
+    void on_prod_btnPdf_clicked();
+    void on_prod_btnMap3D_clicked();
+    void onGeminiPdfReply(QNetworkReply *reply);
+    void onProductImageDownloaded(QNetworkReply *reply, const QString &numSerie);
+    void openStockMap3D();
+    void on_prod_btnVideo3D_clicked();
+>>>>>>> Stashed changes
 
     void handleEditClicked();
     void handleDeleteClicked();
@@ -122,6 +179,29 @@ private slots:
     void on_btnSave_Mod_3_clicked(); // Add Commande
     void on_btnSave_Mod1_clicked();  // Modify Commande
 
+    // ============ ACCESSIBILITÉ ET VOIX (SLOTS) ============
+    void on_btnMicrophone_clicked();
+    void on_btnHighContrast_clicked();
+    void on_btnZoomPlus_clicked();
+    void on_btnZoomMinus_clicked();
+
+    // Voice Assistant Slots
+    void onVoiceListeningStarted();
+    void onVoiceListeningFinished();
+    void onVoiceRecognized(const QString &text);
+    void onVoiceCommandRecognized(const QString &command);
+    void onVoiceError(const QString &errorMsg);
+    void onVoiceSpeechFinished();
+
+    // Commandes vocales pour maintenance
+    void handleVoiceAddIntervention();
+    void handleVoiceModifyIntervention();
+    void handleVoiceDeleteIntervention();
+    void handleVoiceSearchIntervention(const QString &searchTerm);
+    void handleVoiceShowList();
+    void handleVoiceExport();
+    void handleVoiceHelp();
+
 private:
     // Employe
     void setupStatistics();
@@ -138,11 +218,13 @@ private:
     Stock Stmp;
     Commande Ctmp;
     void refreshEmployes();
+    void applyEmployeSortAndFilter();
     // Produit
     void setupProduitModule();
     void applyStyleFix();
     void refreshActionButtons();
     void buildStatsCharts();
+    void refreshProduitTable();
     void addExampleRow();
     void loadProduitToModificationForm(int row);
     void installActionButtonsForRow(int row);
@@ -164,6 +246,10 @@ private:
     void setupStockModule();
     void setupStockTableData();
     void applyStockFilterAndSort();
+    void buildStockStats();
+    void checkStockNotifications();
+    void showStockAlertsDialog();
+    void on_btnSmartCart_clicked();
 
     // Stock Card View implementation
     void setupStockCardViewContainer();
@@ -200,6 +286,8 @@ private:
     int currentCmdRow = -1;
     void updateClientCombos();
     void loadCmdToModificationForm(int row);
+    void openEmployeeTasksDialog();
+    void openEmployeeLeaveDialog();
 
 
     // Helpers for merged UI
@@ -213,13 +301,29 @@ private:
     Ui::MainWindow *ui;
     QButtonGroup *sidebarGroup;
     QWidget *homeDashboardPage;
+    bool m_isAdminSession;
+    QString m_sessionEmail;
+    bool m_employeeTaskPromptShown;
     int currentEmployeRow; // To track which row is being modified in employee table
+    QByteArray m_employeePhotoAjout;
+    QString m_employeeFaceTemplateAjout;
+    QByteArray m_employeePhotoModif;
     int currentProduitRow; // To track which row is being modified in product table
     int currentClientRow; // To track which row is being modified in client table
     int currentMaintRow;  // To track which row is being modified in maintenance table
     QWidget *globalStatsReturnPage;
     void addClientActionButtons(int row);
     int getRowForClientWidget(QWidget *widget);
+<<<<<<< Updated upstream
+=======
+    void refreshClients();
+    void checkAndNotifyExpiringContracts();
+    void sendContractExpirationEmail(const QString &clientEmail, const QString &clientName, const QString &expirationDate);
+    void refreshInterventions();
+    void exportClientPdf();
+    void showClientStats();
+    void filterClients();
+>>>>>>> Stashed changes
     void forceApplySidebarStyles();
 
     // Card View state (Produit)
@@ -258,6 +362,63 @@ private:
     int m_cmdCurrentPage = 0;
     int m_cmdItemsPerPage = 6;
 
+<<<<<<< Updated upstream
+=======
+    // Maintenance photo paths
+    QString m_photoAvantPath;
+    QString m_photoApresPath;
+    QString m_photoModPath;
+
+    // Notification system
+    QTimer *m_stockNotifTimer = nullptr;
+    QSystemTrayIcon *m_trayIcon = nullptr;
+
+    // Produit photo paths
+    QString m_prodImagePathAdd;
+    QString m_prodImagePathMod;
+
+    // Gemini PDF attributes
+    QNetworkAccessManager *m_networkManager;
+    QProgressDialog *m_geminiProgressDialog = nullptr;
+    QMap<QString, QString> m_pdfTempImagePaths;
+    int m_pendingImageDownloads = 0;
+    QString m_geminiApiKey;
+    QString m_geminiPrompt;
+
+    // ============ ACCESSIBILITÉ ET VOIX ============
+    // Accessibility
+    AccessibilityHelper *m_accessibilityHelper;
+    QPushButton *m_btnMicrophone;
+    QPushButton *m_btnHighContrast;
+    QPushButton *m_btnZoomPlus;
+    QPushButton *m_btnZoomMinus;
+
+    // Voice Assistant
+    VoiceAssistant *m_voiceAssistant;
+    QString m_lastVoiceRecognizedText;
+
+    // Labib AI Assistant
+    LabibAssistant *m_labibAssistant = nullptr;
+    void openLabibAssistant();
+
+    // Floating AI Button
+    QPushButton *m_floatingAIButton = nullptr;
+    void createFloatingAIButton();
+    void onFloatingAIButtonPositionUpdate();
+
+    // Email Notification Manager for client notifications
+    EmailNotificationManager *m_emailManager = nullptr;
+
+    // Initialize accessibility features
+    void setupAccessibilityModule();
+    void setupMaintenanceAccessibility();
+    void addAccessibilityButtonsToMaintenance();
+    void ensureScrollbarsVisible();
+
+protected:
+    void closeEvent(QCloseEvent *event) override;
+
+>>>>>>> Stashed changes
 private slots:
     void on_btnToggleSidebar_clicked();
 

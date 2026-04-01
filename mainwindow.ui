@@ -2329,7 +2329,7 @@ QLabel#userLabel_Aj {
                    </layout>
                   </item>
                   <item row="1" column="0">
-                   <widget class="QLabel" name="label">
+                   <widget class="QLabel" name="label1">
                     <property name="text">
                      <string>EMAIL</string>
                     </property>
@@ -3466,7 +3466,7 @@ QLabel#userLabel_Aj {
                                   <number>0</number>
                                  </property>
                                  <property name="columnCount">
-                                  <number>8</number>
+                                  <number>7</number>
                                  </property>
                                  <attribute name="verticalHeaderVisible">
                                   <bool>false</bool>
@@ -3479,11 +3479,6 @@ QLabel#userLabel_Aj {
                                  <column>
                                   <property name="text">
                                    <string>Modele</string>
-                                  </property>
-                                 </column>
-                                 <column>
-                                  <property name="text">
-                                   <string>Type</string>
                                   </property>
                                  </column>
                                  <column>
@@ -4375,20 +4370,50 @@ text-align: center;</string>
                               <number>20</number>
                              </property>
                              <item>
-                              <widget class="QLabel" name="prod_imgBin">
-                               <property name="maximumSize">
-                                <size>
-                                 <width>16777215</width>
-                                 <height>250</height>
-                                </size>
-                               </property>
-                               <property name="text">
-                                <string>[ Image Actuelle ]</string>
-                               </property>
-                               <property name="alignment">
-                                <set>Qt::AlignmentFlag::AlignCenter</set>
-                               </property>
-                              </widget>
+                              <layout class="QVBoxLayout" name="prod_vl_img_mod">
+                               <item>
+                                <widget class="QLabel" name="prod_imgBin">
+                                 <property name="minimumSize">
+                                  <size>
+                                   <width>0</width>
+                                   <height>250</height>
+                                  </size>
+                                 </property>
+                                 <property name="maximumSize">
+                                  <size>
+                                   <width>16777215</width>
+                                   <height>250</height>
+                                  </size>
+                                 </property>
+                                 <property name="text">
+                                  <string>[ Image Actuelle ]</string>
+                                 </property>
+                                 <property name="alignment">
+                                  <set>Qt::AlignmentFlag::AlignCenter</set>
+                                 </property>
+                                </widget>
+                               </item>
+                               <item>
+                                <widget class="QPushButton" name="prod_btnUpload_Mod">
+                                 <property name="text">
+                                  <string>📤 Importer Image</string>
+                                 </property>
+                                </widget>
+                               </item>
+                               <item>
+                                <spacer>
+                                 <property name="orientation">
+                                  <enum>Qt::Orientation::Vertical</enum>
+                                 </property>
+                                 <property name="sizeHint" stdset="0">
+                                  <size>
+                                   <width>0</width>
+                                   <height>0</height>
+                                  </size>
+                                 </property>
+                                </spacer>
+                               </item>
+                              </layout>
                              </item>
                              <item>
                               <widget class="QFrame" name="prod_cardMod">
@@ -4504,11 +4529,22 @@ text-align: center;</string>
                                   <item>
                                    <layout class="QVBoxLayout" name="prod_vl_bat_mod">
                                     <item>
-                                     <widget class="QLabel" name="prod_l_bat_m">
-                                      <property name="text">
-                                       <string>Batterie</string>
-                                      </property>
-                                     </widget>
+                                     <layout class="QHBoxLayout" name="prod_hl_bat_mod">
+                                      <item>
+                                       <widget class="QLabel" name="prod_l_bat_m">
+                                        <property name="text">
+                                         <string>Batterie</string>
+                                        </property>
+                                       </widget>
+                                      </item>
+                                      <item>
+                                       <widget class="QLabel" name="prod_label_m">
+                                        <property name="text">
+                                         <string>12000 mAh</string>
+                                        </property>
+                                       </widget>
+                                      </item>
+                                     </layout>
                                     </item>
                                     <item>
                                      <widget class="QSlider" name="prod_slider_bat_mod">
@@ -4528,11 +4564,22 @@ text-align: center;</string>
                                   <item>
                                    <layout class="QVBoxLayout" name="prod_vl_cap_mod">
                                     <item>
-                                     <widget class="QLabel" name="prod_l_cap_m">
-                                      <property name="text">
-                                       <string>Capacite</string>
-                                      </property>
-                                     </widget>
+                                     <layout class="QHBoxLayout" name="prod_hl_cap_mod">
+                                      <item>
+                                       <widget class="QLabel" name="prod_l_cap_m">
+                                        <property name="text">
+                                         <string>Capacite</string>
+                                        </property>
+                                       </widget>
+                                      </item>
+                                      <item>
+                                       <widget class="QLabel" name="prod_label_4_m">
+                                        <property name="text">
+                                         <string>1000 L</string>
+                                        </property>
+                                       </widget>
+                                      </item>
+                                     </layout>
                                     </item>
                                     <item>
                                      <widget class="QSlider" name="prod_slider_cap_mod">
@@ -4751,12 +4798,15 @@ text-align: center;</string>
                           </widget>
                          </item>
                          <item>
-                          <widget class="QLabel" name="prod_lblStatsSub">
-                           <property name="text">
-                            <string>(Données exemple — graphiques généraux)</string>
-                           </property>
-                          </widget>
-                         </item>
+                         <widget class="QLabel" name="prod_lblStatsSub">
+                          <property name="visible">
+                           <bool>false</bool>
+                          </property>
+                          <property name="text">
+                           <string/>
+                          </property>
+                         </widget>
+                        </item>
                          <item>
                           <layout class="QHBoxLayout" name="prod_graphsLayout">
                            <property name="spacing">
@@ -4931,12 +4981,15 @@ text-align: center;</string>
                           </layout>
                          </item>
                          <item>
-                          <widget class="QLabel" name="prod_lblStatsNote">
-                           <property name="text">
-                            <string>Astuce: vous pouvez remplacer ces placeholders par QtCharts plus tard.</string>
-                           </property>
-                          </widget>
-                         </item>
+                         <widget class="QLabel" name="prod_lblStatsNote">
+                          <property name="visible">
+                           <bool>false</bool>
+                          </property>
+                          <property name="text">
+                           <string/>
+                          </property>
+                         </widget>
+                        </item>
                          <item>
                           <spacer>
                            <property name="orientation">
@@ -4967,7 +5020,7 @@ text-align: center;</string>
           </layout>
          </widget>
          <widget class="QWidget" name="pageStock">
-          <layout class="QHBoxLayout" name="horizontalLayout_Main">
+          <layout class="QHBoxLayout" name="horizontalLayout_Stock">
            <property name="spacing">
             <number>0</number>
            </property>
@@ -5280,6 +5333,23 @@ text-align: center;</string>
                     </widget>
                    </item>
                    <item>
+                    <widget class="QPushButton" name="btnSmartCart">
+                     <property name="styleSheet">
+                      <string notr="true">background-color: #ffffff;
+color: #1f2d3d;
+border: 1px solid #dce1e6;
+border-radius: 10px;
+padding: 12px 16px;
+font-size: 14px;
+font-weight: 700;
+text-align: center;</string>
+                     </property>
+                     <property name="text">
+                      <string>📧 Contacter Fournisseur</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
                     <spacer name="verticalSpacer_right">
                      <property name="orientation">
                       <enum>Qt::Orientation::Vertical</enum>
@@ -5396,11 +5466,73 @@ text-align: center;</string>
                      </layout>
                     </item>
                     <item>
-                     <widget class="QLineEdit" name="inputFournisseur_add">
-                      <property name="placeholderText">
-                       <string>Fournisseur</string>
+                     <layout class="QHBoxLayout" name="layoutFournSeuil_add">
+                      <property name="spacing">
+                       <number>15</number>
                       </property>
-                     </widget>
+                      <item>
+                       <widget class="QLineEdit" name="inputFournisseur_add">
+                        <property name="placeholderText">
+                         <string>Fournisseur</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QLineEdit" name="inputEmailFour_add">
+                        <property name="placeholderText">
+                         <string>Email Fournisseur</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QLineEdit" name="inputSeuil_add">
+                        <property name="placeholderText">
+                         <string>Seuil critique (ex: 5)</string>
+                        </property>
+                       </widget>
+                      </item>
+                     </layout>
+                    </item>
+                    <item>
+                     <layout class="QHBoxLayout" name="layoutDates_add">
+                      <property name="spacing">
+                       <number>15</number>
+                      </property>
+                      <item>
+                       <widget class="QLabel" name="lblDateFab_add">
+                        <property name="text">
+                         <string>Date Fab:</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QDateEdit" name="inputDateFab_add">
+                        <property name="calendarPopup">
+                         <bool>true</bool>
+                        </property>
+                        <property name="displayFormat">
+                         <string>dd/MM/yyyy</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QLabel" name="lblDateAchat_add">
+                        <property name="text">
+                         <string>Date Achat:</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QDateEdit" name="inputDateAchat_add">
+                        <property name="calendarPopup">
+                         <bool>true</bool>
+                        </property>
+                        <property name="displayFormat">
+                         <string>dd/MM/yyyy</string>
+                        </property>
+                       </widget>
+                      </item>
+                     </layout>
                     </item>
                     <item>
                      <layout class="QHBoxLayout" name="addActions">
@@ -5515,7 +5647,73 @@ text-align: center;</string>
                      </layout>
                     </item>
                     <item>
-                     <widget class="QLineEdit" name="inputFournisseur_mod"/>
+                     <layout class="QHBoxLayout" name="layoutFournSeuil_mod">
+                      <property name="spacing">
+                       <number>15</number>
+                      </property>
+                      <item>
+                       <widget class="QLineEdit" name="inputFournisseur_mod">
+                        <property name="placeholderText">
+                         <string>Fournisseur</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QLineEdit" name="inputEmailFour_mod">
+                        <property name="placeholderText">
+                         <string>Email Fournisseur</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QLineEdit" name="inputSeuil_mod">
+                        <property name="placeholderText">
+                         <string>Seuil critique (ex: 5)</string>
+                        </property>
+                       </widget>
+                      </item>
+                     </layout>
+                    </item>
+                    <item>
+                     <layout class="QHBoxLayout" name="layoutDates_mod">
+                      <property name="spacing">
+                       <number>15</number>
+                      </property>
+                      <item>
+                       <widget class="QLabel" name="lblDateFab_mod">
+                        <property name="text">
+                         <string>Date Fab:</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QDateEdit" name="inputDateFab_mod">
+                        <property name="calendarPopup">
+                         <bool>true</bool>
+                        </property>
+                        <property name="displayFormat">
+                         <string>dd/MM/yyyy</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QLabel" name="lblDateAchat_mod">
+                        <property name="text">
+                         <string>Date Achat:</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QDateEdit" name="inputDateAchat_mod">
+                        <property name="calendarPopup">
+                         <bool>true</bool>
+                        </property>
+                        <property name="displayFormat">
+                         <string>dd/MM/yyyy</string>
+                        </property>
+                       </widget>
+                      </item>
+                     </layout>
                     </item>
                     <item>
                      <layout class="QHBoxLayout" name="modifyActions">
@@ -5721,7 +5919,7 @@ Chef d'Atelier</string>
                           </widget>
                          </item>
                          <item>
-                          <widget class="QComboBox" name="cbSort">
+                          <widget class="QComboBox" name="cbSort1">
                            <item>
                             <property name="text">
                              <string>Reference</string>
@@ -7467,12 +7665,12 @@ Responsable Commercial</string>
                    </column>
                    <column>
                     <property name="text">
-                     <string>Bacs</string>
+                     <string>Type Contrat</string>
                     </property>
                    </column>
                    <column>
                     <property name="text">
-                     <string>Score</string>
+                     <string>Date Expiration</string>
                     </property>
                    </column>
                    <column>
@@ -7537,7 +7735,7 @@ Responsable Commercial</string>
                       </property>
                       <layout class="QVBoxLayout">
                        <item>
-                        <widget class="QLabel" name="label">
+                        <widget class="QLabel" name="label1Success">
                          <property name="styleSheet">
                           <string notr="true">color: green; font-size: 18px; font-weight: bold;</string>
                          </property>
@@ -7547,7 +7745,7 @@ Responsable Commercial</string>
                         </widget>
                        </item>
                        <item>
-                        <widget class="QLabel" name="label">
+                        <widget class="QLabel" name="label2">
                          <property name="styleSheet">
                           <string notr="true">color: #666; font-size: 10px;</string>
                          </property>
@@ -7693,7 +7891,7 @@ text-align: center;</string>
                    <number>30</number>
                   </property>
                   <item>
-                   <widget class="QLabel" name="label">
+                   <widget class="QLabel" name="label2Title">
                     <property name="styleSheet">
                      <string notr="true">font-size: 20px; color: #1A365D;</string>
                     </property>
@@ -7787,6 +7985,29 @@ text-align: center;</string>
                         <string>En Retard</string>
                        </property>
                       </item>
+                     </widget>
+                    </item>
+                    <item row="2" column="2">
+                     <widget class="QLabel" name="lbl_date_exp_a">
+                      <property name="text">
+                       <string>Date Expiration:</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="2" column="3">
+                     <widget class="QDateEdit" name="input_date_expiration_ajouter">
+                      <property name="minimumSize">
+                       <size>
+                        <width>150</width>
+                        <height>35</height>
+                       </size>
+                      </property>
+                      <property name="styleSheet">
+                       <string notr="true">QDateEdit { border: 1px solid #999; border-radius: 8px; padding: 6px 12px; font-size: 13px; background-color: #ffffff; color: #000000; } QDateEdit:focus { border: 2px solid #0066cc; outline: none; background-color: #f9f9f9; } QDateEdit::drop-down { border: none; background-color: #f0f0f0; } QDateEdit::down-arrow { image: none; width: 16px; } QCalendarWidget { background-color: white; color: black; } QCalendarWidget QToolButton { background-color: white; color: black; border: 1px solid #ccc; } QCalendarWidget QAbstractItemView { background-color: white; color: black; }</string>
+                      </property>
+                      <property name="calendarPopup">
+                       <bool>true</bool>
+                      </property>
                      </widget>
                     </item>
                    </layout>
@@ -7896,7 +8117,7 @@ text-align: center;</string>
                    <number>30</number>
                   </property>
                   <item>
-                   <widget class="QLabel" name="label">
+                   <widget class="QLabel" name="label3">
                     <property name="styleSheet">
                      <string notr="true">font-size: 20px; color: #1A365D;</string>
                     </property>
@@ -7992,6 +8213,29 @@ text-align: center;</string>
                       </item>
                      </widget>
                     </item>
+                    <item row="2" column="2">
+                     <widget class="QLabel" name="lbl_date_exp_m">
+                      <property name="text">
+                       <string>Date Expiration:</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="2" column="3">
+                     <widget class="QDateEdit" name="input_date_expiration_modifier">
+                      <property name="minimumSize">
+                       <size>
+                        <width>150</width>
+                        <height>35</height>
+                       </size>
+                      </property>
+                      <property name="styleSheet">
+                       <string notr="true">QDateEdit { border: 1px solid #999; border-radius: 8px; padding: 6px 12px; font-size: 13px; background-color: #ffffff; color: #000000; } QDateEdit:focus { border: 2px solid #0066cc; outline: none; background-color: #f9f9f9; } QDateEdit::drop-down { border: none; background-color: #f0f0f0; } QDateEdit::down-arrow { image: none; width: 16px; } QCalendarWidget { background-color: white; color: black; } QCalendarWidget QToolButton { background-color: white; color: black; border: 1px solid #ccc; } QCalendarWidget QAbstractItemView { background-color: white; color: black; }</string>
+                      </property>
+                      <property name="calendarPopup">
+                       <bool>true</bool>
+                      </property>
+                     </widget>
+                    </item>
                    </layout>
                   </item>
                   <item>
@@ -8061,7 +8305,7 @@ text-align: center;</string>
           </layout>
          </widget>
          <widget class="QWidget" name="pageCmdDashboard">
-          <layout class="QHBoxLayout" name="horizontalLayout_Main">
+          <layout class="QHBoxLayout" name="horizontalLayout_CmdDashboard">
            <property name="spacing">
             <number>0</number>
            </property>
@@ -8095,7 +8339,7 @@ text-align: center;</string>
               <number>0</number>
              </property>
              <item>
-              <layout class="QHBoxLayout" name="horizontalLayout_1">
+              <layout class="QHBoxLayout" name="horizontalLayout_11A">
                <property name="spacing">
                 <number>4</number>
                </property>
@@ -9051,7 +9295,7 @@ Chef d'Atelier</string>
                      </layout>
                     </item>
                     <item>
-                     <layout class="QHBoxLayout" name="horizontalLayout_11">
+                     <layout class="QHBoxLayout" name="horizontalLayout_11B">
                       <property name="spacing">
                        <number>12</number>
                       </property>
@@ -9148,7 +9392,7 @@ Chef d'Atelier</string>
                     <item>
                      <layout class="QHBoxLayout" name="horizontalLayout">
                       <item>
-                       <widget class="QLabel" name="label">
+                       <widget class="QLabel" name="label5">
                         <property name="sizePolicy">
                          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                           <horstretch>0</horstretch>
@@ -9429,7 +9673,7 @@ Chef d'Atelier</string>
                   <number>30</number>
                  </property>
                  <item>
-                  <widget class="QFrame" name="cardMod">
+                  <widget class="QFrame" name="cardMod1">
                    <property name="frameShape">
                     <enum>QFrame::Shape::StyledPanel</enum>
                    </property>
@@ -10066,3 +10310,4 @@ QPushButton:hover {
   </connection>
  </connections>
 </ui>
+
