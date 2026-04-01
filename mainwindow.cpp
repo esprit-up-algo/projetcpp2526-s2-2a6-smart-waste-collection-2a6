@@ -707,13 +707,83 @@ static QComboBox *ensureMaintenanceTechModCombo(MainWindow *w)
         combo->lineEdit()->setPlaceholderText(editTechMod->placeholderText());
     }
 
-    if (QLayout *layout = findLayoutContaining(pageMaintMod ? pageMaintMod : editTechMod->parentWidget(), editTechMod)) {
+    QLayout *layout = nullptr;
+    if (auto *vbox = w->findChild<QVBoxLayout*>("vboxLayout21")) {
+        layout = vbox;
+    } else {
+        layout = findLayoutContaining(pageMaintMod ? pageMaintMod : editTechMod->parentWidget(), editTechMod);
+    }
+
+    if (layout) {
         const int idx = layout->indexOf(editTechMod);
         layout->removeWidget(editTechMod);
         editTechMod->hide();
-        layout->insertWidget(idx >= 0 ? idx : layout->count(), combo);
+
+        if (auto *box = qobject_cast<QBoxLayout*>(layout)) {
+            box->insertWidget(idx >= 0 ? idx : box->count(), combo);
+        } else if (auto *form = qobject_cast<QFormLayout*>(layout)) {
+            const int row = idx >= 0 ? idx : form->rowCount();
+            form->insertRow(row, combo);
+        } else if (auto *grid = qobject_cast<QGridLayout*>(layout)) {
+            const int row = grid->rowCount();
+            grid->addWidget(combo, row, 0, 1, 1);
+        } else {
+            layout->addWidget(combo);
+        }
     } else {
         editTechMod->hide();
+        combo->setGeometry(editTechMod->geometry());
+    }
+
+    return combo;
+}
+
+static QComboBox *ensureMaintenanceBacModCombo(MainWindow *w)
+{
+    if (!w) return nullptr;
+    if (auto *existing = w->findChild<QComboBox*>("cbBacMod")) return existing;
+    QLineEdit *editRefMod = w->findChild<QLineEdit*>("editRefMod");
+    QLabel *lblRefMod = w->findChild<QLabel*>("lblRefMod");
+    QWidget *pageMaintMod = w->findChild<QWidget*>("page_Maint_Modif");
+    if (!editRefMod) return nullptr;
+
+    QComboBox *combo = new QComboBox(editRefMod->parentWidget());
+    combo->setObjectName("cbBacMod");
+    combo->setEditable(false);
+    combo->setSizePolicy(editRefMod->sizePolicy());
+    combo->setMinimumHeight(editRefMod->minimumHeight());
+    combo->setStyleSheet(editRefMod->styleSheet());
+
+    if (lblRefMod) {
+        lblRefMod->setText("Produit (BAC)");
+    }
+
+    QLayout *layout = nullptr;
+    if (auto *vbox = w->findChild<QVBoxLayout*>("vboxLayout14")) {
+        layout = vbox;
+    } else {
+        layout = findLayoutContaining(pageMaintMod ? pageMaintMod : editRefMod->parentWidget(), editRefMod);
+    }
+
+    if (layout) {
+        const int idx = layout->indexOf(editRefMod);
+        layout->removeWidget(editRefMod);
+        editRefMod->hide();
+
+        if (auto *box = qobject_cast<QBoxLayout*>(layout)) {
+            box->insertWidget(idx >= 0 ? idx : box->count(), combo);
+        } else if (auto *form = qobject_cast<QFormLayout*>(layout)) {
+            const int row = idx >= 0 ? idx : form->rowCount();
+            form->insertRow(row, combo);
+        } else if (auto *grid = qobject_cast<QGridLayout*>(layout)) {
+            const int row = grid->rowCount();
+            grid->addWidget(combo, row, 0, 1, 1);
+        } else {
+            layout->addWidget(combo);
+        }
+    } else {
+        editRefMod->hide();
+        combo->setGeometry(editRefMod->geometry());
     }
 
     return combo;
@@ -11549,46 +11619,61 @@ QTableWidget* MainWindow::maintenanceTable() const {
 
 void MainWindow::populateMaintenanceBacCombo(int selectId)
 {
-    if (!ui || !ui->cbBacAdd) return;
+    if (!ui) return;
 
-    QSignalBlocker blocker(ui->cbBacAdd);
-    ui->cbBacAdd->clear();
+    QComboBox *cbMod = ensureMaintenanceBacModCombo(this);
 
-    QSqlQuery q;
-    q.prepare(
-        "SELECT ID_BAC, NUM_SERIE, MODELE, NVL(stock, 0) "
-        "FROM BAC_INTEL "
-        "WHERE NVL(stock, 0) > 0 "
-        "ORDER BY MODELE"
-    );
-    if (q.exec()) {
-        while (q.next()) {
-            const int idBac = q.value(0).toInt();
-            const QString ref = q.value(1).toString().trimmed();
-            const QString modele = q.value(2).toString().trimmed();
-            const int stock = q.value(3).toInt();
+    auto fillCombo = [](QComboBox *combo, bool onlyAvailable, int selectId) {
+        if (!combo) return;
+        QSignalBlocker blocker(combo);
+        combo->clear();
 
-            const QString label = QString("%1 — %2 (stock %3)")
-                                      .arg(ref.isEmpty() ? QString::number(idBac) : ref)
-                                      .arg(modele.isEmpty() ? QString("Modele inconnu") : modele)
-                                      .arg(stock);
-            const int idx = ui->cbBacAdd->count();
-            ui->cbBacAdd->addItem(label, idBac);
-            ui->cbBacAdd->setItemData(idx, ref, Qt::UserRole + 1);
+        QSqlQuery q;
+        QString sql =
+            "SELECT ID_BAC, NUM_SERIE, MODELE, NVL(stock, 0) "
+            "FROM BAC_INTEL ";
+        if (onlyAvailable) {
+            sql += "WHERE NVL(stock, 0) > 0 ";
         }
-    }
+        sql += "ORDER BY MODELE";
 
-    if (ui->cbBacAdd->count() == 0) {
-        ui->cbBacAdd->addItem("Aucun produit disponible", -1);
-        ui->cbBacAdd->setCurrentIndex(0);
-        return;
-    }
+        q.prepare(sql);
+        if (q.exec()) {
+            while (q.next()) {
+                const int idBac = q.value(0).toInt();
+                const QString ref = q.value(1).toString().trimmed();
+                const QString modele = q.value(2).toString().trimmed();
+                const int stock = q.value(3).toInt();
 
-    if (selectId > 0) {
-        const int idx = ui->cbBacAdd->findData(selectId);
-        if (idx >= 0) ui->cbBacAdd->setCurrentIndex(idx);
-    } else {
-        ui->cbBacAdd->setCurrentIndex(0);
+                const QString label = QString("%1 — %2 (stock %3)")
+                                          .arg(ref.isEmpty() ? QString::number(idBac) : ref)
+                                          .arg(modele.isEmpty() ? QString("Modele inconnu") : modele)
+                                          .arg(stock);
+                const int idx = combo->count();
+                combo->addItem(label, idBac);
+                combo->setItemData(idx, ref, Qt::UserRole + 1);
+            }
+        }
+
+        if (combo->count() == 0) {
+            combo->addItem("Aucun produit disponible", -1);
+            combo->setCurrentIndex(0);
+            return;
+        }
+
+        if (selectId > 0) {
+            const int idx = combo->findData(selectId);
+            if (idx >= 0) combo->setCurrentIndex(idx);
+        } else {
+            combo->setCurrentIndex(0);
+        }
+    };
+
+    if (ui->cbBacAdd) {
+        fillCombo(ui->cbBacAdd, true, selectId);
+    }
+    if (cbMod) {
+        fillCombo(cbMod, false, selectId);
     }
 }
 
@@ -11741,7 +11826,7 @@ void MainWindow::setupMaintenanceModule() {
     if(ui->comboPrioMod) { ui->comboPrioMod->clear(); ui->comboPrioMod->addItems(priorities); }
 
     if (auto* table = maintenanceTable()) {
-        table->setColumnCount(15); // Col 9=ID, Col 10=ID_BAC, Col 11=ID_EMP, Col 12=TECH, Col 13=ADDR, Col 14=DESC
+        table->setColumnCount(14); // Col 9=ID, Col 10=ID_BAC, Col 11=TECH, Col 12=ADDR, Col 13=DESC
         QStringList headers = { "Sél.", "Reference", "Date", "Statut", "Type", QString::fromUtf8("Coût"), QString::fromUtf8("Durée"), QString::fromUtf8("Priorité"), "Actions" };
         table->setHorizontalHeaderLabels(headers);
         table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
@@ -11754,7 +11839,6 @@ void MainWindow::setupMaintenanceModule() {
         table->setColumnHidden(11, true);
         table->setColumnHidden(12, true);
         table->setColumnHidden(13, true);
-        table->setColumnHidden(14, true);
         
         refreshInterventions();
     }
@@ -11764,6 +11848,7 @@ void MainWindow::setupMaintenanceModule() {
     }
 
     ensureMaintenanceTechModCombo(this);
+    ensureMaintenanceBacModCombo(this);
     populateMaintenanceBacCombo();
     populateMaintenanceTechCombo();
 
@@ -11913,7 +11998,7 @@ void MainWindow::on_btnSave_Add_clicked() {
     i.setAdresse(ui->editAddrAdd->text().trimmed());
     i.setDescript(ui->txtDescAdd->toPlainText().trimmed());
     i.setIdBac(idBac);
-    i.setIdEmp(techIds.first()); // Keep one employee for legacy column
+    // ID_EMP no longer stored in INTERVENTION (handled by EFFECTUATION)
 
     if (i.ajouter()) {
         bool effOk = true;
@@ -12007,8 +12092,16 @@ void MainWindow::on_btnSave_Mod_clicked() {
     i.setAdresse(ui->editAddrMod->text().trimmed());
     i.setDescript(ui->txtDescMod->toPlainText().trimmed());
     
+    if (QComboBox *cbBacMod = findChild<QComboBox*>("cbBacMod")) {
+        const int idBac = cbBacMod->currentData(Qt::UserRole).toInt();
+        if (idBac <= 0) {
+            QMessageBox::warning(this, "Modification Intervention", "Veuillez choisir un produit (BAC).");
+            return;
+        }
+        m_lastMaintBacId = idBac;
+    }
     i.setIdBac(m_lastMaintBacId);
-    i.setIdEmp(m_lastMaintEmpId); // Satisfy ORA-01400 during modification
+    // ID_EMP no longer stored in INTERVENTION (handled by EFFECTUATION)
 
     if (i.modifier()) {
         if (cbTechMod && !techIds.isEmpty()) {
@@ -12062,6 +12155,7 @@ void MainWindow::handleMaintEditClicked() {
 
     // Correct column mappings from refreshInterventions (new layout):
     // 0=Select, 1=Ref, 2=Date, 3=Statut, 4=Type, 5=Cout, 6=Duree, 7=Prio, 8=Actions, 9=Hidden ID
+    // Hidden: 10=ID_BAC, 11=TECH, 12=ADDR, 13=DESC
     if (table->item(row, 1)) ui->editRefMod->setText(table->item(row, 1)->text());
     if (table->item(row, 2)) ui->dateMod->setDate(QDate::fromString(table->item(row, 2)->text(), "yyyy-MM-dd"));
     if (table->item(row, 3)) {
@@ -12081,7 +12175,9 @@ void MainWindow::handleMaintEditClicked() {
     if (table->item(row, 7)) ui->comboPrioMod->setCurrentText(table->item(row, 7)->text().toUpper());
     if (table->item(row, 9)) m_lastMaintId = table->item(row, 9)->text().toInt();
     if (table->item(row, 10)) m_lastMaintBacId = table->item(row, 10)->text().toInt();
-    if (table->item(row, 11)) m_lastMaintEmpId = table->item(row, 11)->text().toInt();
+    m_lastMaintEmpId = 0;
+
+    populateMaintenanceBacCombo(m_lastMaintBacId);
 
     QComboBox *cbTechMod = ensureMaintenanceTechModCombo(this);
     if (cbTechMod) {
@@ -12116,10 +12212,10 @@ void MainWindow::handleMaintEditClicked() {
         updateMultiSelectComboText(cbTechMod);
         if (!assigned.isEmpty()) m_lastMaintEmpId = *assigned.constBegin();
     } else {
-        if (table->item(row, 12)) ui->editTechMod->setText(table->item(row, 12)->text());
+        if (table->item(row, 11)) ui->editTechMod->setText(table->item(row, 11)->text());
     }
-    if (table->item(row, 13)) ui->editAddrMod->setText(table->item(row, 13)->text());
-    if (table->item(row, 14)) ui->txtDescMod->setPlainText(table->item(row, 14)->text());
+    if (table->item(row, 12)) ui->editAddrMod->setText(table->item(row, 12)->text());
+    if (table->item(row, 13)) ui->txtDescMod->setPlainText(table->item(row, 13)->text());
     ui->stackedWidget_Maintenance->setCurrentWidget(ui->page_Maint_Modif);
 }
 
@@ -19416,7 +19512,7 @@ void MainWindow::refreshInterventions(const QString &searchField, const QString 
     if (model->rowCount() == 0 && !INTtmp.lastError().isEmpty()) {
         qDebug() << "[DATABASE] refreshInterventions: Error =" << INTtmp.lastError();
     }
-    // model columns: 0=ID_INTER, 1=REFERENCE, 2=DATE_INTER, 3=DUREE, 4=COUT, 5=STATUT, 6=TYPE, 7=PRIORITE, 8=ID_BAC
+    // model columns: 0=ID_INTER, 1=REFERENCE, 2=DATE_INTER, 3=DUREE, 4=COUT, 5=STATUT, 6=TYPE, 7=PRIORITE, 8=ID_BAC, 9=TECHNICIEN, 10=ADRESSE, 11=DESCRIPT
     for (int i = 0; i < model->rowCount(); ++i) {
         int row = table->rowCount();
         table->insertRow(row);
@@ -19440,10 +19536,9 @@ void MainWindow::refreshInterventions(const QString &searchField, const QString 
         table->setItem(row, 7, new QTableWidgetItem(model->data(model->index(i, 7)).toString())); // Priorité
         table->setItem(row, 9, new QTableWidgetItem(QString::number(idInter)));                    // Hidden ID
         table->setItem(row, 10, new QTableWidgetItem(model->data(model->index(i, 8)).toString())); // Hidden ID_BAC
-        table->setItem(row, 11, new QTableWidgetItem(model->data(model->index(i, 9)).toString())); // Hidden ID_EMP
-        table->setItem(row, 12, new QTableWidgetItem(model->data(model->index(i, 10)).toString())); // Hidden TECHNICIEN
-        table->setItem(row, 13, new QTableWidgetItem(model->data(model->index(i, 11)).toString())); // Hidden ADRESSE
-        table->setItem(row, 14, new QTableWidgetItem(model->data(model->index(i, 12)).toString())); // Hidden DESCRIPT
+        table->setItem(row, 11, new QTableWidgetItem(model->data(model->index(i, 9)).toString())); // Hidden TECHNICIEN
+        table->setItem(row, 12, new QTableWidgetItem(model->data(model->index(i, 10)).toString())); // Hidden ADRESSE
+        table->setItem(row, 13, new QTableWidgetItem(model->data(model->index(i, 11)).toString())); // Hidden DESCRIPT
         table->setItem(row, 8, new QTableWidgetItem()); // Placeholder for buttons
         installMaintActionButtonsForRow(row);
     }
@@ -21635,7 +21730,9 @@ void MainWindow::handleVoiceModifyIntervention()
     if (table->item(targetRow, 1)) ui->dateMod->setDate(QDate::fromString(table->item(targetRow, 1)->text(), "yyyy-MM-dd"));
     if (table->item(targetRow, 9)) m_lastMaintId = table->item(targetRow, 9)->text().toInt();
     if (table->item(targetRow, 10)) m_lastMaintBacId = table->item(targetRow, 10)->text().toInt();
-    if (table->item(targetRow, 11)) m_lastMaintEmpId = table->item(targetRow, 11)->text().toInt();
+    m_lastMaintEmpId = 0;
+
+    populateMaintenanceBacCombo(m_lastMaintBacId);
 
     QComboBox *cbTechMod = ensureMaintenanceTechModCombo(this);
     if (cbTechMod) {
@@ -21669,8 +21766,8 @@ void MainWindow::handleVoiceModifyIntervention()
         }
         updateMultiSelectComboText(cbTechMod);
         if (!assigned.isEmpty()) m_lastMaintEmpId = *assigned.constBegin();
-    } else if (table->item(targetRow, 2)) {
-        ui->editTechMod->setText(table->item(targetRow, 2)->text());
+    } else if (table->item(targetRow, 11)) {
+        ui->editTechMod->setText(table->item(targetRow, 11)->text());
     }
     if (table->item(targetRow, 3)) {
         QString coutStr = table->item(targetRow, 3)->text().trimmed();

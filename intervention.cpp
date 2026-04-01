@@ -3,7 +3,7 @@
 #include <QVariant>
 
 Intervention::Intervention()
-    : m_idInter(0), m_duree(0.0), m_cout(0.0), m_idBac(0), m_idEmp(1)
+    : m_idInter(0), m_duree(0.0), m_cout(0.0), m_idBac(0)
 {
 }
 
@@ -13,7 +13,7 @@ Intervention::Intervention(int idInter, const QDate &dateInter, const QString &r
                            const QString &technicien, const QString &adresse, const QString &descript)
     : m_idInter(idInter), m_dateInter(dateInter), m_reference(reference),
       m_duree(duree), m_cout(cout), m_statut(statut),
-      m_type(type), m_priorite(priorite), m_idBac(idBac), m_idEmp(1),
+      m_type(type), m_priorite(priorite), m_idBac(idBac),
       m_technicien(technicien), m_adresse(adresse), m_descript(descript)
 {
 }
@@ -28,7 +28,6 @@ QString Intervention::getStatut() const { return m_statut; }
 QString Intervention::getType() const { return m_type; }
 QString Intervention::getPriorite() const { return m_priorite; }
 int Intervention::getIdBac() const { return m_idBac; }
-int Intervention::getIdEmp() const { return m_idEmp; }
 QString Intervention::getTechnicien() const { return m_technicien; }
 QString Intervention::getAdresse() const { return m_adresse; }
 QString Intervention::getDescript() const { return m_descript; }
@@ -43,7 +42,6 @@ void Intervention::setStatut(const QString &value) { m_statut = value; }
 void Intervention::setType(const QString &value) { m_type = value; }
 void Intervention::setPriorite(const QString &value) { m_priorite = value; }
 void Intervention::setIdBac(int value) { m_idBac = value; }
-void Intervention::setIdEmp(int value) { m_idEmp = value; }
 void Intervention::setTechnicien(const QString &value) { m_technicien = value; }
 void Intervention::setAdresse(const QString &value) { m_adresse = value; }
 void Intervention::setDescript(const QString &value) { m_descript = value; }
@@ -82,8 +80,8 @@ bool Intervention::ajouter()
     }
 
     query.prepare(
-        "INSERT INTO INTERVENTION (ID_INTER, DATE_INTER, REFERENCE, DUREE, COUT, STATUT, TYPE, PRIORITE, ID_BAC, ID_EMP, TECHNICIEN, ADRESSE, DESCRIPT) "
-        "VALUES (:id, :date_inter, :reference, :duree, :cout, :statut, :type, :priorite, :id_bac, :id_emp, :technicien, :adresse, :descript)"
+        "INSERT INTO INTERVENTION (ID_INTER, DATE_INTER, REFERENCE, DUREE, COUT, STATUT, TYPE, PRIORITE, ID_BAC, TECHNICIEN, ADRESSE, DESCRIPT) "
+        "VALUES (:id, :date_inter, :reference, :duree, :cout, :statut, :type, :priorite, :id_bac, :technicien, :adresse, :descript)"
     );
     query.bindValue(":id", nextId);
     query.bindValue(":date_inter", m_dateInter);
@@ -94,7 +92,6 @@ bool Intervention::ajouter()
     query.bindValue(":type", m_type);
     query.bindValue(":priorite", m_priorite);
     query.bindValue(":id_bac", m_idBac);
-    query.bindValue(":id_emp", m_idEmp);
     query.bindValue(":technicien", m_technicien);
     query.bindValue(":adresse", m_adresse);
     query.bindValue(":descript", m_descript);
@@ -115,7 +112,7 @@ bool Intervention::modifier()
         "UPDATE INTERVENTION SET "
         "DATE_INTER = :date_inter, REFERENCE = :reference, DUREE = :duree, "
         "COUT = :cout, STATUT = :statut, TYPE = :type, "
-        "PRIORITE = :priorite, ID_BAC = :id_bac, ID_EMP = :id_emp, "
+        "PRIORITE = :priorite, ID_BAC = :id_bac, "
         "TECHNICIEN = :technicien, ADRESSE = :adresse, DESCRIPT = :descript "
         "WHERE ID_INTER = :id"
     );
@@ -128,7 +125,6 @@ bool Intervention::modifier()
     query.bindValue(":type", m_type);
     query.bindValue(":priorite", m_priorite);
     query.bindValue(":id_bac", m_idBac);
-    query.bindValue(":id_emp", m_idEmp);
     query.bindValue(":technicien", m_technicien);
     query.bindValue(":adresse", m_adresse);
     query.bindValue(":descript", m_descript);
@@ -204,7 +200,7 @@ QSqlQueryModel *Intervention::afficher(const QString &searchField, const QString
     }
     
     QString queryString = 
-        "SELECT ID_INTER, REFERENCE, DATE_INTER, DUREE, COUT, STATUT, TYPE, PRIORITE, ID_BAC, ID_EMP, TECHNICIEN, ADRESSE, DESCRIPT "
+        "SELECT ID_INTER, REFERENCE, DATE_INTER, DUREE, COUT, STATUT, TYPE, PRIORITE, ID_BAC, TECHNICIEN, ADRESSE, DESCRIPT "
         "FROM INTERVENTION ";
     
     if (!searchValue.isEmpty()) {

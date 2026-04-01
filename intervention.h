@@ -33,7 +33,6 @@ public:
     QString getType() const;
     QString getPriorite() const;
     int getIdBac() const;
-    int getIdEmp() const;
     QString getTechnicien() const;
     QString getAdresse() const;
     QString getDescript() const;
@@ -48,7 +47,6 @@ public:
     void setType(const QString &value);
     void setPriorite(const QString &value);
     void setIdBac(int value);
-    void setIdEmp(int value);
     void setTechnicien(const QString &value);
     void setAdresse(const QString &value);
     void setDescript(const QString &value);
@@ -63,7 +61,6 @@ private:
     QString m_type;
     QString m_priorite;
     int m_idBac;
-    int m_idEmp;
     QString m_technicien;
     QString m_adresse;
     QString m_descript;
