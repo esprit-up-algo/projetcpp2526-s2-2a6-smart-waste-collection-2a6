@@ -32,7 +32,6 @@ public:
     void setSessionContext(bool isAdmin, const QString &email);
 
 private slots:
-    // Employe
     void on_btnNouveau_clicked();
     void on_btnAjouter_clicked();
     void on_btnAnnuler_Ajout_clicked();
@@ -46,7 +45,6 @@ private slots:
     void on_btnCommsSend_clicked();
     
    
-    // Client module slots (from mainwindowcl)
     void on_btnClient_clicked();
     void on_btn_ajouter_client_clicked();
     void on_btn_modifier_client_clicked();
@@ -55,13 +53,12 @@ private slots:
     void onClientAdded(QString matricule, QString nom, QString email, QString bacs, QString score, QString paiement);
     void onClientModified(int row, QString matricule, QString nom, QString email, QString bacs, QString score, QString paiement);
 
-    // Maintenance
     void on_btnSave_Add_clicked();
     void on_btnSave_Mod_clicked();
     void handleMaintEditClicked();
     void handleMaintDeleteClicked();
 
-    // Produit
+
     void goAffichage();
     void goAjout();
     void goModification();
@@ -70,46 +67,45 @@ private slots:
     void handleEditClicked();
     void handleDeleteClicked();
 
-    // Card View Toggle (Produit)
+  
     void slot_toggleView();
 
-    // Pagination slots (Produit)
+   
     void on_pagination_cbSize_currentIndexChanged(int index);
     void on_pagination_btnPrev_clicked();
     void on_pagination_btnNext_clicked();
 
-    // Employee Card View
+
     void slot_toggleEmpView();
     void on_emp_pagination_cbSize_currentIndexChanged(int index);
     void on_emp_pagination_btnPrev_clicked();
     void on_emp_pagination_btnNext_clicked();
 
-    // Stock Card View
+
     void slot_toggleStockView();
     void on_stock_pagination_cbSize_currentIndexChanged(int index);
     void on_stock_pagination_btnPrev_clicked();
     void on_stock_pagination_btnNext_clicked();
 
-    // Client Card View
+
     void slot_toggleClientView();
     void on_client_pagination_cbSize_currentIndexChanged(int index);
     void on_client_pagination_btnPrev_clicked();
     void on_client_pagination_btnNext_clicked();
 
-    // Maintenance Card View
+
     void slot_toggleMaintView();
     void on_maint_pagination_cbSize_currentIndexChanged(int index);
     void on_maint_pagination_btnPrev_clicked();
     void on_maint_pagination_btnNext_clicked();
 
-    // Commande Card View
+
     void slot_toggleCmdView();
     void on_cmd_pagination_cbSize_currentIndexChanged(int index);
     void on_cmd_pagination_btnPrev_clicked();
     void on_cmd_pagination_btnNext_clicked();
 
 private:
-    // Employe
     void setupStatistics();
     void setupAccueilDashboard();
     void setupDashboardCharts();
@@ -122,7 +118,6 @@ private:
     Employe Etmp;
     void refreshEmployes();
     void applyEmployeSortAndFilter();
-    // Produit
     void setupProduitModule();
     void applyStyleFix();
     void refreshActionButtons();
@@ -132,38 +127,36 @@ private:
     void ensureProduitModuleVisible();
     QString productStyleSheet() const;
 
-    // Card View implementation (Produit)
+
     void setupCardViewContainer();
     void refreshCardView();
     QWidget* createProductCard(int row);
 
-    // Employee Card View implementation
+
     void setupEmpCardViewContainer();
     void refreshEmpCardView();
     QWidget* createEmployeeCard(int row);
     void setupEmployeModule();
 
-    // Stock Module
     void setupStockModule();
     void setupStockTableData();
     void applyStockFilterAndSort();
 
-    // Stock Card View implementation
+
     void setupStockCardViewContainer();
     void refreshStockCardView();
     QWidget* createStockCard(int row);
 
-    // Client Card View implementation
+
     void setupClientCardViewContainer();
     void refreshClientCardView();
     QWidget* createClientCard(int row);
 
-    // Maintenance Card View implementation
     void setupMaintCardViewContainer();
     void refreshMaintCardView();
     QWidget* createMaintCard(int row);
 
-    // Commande Card View implementation
+
     void setupCmdCardViewContainer();
     void refreshCmdCardView();
     QWidget* createCmdCard(int row);
