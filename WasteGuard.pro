@@ -1,32 +1,57 @@
-QT       += core gui
-QT       += sql
-
+QT += core gui widgets sql charts multimedia multimediawidgets printsupport network
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++17
 CONFIG += console
 
-# You can make your code fail to compile if it uses deprecated APIs.
-# In order to do so, uncomment the following line.
-#DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
+TARGET = WasteGuard
 
+# Ensure every line except the last one has a backslash \
 SOURCES += \
+    client.cpp \
+    connection.cpp \
+    employe.cpp \
+    intervention.cpp \
     main.cpp \
-    mainwindow.cpp
+    mainwindow.cpp \
+    mascotwidget.cpp \
+    produit.cpp \
+    stock.cpp \
+    commande.cpp \
+    stockmapwidget.cpp \
+    videogenerationdialog.cpp \
+    accessibilityhelper.cpp \
+    voiceassistant.cpp \
+    labibassistant.cpp \
+    emailnotificationmanager.cpp
 
 HEADERS += \
-    mainwindow.h
+    client.h \
+    connection.h \
+    employe.h \
+    intervention.h \
+    mainwindow.h \
+    mascotwidget.h \
+    produit.h \
+    stock.h \
+    commande.h \
+    stockmapwidget.h \
+    videogenerationdialog.h \
+    accessibilityhelper.h \
+    voiceassistant.h \
+    labibassistant.h \
+    emailnotificationmanager.h
 
 FORMS += \
     mainwindow.ui
 
-# Default rules for deployment.
-qnx: target.path = /tmp/$${TARGET}/bin
-else: unix:!android: target.path = /opt/$${TARGET}/bin
-!isEmpty(target.path): INSTALLS += target
-
 RESOURCES += \
     logo.qrc
 
-DISTFILES += \
-    style.css
+# Copier voice_engine.py dans le dossier de build
+win32 {
+    QMAKE_POST_LINK += $$quote(cmd /c "(copy /Y \"$$PWD\\voice_engine.py\" \"$$OUT_PWD\\voice_engine.py\" >nul || ver >nul)")
+}
+unix {
+    QMAKE_POST_LINK += cp -f \"$$PWD/voice_engine.py\" \"$$OUT_PWD/voice_engine.py\" || true
+}

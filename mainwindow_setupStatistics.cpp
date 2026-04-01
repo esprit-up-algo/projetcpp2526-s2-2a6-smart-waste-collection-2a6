@@ -1,0 +1,4 @@
+void MainWindow::setupStatistics()
+{
+    buildMaintenanceStats();
+}
