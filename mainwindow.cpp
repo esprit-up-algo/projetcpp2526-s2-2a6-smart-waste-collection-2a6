@@ -685,33 +685,35 @@ static void pickMaintenanceImages(MainWindow *w, QLabel *lbl, QString &storePath
     storePath = allowMulti ? files.join(";") : files.first();
     applyMaintenanceImageLabel(lbl, files.first(), placeholder);
     if (allowMulti && files.size() > 1) {
-        lbl->setToolTip(QString("%1 images sélectionnées").arg(files.size()));
+        lbl->setToolTip(QString("%1 images selectionnees").arg(files.size()));
     }
 }
 
 static QComboBox *ensureMaintenanceTechModCombo(MainWindow *w)
 {
-    if (!w || !w->ui) return nullptr;
+    if (!w) return nullptr;
     if (auto *existing = w->findChild<QComboBox*>("cbTechMod")) return existing;
-    if (!w->ui->editTechMod) return nullptr;
+    QLineEdit *editTechMod = w->findChild<QLineEdit*>("editTechMod");
+    QWidget *pageMaintMod = w->findChild<QWidget*>("page_Maint_Modif");
+    if (!editTechMod) return nullptr;
 
-    QComboBox *combo = new QComboBox(w->ui->editTechMod->parentWidget());
+    QComboBox *combo = new QComboBox(editTechMod->parentWidget());
     combo->setObjectName("cbTechMod");
     combo->setEditable(true);
-    combo->setSizePolicy(w->ui->editTechMod->sizePolicy());
-    combo->setMinimumHeight(w->ui->editTechMod->minimumHeight());
-    combo->setStyleSheet(w->ui->editTechMod->styleSheet());
+    combo->setSizePolicy(editTechMod->sizePolicy());
+    combo->setMinimumHeight(editTechMod->minimumHeight());
+    combo->setStyleSheet(editTechMod->styleSheet());
     if (combo->lineEdit()) {
-        combo->lineEdit()->setPlaceholderText(w->ui->editTechMod->placeholderText());
+        combo->lineEdit()->setPlaceholderText(editTechMod->placeholderText());
     }
 
-    if (QLayout *layout = findLayoutContaining(w->ui->page_Maint_Modif, w->ui->editTechMod)) {
-        const int idx = layout->indexOf(w->ui->editTechMod);
-        layout->removeWidget(w->ui->editTechMod);
-        w->ui->editTechMod->hide();
+    if (QLayout *layout = findLayoutContaining(pageMaintMod ? pageMaintMod : editTechMod->parentWidget(), editTechMod)) {
+        const int idx = layout->indexOf(editTechMod);
+        layout->removeWidget(editTechMod);
+        editTechMod->hide();
         layout->insertWidget(idx >= 0 ? idx : layout->count(), combo);
     } else {
-        w->ui->editTechMod->hide();
+        editTechMod->hide();
     }
 
     return combo;
@@ -6151,6 +6153,27 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
                 auto *me = static_cast<QMouseEvent*>(event);
                 if (me->button() == Qt::LeftButton) {
                     on_prod_btnUpload_Mod_clicked();
+                    return true;
+                }
+            }
+            if (objName == "lblImgPreview_Add") {
+                auto *me = static_cast<QMouseEvent*>(event);
+                if (me->button() == Qt::LeftButton) {
+                    pickMaintenanceImages(this, lbl, m_photoAvantPath, false);
+                    return true;
+                }
+            }
+            if (objName == "lblImgPreview2_Add") {
+                auto *me = static_cast<QMouseEvent*>(event);
+                if (me->button() == Qt::LeftButton) {
+                    pickMaintenanceImages(this, lbl, m_photoApresPath, false);
+                    return true;
+                }
+            }
+            if (objName == "lblImgPreview_Mod") {
+                auto *me = static_cast<QMouseEvent*>(event);
+                if (me->button() == Qt::LeftButton) {
+                    pickMaintenanceImages(this, lbl, m_photoModPath, true);
                     return true;
                 }
             }
@@ -11740,8 +11763,21 @@ void MainWindow::setupMaintenanceModule() {
         connect(ui->btnPdf, &QPushButton::clicked, this, &MainWindow::generateMaintenancePdf, Qt::UniqueConnection);
     }
 
+    ensureMaintenanceTechModCombo(this);
     populateMaintenanceBacCombo();
     populateMaintenanceTechCombo();
+
+    auto initPhotoLabel = [this](QLabel *lbl) {
+        if (!lbl) return;
+        lbl->setCursor(Qt::PointingHandCursor);
+        if (!lbl->property("maintPlaceholder").isValid()) {
+            lbl->setProperty("maintPlaceholder", lbl->text());
+        }
+        lbl->installEventFilter(this);
+    };
+    initPhotoLabel(ui->lblImgPreview_Add);
+    initPhotoLabel(ui->lblImgPreview2_Add);
+    initPhotoLabel(ui->lblImgPreview_Mod);
     
     // Patch the database constraint to accept 'EN_ATTENTE' (as it was missed in original schema)
     QSqlQuery qPatch;
@@ -11954,7 +11990,20 @@ void MainWindow::on_btnSave_Mod_clicked() {
     // Use the dedicated Type field
     i.setType(!ui->editTypeMod->text().trimmed().isEmpty() ? ui->editTypeMod->text().trimmed() : QString("Curative"));
     
-    i.setTechnicien(ui->editTechMod->text().trimmed());
+    QComboBox *cbTechMod = findChild<QComboBox*>("cbTechMod");
+    const QList<int> techIds = selectedTechIdsFromCombo(cbTechMod);
+    const QStringList techNames = selectedTechNamesFromCombo(cbTechMod);
+    if (cbTechMod && techIds.isEmpty()) {
+        QMessageBox::warning(this, "Modification Intervention", "Veuillez choisir au moins un technicien.");
+        return;
+    }
+
+    if (cbTechMod && !techNames.isEmpty()) {
+        i.setTechnicien(techNames.join(", "));
+        m_lastMaintEmpId = techIds.first();
+    } else {
+        i.setTechnicien(ui->editTechMod->text().trimmed());
+    }
     i.setAdresse(ui->editAddrMod->text().trimmed());
     i.setDescript(ui->txtDescMod->toPlainText().trimmed());
     
@@ -11962,6 +12011,36 @@ void MainWindow::on_btnSave_Mod_clicked() {
     i.setIdEmp(m_lastMaintEmpId); // Satisfy ORA-01400 during modification
 
     if (i.modifier()) {
+        if (cbTechMod && !techIds.isEmpty()) {
+            bool effOk = true;
+            QString effErr;
+            QSqlQuery qDel;
+            qDel.prepare("DELETE FROM EFFECTUATION WHERE ID_INTER = :id_inter");
+            qDel.bindValue(":id_inter", m_lastMaintId);
+            if (!qDel.exec()) {
+                effOk = false;
+                effErr = qDel.lastError().text();
+            }
+
+            if (effOk) {
+                QSqlQuery qIns;
+                qIns.prepare("INSERT INTO EFFECTUATION (ID_INTER, ID_EMP) VALUES (:id_inter, :id_emp)");
+                for (int idEmp : techIds) {
+                    qIns.bindValue(":id_inter", m_lastMaintId);
+                    qIns.bindValue(":id_emp", idEmp);
+                    if (!qIns.exec()) {
+                        effOk = false;
+                        effErr = qIns.lastError().text();
+                        break;
+                    }
+                }
+            }
+
+            if (!effOk) {
+                QMessageBox::warning(this, "Techniciens", "Intervention modifiée mais liaison techniciens échouée: " + effErr);
+            }
+        }
+
         QMessageBox::information(this, "Succes", "Intervention modifiee.");
         refreshInterventions();
         ui->stackedWidget_Maintenance->setCurrentWidget(ui->page_Maint_Dash);
@@ -12003,7 +12082,42 @@ void MainWindow::handleMaintEditClicked() {
     if (table->item(row, 9)) m_lastMaintId = table->item(row, 9)->text().toInt();
     if (table->item(row, 10)) m_lastMaintBacId = table->item(row, 10)->text().toInt();
     if (table->item(row, 11)) m_lastMaintEmpId = table->item(row, 11)->text().toInt();
-    if (table->item(row, 12)) ui->editTechMod->setText(table->item(row, 12)->text());
+
+    QComboBox *cbTechMod = ensureMaintenanceTechModCombo(this);
+    if (cbTechMod) {
+        populateMaintenanceTechCombo();
+        clearComboChecks(cbTechMod);
+
+        QSet<int> assigned;
+        if (m_lastMaintId > 0) {
+            QSqlQuery q;
+            q.prepare("SELECT ID_EMP FROM EFFECTUATION WHERE ID_INTER = :id_inter");
+            q.bindValue(":id_inter", m_lastMaintId);
+            if (q.exec()) {
+                while (q.next()) {
+                    assigned.insert(q.value(0).toInt());
+                }
+            }
+        }
+        if (assigned.isEmpty() && m_lastMaintEmpId > 0) {
+            assigned.insert(m_lastMaintEmpId);
+        }
+
+        if (auto *model = qobject_cast<QStandardItemModel*>(cbTechMod->model())) {
+            for (int i = 0; i < model->rowCount(); ++i) {
+                QStandardItem *item = model->item(i);
+                if (!item || !(item->flags() & Qt::ItemIsUserCheckable)) continue;
+                const int id = item->data(Qt::UserRole).toInt();
+                if (assigned.contains(id)) {
+                    item->setCheckState(Qt::Checked);
+                }
+            }
+        }
+        updateMultiSelectComboText(cbTechMod);
+        if (!assigned.isEmpty()) m_lastMaintEmpId = *assigned.constBegin();
+    } else {
+        if (table->item(row, 12)) ui->editTechMod->setText(table->item(row, 12)->text());
+    }
     if (table->item(row, 13)) ui->editAddrMod->setText(table->item(row, 13)->text());
     if (table->item(row, 14)) ui->txtDescMod->setPlainText(table->item(row, 14)->text());
     ui->stackedWidget_Maintenance->setCurrentWidget(ui->page_Maint_Modif);
@@ -16743,6 +16857,18 @@ void MainWindow::setupCommandesModule()
         ui->lstBacsCmdMod->setProperty("cmdBacConnected", true);
     }
     populateCommandeBacList();
+
+    if (auto *sw = mainStacked()) {
+        if (!sw->property("cmdModBacRefreshConnected").toBool()) {
+            connect(sw, &QStackedWidget::currentChanged, this, [this, sw](int) {
+                QWidget *page = sw->currentWidget();
+                if (page && page->objectName() == "pageCmdModifier") {
+                    populateCommandeBacListMod(m_lastCmdId);
+                }
+            });
+            sw->setProperty("cmdModBacRefreshConnected", true);
+        }
+    }
     
     // Populate Date Comboboxes for Commandes
     auto fillDates = [this](QComboBox* d, QComboBox* m, QComboBox* y) {
@@ -21507,7 +21633,45 @@ void MainWindow::handleVoiceModifyIntervention()
 
     if (table->item(targetRow, 0)) ui->editRefMod->setText(table->item(targetRow, 0)->text());
     if (table->item(targetRow, 1)) ui->dateMod->setDate(QDate::fromString(table->item(targetRow, 1)->text(), "yyyy-MM-dd"));
-    if (table->item(targetRow, 2)) ui->editTechMod->setText(table->item(targetRow, 2)->text());
+    if (table->item(targetRow, 9)) m_lastMaintId = table->item(targetRow, 9)->text().toInt();
+    if (table->item(targetRow, 10)) m_lastMaintBacId = table->item(targetRow, 10)->text().toInt();
+    if (table->item(targetRow, 11)) m_lastMaintEmpId = table->item(targetRow, 11)->text().toInt();
+
+    QComboBox *cbTechMod = ensureMaintenanceTechModCombo(this);
+    if (cbTechMod) {
+        populateMaintenanceTechCombo();
+        clearComboChecks(cbTechMod);
+
+        QSet<int> assigned;
+        if (m_lastMaintId > 0) {
+            QSqlQuery q;
+            q.prepare("SELECT ID_EMP FROM EFFECTUATION WHERE ID_INTER = :id_inter");
+            q.bindValue(":id_inter", m_lastMaintId);
+            if (q.exec()) {
+                while (q.next()) {
+                    assigned.insert(q.value(0).toInt());
+                }
+            }
+        }
+        if (assigned.isEmpty() && m_lastMaintEmpId > 0) {
+            assigned.insert(m_lastMaintEmpId);
+        }
+
+        if (auto *model = qobject_cast<QStandardItemModel*>(cbTechMod->model())) {
+            for (int i = 0; i < model->rowCount(); ++i) {
+                QStandardItem *item = model->item(i);
+                if (!item || !(item->flags() & Qt::ItemIsUserCheckable)) continue;
+                const int id = item->data(Qt::UserRole).toInt();
+                if (assigned.contains(id)) {
+                    item->setCheckState(Qt::Checked);
+                }
+            }
+        }
+        updateMultiSelectComboText(cbTechMod);
+        if (!assigned.isEmpty()) m_lastMaintEmpId = *assigned.constBegin();
+    } else if (table->item(targetRow, 2)) {
+        ui->editTechMod->setText(table->item(targetRow, 2)->text());
+    }
     if (table->item(targetRow, 3)) {
         QString coutStr = table->item(targetRow, 3)->text().trimmed();
         coutStr.remove("DT", Qt::CaseInsensitive);
