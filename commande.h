@@ -33,6 +33,7 @@ public:
     QDate dateLivraison() const;
     double prixTotal() const;
     QString adresse() const;
+    QString reference() const;
 
     void setId(int id);
     void setIdClient(int idClient);
@@ -43,6 +44,7 @@ public:
     void setDateLivraison(const QDate &date);
     void setPrixTotal(double prix);
     void setAdresse(const QString &adresse);
+    void setReference(const QString &reference);
 
 private:
     int m_id;
@@ -54,6 +56,7 @@ private:
     QDate m_dateLivraison;
     double m_prixTotal;
     QString m_adresse;
+    QString m_reference;
     QString m_lastError;
 };
 
