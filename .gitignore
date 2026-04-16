@@ -1,0 +1,9 @@
+build/
+debug/
+release/
+luma_profile/
+*.log
+*.exe
+*.o
+*.pro.user
+__pycache__/

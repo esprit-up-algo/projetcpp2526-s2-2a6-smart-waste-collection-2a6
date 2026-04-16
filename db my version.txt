@@ -1,0 +1,137 @@
+/* ===========================
+   MODELE PHYSIQUE FINAL
+   (Sans CHECK / Sans Index / Sans Trigger)
+   =========================== */
+
+CREATE TABLE FOURNISSEUR (
+  id_four    NUMBER PRIMARY KEY,
+  nom        VARCHAR2(100) NOT NULL,
+  email      VARCHAR2(150),
+  telephone  VARCHAR2(30)
+);
+
+CREATE TABLE CLIENT (
+  id_client        NUMBER PRIMARY KEY,
+  nom              VARCHAR2(120) NOT NULL,
+  matricule        VARCHAR2(50)  NOT NULL UNIQUE,
+  email            VARCHAR2(150) UNIQUE,
+  type_contrat     VARCHAR2(50),
+  statut_paiement  VARCHAR2(30)
+);
+
+CREATE TABLE EMPLOYE (
+  id_emp         NUMBER PRIMARY KEY,
+  matricule      VARCHAR2(50)  NOT NULL UNIQUE,
+  cin            VARCHAR2(30)  NOT NULL UNIQUE,
+  nom            VARCHAR2(120) NOT NULL,
+  email          VARCHAR2(150) UNIQUE,
+  specialite     VARCHAR2(80),
+  disponibilite  VARCHAR2(30)
+);
+
+CREATE TABLE COMMANDE (
+  id_commande    NUMBER PRIMARY KEY,
+  qte            NUMBER NOT NULL,
+  priorite       VARCHAR2(20),
+  statut         VARCHAR2(30) NOT NULL,
+  date_commande  DATE NOT NULL,
+  date_livraison DATE,
+  prix_total     NUMBER(12,3) NOT NULL,
+  id_client      NUMBER NOT NULL,
+
+  FOREIGN KEY (id_client)
+    REFERENCES CLIENT(id_client)
+);
+
+CREATE TABLE BAC_INTEL (
+  id_bac              NUMBER PRIMARY KEY,
+  num_serie           VARCHAR2(80) NOT NULL UNIQUE,
+  modele              VARCHAR2(80) NOT NULL,
+  remplissage         NUMBER(5,2) NOT NULL,
+  localisation_stock  VARCHAR2(120),
+  id_commande         NUMBER,
+  
+
+  FOREIGN KEY (id_commande)
+    REFERENCES COMMANDE(id_commande)
+);
+
+CREATE TABLE MATIERE_PREMIERE (
+  id_mp            NUMBER PRIMARY KEY,
+  reference        VARCHAR2(80) NOT NULL UNIQUE,
+  nom              VARCHAR2(120) NOT NULL,
+  quantite         NUMBER NOT NULL,
+  seuil_critique   NUMBER NOT NULL,
+  prix             NUMBER(12,3) NOT NULL,
+  date_fabrication DATE,
+  date_achat       DATE,
+  id_four          NUMBER NOT NULL,
+
+  FOREIGN KEY (id_four)
+    REFERENCES FOURNISSEUR(id_four)
+);
+
+CREATE TABLE INTERVENTION (
+  id_inter   NUMBER PRIMARY KEY,
+  date_inter DATE NOT NULL,
+  reference  VARCHAR2(80) UNIQUE,
+  duree      NUMBER(8,2),
+  cout       NUMBER(12,3) NOT NULL,
+  statut     VARCHAR2(30) NOT NULL,
+  type       VARCHAR2(50),
+  priorite   VARCHAR2(20),
+  id_bac     NUMBER NOT NULL,
+
+  FOREIGN KEY (id_bac)
+    REFERENCES BAC_INTEL(id_bac)
+);
+
+CREATE TABLE EFFECTUATION (
+  id_inter NUMBER NOT NULL,
+  id_emp   NUMBER NOT NULL,
+
+  PRIMARY KEY (id_inter, id_emp),
+
+  FOREIGN KEY (id_inter)
+    REFERENCES INTERVENTION(id_inter),
+
+  FOREIGN KEY (id_emp)
+    REFERENCES EMPLOYE(id_emp)
+);
+
+CREATE TABLE FABRICATION (
+  id_mp      NUMBER NOT NULL,
+  id_bac     NUMBER NOT NULL,
+  qte_utilise NUMBER NOT NULL,
+
+  PRIMARY KEY (id_mp, id_bac),
+
+  FOREIGN KEY (id_mp)
+    REFERENCES MATIERE_PREMIERE(id_mp),
+
+  FOREIGN KEY (id_bac)
+    REFERENCES BAC_INTEL(id_bac)
+);
+ALTER TABLE BAC_INTEL ADD (
+  prix NUMBER(12,3),
+  stock NUMBER,
+  capacite_batterie NUMBER(8,2)
+);
+ALTER TABLE EMPLOYE ADD (PHOTO BLOB);
+ALTER TABLE EMPLOYE ADD (EXPERIENCE NUMBER(2));
+UPDATE EMPLOYE SET EXPERIENCE = 6 WHERE MATRICULE = 'EMP-001';
+UPDATE EMPLOYE SET EXPERIENCE = 3 WHERE MATRICULE = 'EMP-002';
+UPDATE EMPLOYE SET EXPERIENCE = 8 WHERE MATRICULE = 'EMP-003';
+ALTER TABLE BAC_INTEL ADD CARACTERISTIQUES CLOB;
+ALTER TABLE BAC_INTEL
+ADD (
+    IMAGE_PATH VARCHAR2(500)
+);
+ALTER TABLE MATIERE_PREMIERE
+ADD EMAIL_FOUR VARCHAR2(150);
+ALTER TABLE MATIERE_PREMIERE
+ADD NOM_FOUR VARCHAR2(150);
+ALTER TABLE MATIERE_PREMIERE
+ADD NUM_FOUR NUMBER(10);
+
+COMMIT;
