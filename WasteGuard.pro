@@ -1,8 +1,11 @@
-QT += core gui widgets sql charts multimedia multimediawidgets printsupport network
+QT += core gui widgets sql charts multimedia multimediawidgets printsupport network quickwidgets qml quick location positioning opengl openglwidgets
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++17
 CONFIG += console
+
+# Force UTF-8 source and execution charset to keep UI text readable in binaries.
+QMAKE_CXXFLAGS += -finput-charset=UTF-8 -fexec-charset=UTF-8
 
 TARGET = WasteGuard
 
@@ -20,6 +23,9 @@ SOURCES += \
     commande.cpp \
     stockmapwidget.cpp \
     videogenerationdialog.cpp \
+    triposr3ddialog.cpp \
+    viewer3ddialog.cpp \
+    modelviewerwidget.cpp \
     accessibilityhelper.cpp \
     voiceassistant.cpp \
     labibassistant.cpp \
@@ -37,6 +43,9 @@ HEADERS += \
     commande.h \
     stockmapwidget.h \
     videogenerationdialog.h \
+    triposr3ddialog.h \
+    viewer3ddialog.h \
+    modelviewerwidget.h \
     accessibilityhelper.h \
     voiceassistant.h \
     labibassistant.h \
