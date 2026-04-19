@@ -15,6 +15,9 @@
 #include <QColor>
 #include <QImage>
 #include <QPainterPath>
+#include <QString>
+#include <QStringList>
+#include <QTimer>
 #include <QVector>
 
 class ModelViewerWidget : public QOpenGLWidget, protected QOpenGLFunctions
@@ -64,10 +67,17 @@ public:
     /// Set webcam frame preview
     void setWebcamFrame(const QImage &frame);
     void setShowWebcam(bool show);
+    void setAutoSpinEnabled(bool enabled);
+    bool autoSpinEnabled() const { return m_autoSpinEnabled; }
+    void setFeatureCallouts(const QStringList &featureNames);
+    QStringList featureCallouts() const { return m_featureCallouts; }
+    QVector<QPointF> featureAnchors() const { return m_featureAnchorsCache; }
+    QVector<bool> featureAnchorsVisible() const { return m_featureAnchorsVisibleCache; }
 
 signals:
     void modelLoaded(bool success, int vertexCount, int faceCount);
     void interactionModeChanged(InteractionMode mode);
+    void featureAnchorsChanged();
 
 protected:
     void initializeGL() override;
@@ -98,6 +108,11 @@ private:
     void computeBoundingBox();
     void buildGLBuffers();
     void loadTextureIfAvailable();
+    QPointF projectToScreen(const QVector3D &point,
+                            const QMatrix4x4 &model,
+                            const QMatrix4x4 &view,
+                            const QMatrix4x4 &projection,
+                            bool *ok = nullptr) const;
 
     // ── OpenGL resources ──
     QOpenGLShaderProgram *m_shaderProgram = nullptr;
@@ -124,9 +139,14 @@ private:
     // ── Camera ──
     float m_rotationX = 20.0f;
     float m_rotationY = 0.0f;
+    float m_baseRotationX = 180.0f;
+    float m_baseRotationZ = -90.0f;
+    float m_autoSpinAngle = 0.0f;
     float m_panX = 0.0f;
     float m_panY = 0.0f;
     float m_zoom = 1.0f;
+    bool m_autoSpinEnabled = true;
+    QTimer m_autoSpinTimer;
 
     // ── Mouse tracking ──
     QPoint m_lastMousePos;
@@ -146,6 +166,9 @@ private:
     // ── Webcam preview ──
     QImage m_webcamFrame;
     bool m_showWebcam = false;
+    QStringList m_featureCallouts;
+    QVector<QPointF> m_featureAnchorsCache;
+    QVector<bool> m_featureAnchorsVisibleCache;
 
     // ── Diagnostic info ──
     QString m_diagnosticMsg;

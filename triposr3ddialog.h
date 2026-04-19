@@ -12,6 +12,7 @@
 #include <QProcess>
 #include <QPlainTextEdit>
 #include <QElapsedTimer>
+#include <QStringList>
 #include "viewer3ddialog.h"
 
 class TripoSR3DDialog : public QDialog
@@ -21,6 +22,7 @@ public:
     explicit TripoSR3DDialog(const QString &productName,
                              const QString &reference,
                              const QString &imagePath,
+                             const QStringList &featureNames = QStringList(),
                              QWidget *parent = nullptr);
     ~TripoSR3DDialog();
 
@@ -48,6 +50,7 @@ private:
     QString m_productName;
     QString m_reference;
     QString m_imagePath;
+    QStringList m_featureNames;
 
     // Generated output
     QString m_generatedMeshPath;

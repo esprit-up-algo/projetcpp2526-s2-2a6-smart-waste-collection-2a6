@@ -9,8 +9,7 @@ Gestures:
   - Index finger only                            -> Draw
   - Open hand                                    -> Erase
   - Pinch (thumb + index tips close) + movement  -> Rotate
-  - Closed fist + movement                       -> Move / Pan
-  - Fist / no hand                               -> Idle
+  - Anything else / no hand                      -> Idle
 
 Requirements:
   pip install mediapipe opencv-python
@@ -40,15 +39,14 @@ WEBCAM_INDEX = 0
 FRAME_WIDTH = 640
 FRAME_HEIGHT = 480
 PINCH_THRESHOLD = 0.06
-MOVEMENT_THRESHOLD = 0.008
+ROTATE_MOVEMENT_THRESHOLD = 0.008
 SEND_FRAME_EVERY = 1
-SMOOTHING = 0.45
+ROTATE_SMOOTHING = 0.45
 
 
 class GestureTracker:
     def __init__(self):
         self.prev_pinch_pos = None
-        self.prev_palm_pos = None
         self.frame_count = 0
         self.prev_gesture = "idle"
 
@@ -59,9 +57,16 @@ class GestureTracker:
         return ((p1.x + p2.x) / 2, (p1.y + p2.y) / 2)
 
     def palm_center(self, hand_landmarks):
-        wrist = hand_landmarks.landmark[mp_hands.HandLandmark.WRIST]
-        mcp = hand_landmarks.landmark[mp_hands.HandLandmark.MIDDLE_FINGER_MCP]
-        return self.midpoint(wrist, mcp)
+        ids = [
+            mp_hands.HandLandmark.WRIST,
+            mp_hands.HandLandmark.INDEX_FINGER_MCP,
+            mp_hands.HandLandmark.MIDDLE_FINGER_MCP,
+            mp_hands.HandLandmark.RING_FINGER_MCP,
+            mp_hands.HandLandmark.PINKY_MCP,
+        ]
+        xs = [hand_landmarks.landmark[idx].x for idx in ids]
+        ys = [hand_landmarks.landmark[idx].y for idx in ids]
+        return (sum(xs) / len(xs), sum(ys) / len(ys))
 
     def is_finger_extended(self, hand_landmarks, finger_tip, finger_pip):
         tip = hand_landmarks.landmark[finger_tip]
@@ -97,16 +102,21 @@ class GestureTracker:
         pinch_dist = self.distance(thumb_tip, index_tip)
         result = {"gesture": "idle", "dx": 0, "dy": 0, "zoom": 0}
 
-        if pinch_dist < (PINCH_THRESHOLD * 1.35):
+        # Pan/déplacement was removed: fist detection was unreliable and
+        # flickered with pinch/idle. Only rotate/draw/erase remain.
+        pinch_close = pinch_dist < (PINCH_THRESHOLD * 1.35)
+        pinch_valid = pinch_close and (middle_up or ring_up or pinky_up)
+
+        if pinch_valid:
             pinch_pos = self.midpoint(thumb_tip, index_tip)
             if self.prev_pinch_pos is not None:
                 dx = (pinch_pos[0] - self.prev_pinch_pos[0]) * 220
                 dy = (pinch_pos[1] - self.prev_pinch_pos[1]) * 220
-                if abs(dx) > MOVEMENT_THRESHOLD * 100 or abs(dy) > MOVEMENT_THRESHOLD * 100:
+                if abs(dx) > ROTATE_MOVEMENT_THRESHOLD * 100 or abs(dy) > ROTATE_MOVEMENT_THRESHOLD * 100:
                     result = {
                         "gesture": "rotate",
-                        "dx": round(dx * SMOOTHING, 2),
-                        "dy": round(dy * SMOOTHING, 2),
+                        "dx": round(dx * ROTATE_SMOOTHING, 2),
+                        "dy": round(dy * ROTATE_SMOOTHING, 2),
                         "zoom": 0,
                     }
             self.prev_pinch_pos = pinch_pos
@@ -135,26 +145,17 @@ class GestureTracker:
                 "ny": round(palm[1], 4),
             }
             self.prev_pinch_pos = None
-            self.prev_palm_pos = palm
-
-        elif not index_up and not middle_up and not ring_up and not pinky_up:
-            palm = self.palm_center(hand_landmarks)
-            if self.prev_palm_pos is not None:
-                dx = (palm[0] - self.prev_palm_pos[0]) * 150
-                dy = (palm[1] - self.prev_palm_pos[1]) * 150
-                if abs(dx) > MOVEMENT_THRESHOLD * 100 or abs(dy) > MOVEMENT_THRESHOLD * 100:
-                    result = {
-                        "gesture": "pan",
-                        "dx": round(dx * SMOOTHING, 2),
-                        "dy": round(dy * SMOOTHING, 2),
-                        "zoom": 0,
-                    }
-            self.prev_pinch_pos = None
-            self.prev_palm_pos = palm
+            self.prev_palm_pos = None
 
         else:
             self.prev_pinch_pos = None
             self.prev_palm_pos = None
+
+        if result["gesture"] != self.prev_gesture:
+            if result["gesture"] != "rotate":
+                self.prev_pinch_pos = None
+            if result["gesture"] != "pan":
+                self.prev_palm_pos = None
 
         self.prev_gesture = result["gesture"]
         return result

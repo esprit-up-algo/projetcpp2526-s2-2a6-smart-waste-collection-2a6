@@ -302,18 +302,25 @@ void MainWindow::on_btnMicrophone_clicked()
 
 void MainWindow::on_btnHighContrast_clicked()
 {
-    // IMPORTANT: Ce bouton ne doit SEULEMENT modifier le contraste, pas le zoom!
-    bool enable = m_btnHighContrast->isChecked();
+    if (!m_accessibilityHelper || !m_btnHighContrast) return;
+
+    const bool enable = m_btnHighContrast->isChecked();
     m_accessibilityHelper->enableHighContrast(this, enable);
-    
-    if (m_voiceAssistant && m_voiceAssistant->isInitialized()) {
-        if (enable) {
-            m_voiceAssistant->speak("Mode contraste activé");
-        } else {
-            m_voiceAssistant->speak("Mode contraste désactivé");
-        }
+
+    // Update button label so the user knows whether contrast is ON or OFF.
+    if (enable) {
+        m_btnHighContrast->setText(QString::fromUtf8("\u2600 Normal"));
+        m_btnHighContrast->setToolTip(QString::fromUtf8("D\u00e9sactiver le mode contraste \u00e9lev\u00e9"));
+    } else {
+        m_btnHighContrast->setText(QString::fromUtf8("\u26ab Contraste"));
+        m_btnHighContrast->setToolTip(QString::fromUtf8("Activer le mode contraste \u00e9lev\u00e9 (noir / jaune)"));
     }
-    // NOTE: Ne pas modifier m_btnTextZoom ou le zoom ici!
+
+    if (m_voiceAssistant && m_voiceAssistant->isInitialized()) {
+        m_voiceAssistant->speak(enable
+            ? QString::fromUtf8("Mode contraste \u00e9lev\u00e9 activ\u00e9")
+            : QString::fromUtf8("Mode contraste d\u00e9sactiv\u00e9"));
+    }
 }
 
 void MainWindow::on_btnTextZoom_clicked()

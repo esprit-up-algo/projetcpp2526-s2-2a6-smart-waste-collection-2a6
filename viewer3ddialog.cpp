@@ -15,6 +15,11 @@
 #include <QDebug>
 #include <QStyle>
 #include <QPixmap>
+#include <QPainter>
+#include <QPainterPath>
+#include <QPaintEvent>
+#include <QResizeEvent>
+#include <algorithm>
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Color palette
@@ -26,7 +31,7 @@ static const QColor PALETTE_COLORS[] = {
     QColor(34, 197, 94),    // Green
     QColor(6, 182, 212),    // Cyan
     QColor(59, 130, 246),   // Blue
-    QColor(139, 92, 246),   // Violet
+    QColor(20, 184, 166),   // Teal
     QColor(236, 72, 153),   // Pink
     QColor(255, 255, 255),  // White
     QColor(148, 163, 184),  // Gray
@@ -36,17 +41,264 @@ static const QColor PALETTE_COLORS[] = {
 static const int PALETTE_COUNT = sizeof(PALETTE_COLORS) / sizeof(PALETTE_COLORS[0]);
 
 // ═══════════════════════════════════════════════════════════════════════════
+// FeatureCalloutOverlay — transparent widget that paints the infographic callouts
+// on top of the 3D viewer. Lives as a sibling stacked above ModelViewerWidget;
+// pulls projected anchors from the viewer whenever the view changes.
+// ═══════════════════════════════════════════════════════════════════════════
+class FeatureCalloutOverlay : public QWidget
+{
+public:
+    explicit FeatureCalloutOverlay(ModelViewerWidget *viewer, QWidget *parent)
+        : QWidget(parent), m_viewer(viewer)
+    {
+        setAttribute(Qt::WA_TransparentForMouseEvents, true);
+        setAttribute(Qt::WA_NoSystemBackground, true);
+        setAttribute(Qt::WA_TranslucentBackground, true);
+        setFocusPolicy(Qt::NoFocus);
+        if (m_viewer) {
+            connect(m_viewer, &ModelViewerWidget::featureAnchorsChanged,
+                    this, QOverload<>::of(&QWidget::update));
+        }
+    }
+
+protected:
+    void paintEvent(QPaintEvent *) override
+    {
+        if (!m_viewer) return;
+        const QStringList features = m_viewer->featureCallouts();
+        const QVector<QPointF> anchors = m_viewer->featureAnchors();
+        const QVector<bool> visible   = m_viewer->featureAnchorsVisible();
+        if (features.isEmpty() || anchors.size() != features.size()) return;
+
+        static const QColor kPalette[] = {
+            QColor( 52, 211, 153),
+            QColor( 96, 165, 250),
+            QColor(251, 191,  36),
+            QColor(248, 113, 113),
+            QColor(167, 139, 250),
+            QColor( 45, 212, 191),
+            QColor(244, 114, 182),
+            QColor(125, 211, 252),
+        };
+        const int kPaletteN = int(sizeof(kPalette) / sizeof(kPalette[0]));
+
+        QPainter p(this);
+        p.setRenderHint(QPainter::Antialiasing, true);
+        p.setRenderHint(QPainter::TextAntialiasing, true);
+
+        // Translate anchor coordinates: viewer's client coords → our client coords.
+        // Both widgets have the same parent and (via geometry) the same top-left,
+        // so the mapping is an identity — but use mapTo/mapFrom to be safe.
+        auto toLocal = [&](const QPointF &viewerPt) {
+            const QPoint global = m_viewer->mapToGlobal(QPoint(int(viewerPt.x()),
+                                                               int(viewerPt.y())));
+            return QPointF(mapFromGlobal(global));
+        };
+
+        const int n = features.size();
+        const qreal circleR       = 17.0;
+        const int   edgePad       = 18;
+        const int   labelMaxW     = qBound(130, width() / 5, 220);
+        const int   pillH         = 34;
+        const int   gapCirclePill = 8;
+        const int   gapLeaderStart = 4;
+
+        QVector<int> leftCol, rightCol;
+        for (int i = 0; i < n; ++i) {
+            const qreal ax = visible.value(i, false)
+                ? toLocal(anchors[i]).x() : width() / 2.0;
+            if (ax < width() / 2.0) leftCol.append(i);
+            else rightCol.append(i);
+        }
+
+        auto rebalance = [&](QVector<int> &from, QVector<int> &to, bool moveLargestX) {
+            while (from.size() > to.size() + 1) {
+                int bestK = 0;
+                for (int k = 1; k < from.size(); ++k) {
+                    const qreal xk = toLocal(anchors[from[k]]).x();
+                    const qreal xb = toLocal(anchors[from[bestK]]).x();
+                    if (moveLargestX ? (xk > xb) : (xk < xb)) bestK = k;
+                }
+                to.append(from.takeAt(bestK));
+            }
+        };
+        rebalance(leftCol, rightCol, true);
+        rebalance(rightCol, leftCol, false);
+
+        auto sortCol = [&](QVector<int> &col) {
+            std::sort(col.begin(), col.end(),
+                      [&](int a, int b) {
+                          return toLocal(anchors[a]).y() < toLocal(anchors[b]).y();
+                      });
+        };
+        sortCol(leftCol);
+        sortCol(rightCol);
+
+        const int maxRows = qMax(leftCol.size(), rightCol.size());
+        int rowHeight = 62;
+        if (maxRows > 0) {
+            const int availH = qMax(160, height() - 140);
+            if (maxRows * rowHeight > availH) {
+                rowHeight = qMax(40, availH / maxRows);
+            }
+        }
+
+        QFont titleFont("Segoe UI Semibold", 11);
+        titleFont.setBold(true);
+        QFontMetrics fm(titleFont);
+
+        QFont numFont("Segoe UI", 12);
+        numFont.setBold(true);
+
+        auto drawColumn = [&](const QVector<int> &col, bool leftSide) {
+            const int total = col.size();
+            if (total == 0) return;
+
+            const qreal totalH = total * rowHeight;
+            qreal startY = (height() - totalH) / 2.0 + rowHeight / 2.0;
+            startY = qMax<qreal>(60.0, startY);
+
+            const qreal circleX = leftSide
+                ? edgePad + labelMaxW + gapCirclePill + circleR
+                : width() - edgePad - labelMaxW - gapCirclePill - circleR;
+
+            for (int k = 0; k < total; ++k) {
+                const int i = col[k];
+                const QColor accent = kPalette[i % kPaletteN];
+                const QPointF circleC(circleX, startY + k * rowHeight);
+
+                QPointF anchor = visible.value(i, false)
+                    ? toLocal(anchors[i])
+                    : QPointF(width() / 2.0, circleC.y());
+                anchor.setX(qBound<qreal>(20.0, anchor.x(), width() - 20.0));
+                anchor.setY(qBound<qreal>(20.0, anchor.y(), height() - 20.0));
+
+                const QPointF leaderStart(
+                    leftSide ? circleC.x() + circleR + gapLeaderStart
+                             : circleC.x() - circleR - gapLeaderStart,
+                    circleC.y());
+
+                QPainterPath leader;
+                leader.moveTo(leaderStart);
+                const qreal midX = (leaderStart.x() + anchor.x()) * 0.5;
+                leader.cubicTo(QPointF(midX, leaderStart.y()),
+                               QPointF(midX, anchor.y()),
+                               anchor);
+
+                p.setBrush(Qt::NoBrush);
+                p.setPen(QPen(QColor(0, 0, 0, 200), 5.0, Qt::SolidLine,
+                              Qt::RoundCap, Qt::RoundJoin));
+                p.drawPath(leader);
+                p.setPen(QPen(QColor(255, 255, 255, 235), 3.0, Qt::SolidLine,
+                              Qt::RoundCap, Qt::RoundJoin));
+                p.drawPath(leader);
+                p.setPen(QPen(accent, 1.8, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+                p.drawPath(leader);
+
+                p.setPen(Qt::NoPen);
+                p.setBrush(QColor(0, 0, 0, 170));
+                p.drawEllipse(anchor, 10.5, 10.5);
+                p.setBrush(QColor(255, 255, 255, 245));
+                p.drawEllipse(anchor, 7.0, 7.0);
+                p.setBrush(accent);
+                p.drawEllipse(anchor, 4.0, 4.0);
+
+                p.setPen(Qt::NoPen);
+                p.setBrush(QColor(0, 0, 0, 160));
+                p.drawEllipse(circleC, circleR + 3, circleR + 3);
+
+                p.setBrush(accent);
+                p.setPen(QPen(QColor(255, 255, 255), 2.2));
+                p.drawEllipse(circleC, circleR, circleR);
+
+                p.setPen(QColor(255, 255, 255));
+                p.setFont(numFont);
+                p.drawText(QRectF(circleC.x() - circleR, circleC.y() - circleR,
+                                  circleR * 2, circleR * 2),
+                           Qt::AlignCenter,
+                           QString::number(k + 1 + (leftSide ? 0 : leftCol.size())));
+
+                const QString rawText = features.at(i).trimmed();
+                const QString elided = fm.elidedText(rawText, Qt::ElideRight, labelMaxW - 22);
+                const int tw = fm.horizontalAdvance(elided);
+                const qreal pillW = tw + 26;
+                const qreal pillX = leftSide
+                    ? circleC.x() - circleR - gapCirclePill - pillW
+                    : circleC.x() + circleR + gapCirclePill;
+                const QRectF pillRect(pillX, circleC.y() - pillH / 2.0, pillW, pillH);
+
+                p.setBrush(QColor(0, 0, 0, 140));
+                p.setPen(Qt::NoPen);
+                p.drawRoundedRect(pillRect.translated(0, 2), pillH / 2.0, pillH / 2.0);
+
+                QLinearGradient pg(pillRect.topLeft(), pillRect.bottomLeft());
+                pg.setColorAt(0.0, QColor(253, 252, 238));
+                pg.setColorAt(1.0, QColor(238, 233, 208));
+                p.setBrush(pg);
+                p.setPen(QPen(accent, 1.8));
+                p.drawRoundedRect(pillRect, pillH / 2.0, pillH / 2.0);
+
+                p.setPen(Qt::NoPen);
+                p.setBrush(accent);
+                const qreal dotR = 3.2;
+                const qreal dotX = leftSide
+                    ? pillRect.right() - 10.0
+                    : pillRect.left() + 10.0;
+                p.drawEllipse(QPointF(dotX, pillRect.center().y()), dotR, dotR);
+
+                p.setPen(QColor(24, 28, 46));
+                p.setFont(titleFont);
+                const QRectF textRect = leftSide
+                    ? pillRect.adjusted(12, 0, -20, 0)
+                    : pillRect.adjusted(20, 0, -12, 0);
+                p.drawText(textRect, Qt::AlignVCenter | Qt::AlignLeft, elided);
+            }
+        };
+
+        drawColumn(leftCol, true);
+        drawColumn(rightCol, false);
+    }
+
+private:
+    ModelViewerWidget *m_viewer;
+};
+
+namespace {
+QStringList buildFeatureCallouts(const QStringList &featureNames, const QString &productName)
+{
+    QStringList cleaned;
+    for (const QString &feature : featureNames) {
+        const QString trimmed = feature.trimmed();
+        if (!trimmed.isEmpty() && !cleaned.contains(trimmed, Qt::CaseInsensitive)) {
+            cleaned << trimmed;
+        }
+    }
+    if (cleaned.isEmpty()) {
+        const QString trimmedProduct = productName.trimmed();
+        if (!trimmedProduct.isEmpty()) cleaned << trimmedProduct;
+    }
+    return cleaned;
+}
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // Constructor / Destructor
 // ═══════════════════════════════════════════════════════════════════════════
 
 Viewer3DDialog::Viewer3DDialog(const QString &meshPath,
                                const QString &productName,
+                               const QStringList &featureNames,
                                QWidget *parent)
     : QDialog(parent),
       m_meshPath(meshPath),
-      m_productName(productName)
+      m_productName(productName),
+      m_featureNames(featureNames)
 {
     setupUi();
+    if (m_viewer) {
+        m_viewer->setFeatureCallouts(buildFeatureCallouts(m_featureNames, m_productName));
+        m_viewer->setAutoSpinEnabled(true);
+    }
 
     // Defer heavy mesh loading until the dialog is fully shown and GL initialized.
     // 500ms ensures initializeGL() has completed.
@@ -54,7 +306,7 @@ Viewer3DDialog::Viewer3DDialog(const QString &meshPath,
         if (!m_meshPath.isEmpty() && m_viewer) {
             if (m_lblStatus) {
                 m_lblStatus->setText("Chargement du modele 3D en cours...");
-                m_lblStatus->setStyleSheet("color: #c4b5fd; font-size: 11px; border: none; padding: 2px;");
+                m_lblStatus->setStyleSheet("color: #6ee7b7; font-size: 11px; border: none; padding: 2px;");
             }
             // Process events to show the status update before loading
             QCoreApplication::processEvents();
@@ -77,6 +329,17 @@ Viewer3DDialog::~Viewer3DDialog()
     stopHandTracker();
 }
 
+bool Viewer3DDialog::eventFilter(QObject *obj, QEvent *event)
+{
+    if (obj == m_viewer && m_calloutOverlay) {
+        if (event->type() == QEvent::Resize || event->type() == QEvent::Show) {
+            m_calloutOverlay->setGeometry(m_viewer->rect());
+            m_calloutOverlay->raise();
+        }
+    }
+    return QDialog::eventFilter(obj, event);
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // UI Setup
 // ═══════════════════════════════════════════════════════════════════════════
@@ -90,7 +353,7 @@ void Viewer3DDialog::setupUi()
     setWindowFlags(Qt::Dialog | Qt::WindowCloseButtonHint | Qt::WindowMinMaxButtonsHint);
     setAttribute(Qt::WA_TranslucentBackground, false);
     setAutoFillBackground(true);
-    setStyleSheet("QDialog { background-color: #0b1220; }");
+    setStyleSheet("QDialog { background-color: #0a1628; }");
 
     QHBoxLayout *mainLayout = new QHBoxLayout(this);
     mainLayout->setContentsMargins(14, 14, 14, 14);
@@ -111,13 +374,21 @@ void Viewer3DDialog::setupUi()
     );
     viewerLayout->addWidget(m_viewer, 0, 0);
 
+    // Transparent infographic overlay stacked on top of the viewer.
+    FeatureCalloutOverlay *overlay = new FeatureCalloutOverlay(m_viewer, m_viewer);
+    overlay->setGeometry(m_viewer->rect());
+    overlay->raise();
+    overlay->show();
+    m_calloutOverlay = overlay;
+    m_viewer->installEventFilter(this);
+
     m_webcamPreview = new QLabel(viewerContainer);
     m_webcamPreview->setFixedSize(200, 150);
     m_webcamPreview->setAlignment(Qt::AlignCenter);
     m_webcamPreview->setText("Camera...");
     m_webcamPreview->setStyleSheet(
         "QLabel { background-color: rgba(0, 0, 0, 210); color: #94a3b8; "
-        "border: 2px solid #6366f1; border-radius: 10px; font-size: 12px; }"
+        "border: 2px solid #34d399; border-radius: 10px; font-size: 12px; }"
     );
     m_webcamPreview->hide();
     viewerLayout->addWidget(m_webcamPreview, 0, 0, Qt::AlignTop | Qt::AlignRight);
@@ -131,7 +402,7 @@ void Viewer3DDialog::setupUi()
     panel->setFixedWidth(260);
     panel->setStyleSheet(
         "QFrame { background-color: #111827; border-radius: 14px; "
-        "border: 1px solid #312e81; }"
+        "border: 1px solid #1a3a2e; }"
     );
 
     QVBoxLayout *panelLayout = new QVBoxLayout(panel);
@@ -142,7 +413,7 @@ void Viewer3DDialog::setupUi()
     QLabel *lblTitle = new QLabel(QString::fromUtf8(
         "\xF0\x9F\x8E\xAE Outils 3D"), panel);
     lblTitle->setStyleSheet(
-        "color: #c4b5fd; font-size: 17px; font-weight: bold; "
+        "color: #6ee7b7; font-size: 17px; font-weight: bold; "
         "font-family: 'Segoe UI'; border: none;"
     );
     panelLayout->addWidget(lblTitle);
@@ -159,7 +430,7 @@ void Viewer3DDialog::setupUi()
     auto addSeparator = [&]() {
         QFrame *sep = new QFrame(panel);
         sep->setFrameShape(QFrame::HLine);
-        sep->setStyleSheet("background-color: #1e1b4b; border: none; max-height: 1px;");
+        sep->setStyleSheet("background-color: #0f2b4c; border: none; max-height: 1px;");
         panelLayout->addWidget(sep);
     };
 
@@ -168,7 +439,7 @@ void Viewer3DDialog::setupUi()
     // ── Mode Buttons ──
     QLabel *lblMode = new QLabel("MODE", panel);
     lblMode->setStyleSheet(
-        "color: #6366f1; font-size: 10px; font-weight: bold; "
+        "color: #34d399; font-size: 10px; font-weight: bold; "
         "letter-spacing: 2px; border: none;"
     );
     panelLayout->addWidget(lblMode);
@@ -195,7 +466,7 @@ void Viewer3DDialog::setupUi()
     // ── Color Palette ──
     QLabel *lblColor = new QLabel("COULEURS", panel);
     lblColor->setStyleSheet(
-        "color: #6366f1; font-size: 10px; font-weight: bold; "
+        "color: #34d399; font-size: 10px; font-weight: bold; "
         "letter-spacing: 2px; border: none;"
     );
     panelLayout->addWidget(lblColor);
@@ -218,7 +489,7 @@ void Viewer3DDialog::setupUi()
     // ── Brush Size ──
     QLabel *lblBrush = new QLabel("TAILLE DU PINCEAU", panel);
     lblBrush->setStyleSheet(
-        "color: #6366f1; font-size: 10px; font-weight: bold; "
+        "color: #34d399; font-size: 10px; font-weight: bold; "
         "letter-spacing: 2px; border: none;"
     );
     panelLayout->addWidget(lblBrush);
@@ -228,15 +499,15 @@ void Viewer3DDialog::setupUi()
     m_sliderBrush->setRange(1, 15);
     m_sliderBrush->setValue(3);
     m_sliderBrush->setStyleSheet(
-        "QSlider::groove:horizontal { background: #1e1b4b; height: 6px; border-radius: 3px; }"
-        "QSlider::handle:horizontal { background: #7c3aed; width: 16px; height: 16px; "
+        "QSlider::groove:horizontal { background: #0f2b4c; height: 6px; border-radius: 3px; }"
+        "QSlider::handle:horizontal { background: #10b981; width: 16px; height: 16px; "
         "  margin: -5px 0; border-radius: 8px; }"
-        "QSlider::sub-page:horizontal { background: #6366f1; border-radius: 3px; }"
+        "QSlider::sub-page:horizontal { background: #34d399; border-radius: 3px; }"
     );
     connect(m_sliderBrush, &QSlider::valueChanged, this, &Viewer3DDialog::onBrushSizeChanged);
 
     m_lblBrushSize = new QLabel("3px", panel);
-    m_lblBrushSize->setStyleSheet("color: #c4b5fd; font-size: 12px; border: none; min-width: 30px;");
+    m_lblBrushSize->setStyleSheet("color: #6ee7b7; font-size: 12px; border: none; min-width: 30px;");
     m_lblBrushSize->setAlignment(Qt::AlignCenter);
 
     brushRow->addWidget(m_sliderBrush, 1);
@@ -248,7 +519,7 @@ void Viewer3DDialog::setupUi()
     // ── Actions ──
     QLabel *lblActions = new QLabel("ACTIONS", panel);
     lblActions->setStyleSheet(
-        "color: #6366f1; font-size: 10px; font-weight: bold; "
+        "color: #34d399; font-size: 10px; font-weight: bold; "
         "letter-spacing: 2px; border: none;"
     );
     panelLayout->addWidget(lblActions);
@@ -266,7 +537,7 @@ void Viewer3DDialog::setupUi()
     // ── Webcam / Hand Tracking ──
     QLabel *lblTracking = new QLabel("HAND TRACKING", panel);
     lblTracking->setStyleSheet(
-        "color: #6366f1; font-size: 10px; font-weight: bold; "
+        "color: #34d399; font-size: 10px; font-weight: bold; "
         "letter-spacing: 2px; border: none;"
     );
     panelLayout->addWidget(lblTracking);
@@ -288,16 +559,15 @@ void Viewer3DDialog::setupUi()
     // ── Gesture Guide ──
     QLabel *lblGuideTitle = new QLabel("GUIDE GESTUEL", panel);
     lblGuideTitle->setStyleSheet(
-        "color: #6366f1; font-size: 10px; font-weight: bold; "
+        "color: #34d399; font-size: 10px; font-weight: bold; "
         "letter-spacing: 2px; border: none;"
     );
     panelLayout->addWidget(lblGuideTitle);
 
     QLabel *lblGuide = new QLabel(
-        "<span style='color:#a78bfa;'>&#x261D; Index Leve :</span> Dessiner<br>"
-        "<span style='color:#a78bfa;'>&#x270B; Main ouverte :</span> Effacer<br>"
-        "<span style='color:#a78bfa;'>&#x1F44C; Pincer :</span> Rotation<br>"
-        "<span style='color:#a78bfa;'>&#x270A; Main fermee :</span> Deplacer", panel);
+        "<span style='color:#6ee7b7;'>&#x261D; Index Leve :</span> Dessiner<br>"
+        "<span style='color:#6ee7b7;'>&#x270B; Main ouverte :</span> Effacer<br>"
+        "<span style='color:#6ee7b7;'>&#x1F44C; Pincer :</span> Rotation", panel);
     lblGuide->setStyleSheet("color: #94a3b8; font-size: 11px; border: none; padding-top: 4px;");
     panelLayout->addWidget(lblGuide);
 
@@ -307,10 +577,10 @@ void Viewer3DDialog::setupUi()
     // ── Close button ──
     QPushButton *btnClose = new QPushButton("Fermer", panel);
     btnClose->setStyleSheet(
-        "QPushButton { background-color: #1e1b4b; color: #c4b5fd; "
-        "border: 1px solid #312e81; border-radius: 8px; "
+        "QPushButton { background-color: #0f2b4c; color: #6ee7b7; "
+        "border: 1px solid #1a3a2e; border-radius: 8px; "
         "padding: 10px; font-weight: bold; font-size: 13px; }"
-        "QPushButton:hover { background-color: #312e81; }"
+        "QPushButton:hover { background-color: #1a3a2e; }"
     );
     btnClose->setCursor(Qt::PointingHandCursor);
     connect(btnClose, &QPushButton::clicked, this, &QDialog::accept);
@@ -328,7 +598,7 @@ QPushButton *Viewer3DDialog::makeColorButton(const QColor &color, int size)
     btn->setStyleSheet(QString(
         "QPushButton { background-color: %1; border: 2px solid #374151; "
         "border-radius: %2px; }"
-        "QPushButton:hover { border: 2px solid #a78bfa; }"
+        "QPushButton:hover { border: 2px solid #6ee7b7; }"
     ).arg(color.name()).arg(size / 2));
     return btn;
 }
@@ -339,12 +609,12 @@ QPushButton *Viewer3DDialog::makeToolButton(const QString &text, const QString &
     btn->setToolTip(tooltip);
     btn->setCursor(Qt::PointingHandCursor);
     btn->setStyleSheet(
-        "QPushButton { background-color: #1e1b4b; color: #c4b5fd; "
-        "border: 1px solid #312e81; border-radius: 8px; "
+        "QPushButton { background-color: #0f2b4c; color: #6ee7b7; "
+        "border: 1px solid #1a3a2e; border-radius: 8px; "
         "padding: 8px 6px; font-size: 12px; font-weight: bold; }"
-        "QPushButton:hover { background-color: #312e81; border-color: #4338ca; }"
-        "QPushButton[active=\"true\"] { background-color: #4338ca; "
-        "border-color: #7c3aed; color: white; }"
+        "QPushButton:hover { background-color: #1a3a2e; border-color: #059669; }"
+        "QPushButton[active=\"true\"] { background-color: #059669; "
+        "border-color: #10b981; color: white; }"
     );
     return btn;
 }
@@ -382,7 +652,7 @@ void Viewer3DDialog::onColorClicked()
         QColor oldColor = m_selectedColorBtn->property("paletteColor").value<QColor>();
         m_selectedColorBtn->setStyleSheet(QString(
             "QPushButton { background-color: %1; border: 2px solid #374151; border-radius: 16px; }"
-            "QPushButton:hover { border: 2px solid #a78bfa; }"
+            "QPushButton:hover { border: 2px solid #6ee7b7; }"
         ).arg(oldColor.name()));
     }
     m_selectedColorBtn = btn;
@@ -458,6 +728,9 @@ void Viewer3DDialog::onToggleWebcam()
             m_webcamPreview->hide();
             m_webcamPreview->setText("Camera...");
             m_webcamPreview->setPixmap(QPixmap());
+        }
+        if (m_viewer) {
+            m_viewer->setAutoSpinEnabled(true);
         }
     } else {
         startHandTracker();
@@ -539,6 +812,7 @@ void Viewer3DDialog::startHandTracker()
 
     m_webcamActive = true;
     m_viewer->setShowWebcam(true);
+    m_viewer->setAutoSpinEnabled(false);
     if (m_webcamPreview) {
         m_webcamPreview->setText("Camera...");
         m_webcamPreview->setPixmap(QPixmap());
@@ -547,7 +821,7 @@ void Viewer3DDialog::startHandTracker()
     }
     m_btnWebcam->setText(QString::fromUtf8("\xF0\x9F\x94\xB4  Desactiver Webcam"));
     m_lblGesture->setText("Initialisation...");
-    m_lblGesture->setStyleSheet("color: #a78bfa; font-size: 11px; border: none; padding: 4px;");
+    m_lblGesture->setStyleSheet("color: #6ee7b7; font-size: 11px; border: none; padding: 4px;");
 }
 
 void Viewer3DDialog::stopHandTracker()
@@ -563,6 +837,9 @@ void Viewer3DDialog::stopHandTracker()
         m_trackerProcess = nullptr;
     }
     m_webcamActive = false;
+    if (m_viewer) {
+        m_viewer->setAutoSpinEnabled(true);
+    }
     if (m_webcamPreview) {
         m_webcamPreview->hide();
         m_webcamPreview->setText("Camera...");
@@ -593,6 +870,7 @@ void Viewer3DDialog::processGestureJson(const QJsonObject &json)
     double dx = json.value("dx").toDouble(0);
     double dy = json.value("dy").toDouble(0);
     double zoom = json.value("zoom").toDouble(0);
+    (void)zoom;
     double nx = json.value("nx").toDouble(0);
     double ny = json.value("ny").toDouble(0);
 
@@ -603,23 +881,35 @@ void Viewer3DDialog::processGestureJson(const QJsonObject &json)
 
     QString gestureText;
     QColor gestureColor = Qt::white;
+    const auto mode = m_viewer->interactionMode();
 
     if (gesture == "rotate") {
-        gestureText = QString::fromUtf8("\xf0\x9f\x91\x8c Rotation");
-        gestureColor = QColor(167, 139, 250);
-        m_viewer->applyGestureRotation(dx, dy);
-    } else if (gesture == "pan") {
-        gestureText = QString::fromUtf8("\xf0\x9f\x91\x8c Deplacement");
-        gestureColor = QColor(96, 165, 250);
-        m_viewer->applyGesturePan(dx, -dy);
+        if (mode == ModelViewerWidget::ModeRotate) {
+            gestureText = QString::fromUtf8("\xf0\x9f\x91\x8c Rotation");
+            gestureColor = QColor(167, 139, 250);
+            m_viewer->applyGestureRotation(dx, dy);
+        } else {
+            gestureText = QString::fromUtf8("\xf0\x9f\x91\x8c Rotation disponible en mode Rotation");
+            gestureColor = QColor(148, 163, 184);
+        }
     } else if (gesture == "draw") {
-        gestureText = QString::fromUtf8("\xe2\x9c\x8f\xef\xb8\x8f Dessin");
-        gestureColor = m_viewer->drawColor();
-        m_viewer->applyGestureDraw(nx, ny);
+        if (mode == ModelViewerWidget::ModeDraw) {
+            gestureText = QString::fromUtf8("\xe2\x9c\x8f\xef\xb8\x8f Dessin");
+            gestureColor = m_viewer->drawColor();
+            m_viewer->applyGestureDraw(nx, ny);
+        } else {
+            gestureText = QString::fromUtf8("\xe2\x9c\x8f\xef\xb8\x8f Activez Dessiner");
+            gestureColor = QColor(148, 163, 184);
+        }
     } else if (gesture == "erase") {
-        gestureText = QString::fromUtf8("\xf0\x9f\x92\xa8 Effacer");
-        gestureColor = QColor(248, 113, 113);
-        m_viewer->applyGestureErase(nx, ny);
+        if (mode == ModelViewerWidget::ModeErase) {
+            gestureText = QString::fromUtf8("\xf0\x9f\x92\xa8 Effacer");
+            gestureColor = QColor(248, 113, 113);
+            m_viewer->applyGestureErase(nx, ny);
+        } else {
+            gestureText = QString::fromUtf8("\xf0\x9f\x92\xa8 Activez Gomme");
+            gestureColor = QColor(148, 163, 184);
+        }
     } else if (gesture == "idle") {
         gestureText = QString::fromUtf8("\xe2\x9c\x8b Pret");
         gestureColor = QColor(148, 163, 184);
@@ -678,6 +968,7 @@ void Viewer3DDialog::onTrackerFinished(int exitCode, QProcess::ExitStatus status
     Q_UNUSED(status);
     m_webcamActive = false;
     m_viewer->setShowWebcam(false);
+    m_viewer->setAutoSpinEnabled(true);
     if (m_webcamPreview) {
         m_webcamPreview->hide();
         m_webcamPreview->setText("Camera...");

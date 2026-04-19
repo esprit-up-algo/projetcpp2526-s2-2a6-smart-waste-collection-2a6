@@ -433,145 +433,210 @@ public:
         setMinimumSize(450, 650);
         setStyleSheet("QDialog { background-color: #1F110B; }");
 
-        setFixedSize(450, 600);
+        setFixedSize(460, 680);
         setWindowFlags(Qt::FramelessWindowHint);
         setAttribute(Qt::WA_TranslucentBackground);
 
-        const QString blueBase = "#0F1A2B";
-        const QString accentBlue = "#3498DB";
-        const QString lightBlue = "#D4ECFF";
+        const QString accentBlue  = "#1e40af";
+        const QString accentHover = "#1e3a8a";
+        const QString lightBlue   = "#dbeafe";
 
         QVBoxLayout *mainLayout = new QVBoxLayout(this);
         mainLayout->setContentsMargins(0, 0, 0, 0);
 
         QFrame *container = new QFrame(this);
         container->setObjectName("loginContainer");
-        container->setStyleSheet(QString(
+        container->setStyleSheet(
             "QFrame#loginContainer {"
-            "   background: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1, stop:0 %1, stop:1 %2);"
-            "   border: 2px solid rgba(52, 152, 219, 0.3);"
-            "   border-radius: 40px;"
+            "   background: #ffffff;"
+            "   border: 1px solid #e2e8f0;"
+            "   border-radius: 24px;"
             "}"
             "QLineEdit {"
-            "   background: rgba(255, 255, 255, 0.08);"
-            "   border: 1px solid rgba(52, 152, 219, 0.4);"
-            "   border-radius: 12px;"
-            "   padding: 12px;"
-            "   color: white;"
+            "   background: #f8fafc;"
+            "   border: 1.5px solid #cbd5e1;"
+            "   border-radius: 10px;"
+            "   padding: 12px 14px;"
+            "   color: #1e293b;"
             "   font-size: 14px;"
             "}"
             "QLineEdit:focus {"
-            "   border: 2px solid %3;"
-            "   background: rgba(255, 255, 255, 0.12);"
+            "   border: 2px solid #1e40af;"
+            "   background: #ffffff;"
             "}"
+            "QLineEdit::placeholder { color: #94a3b8; }"
             "QPushButton#btnLogin {"
-            "   background: %3;"
+            "   background: #1e40af;"
             "   color: white;"
-            "   border-radius: 15px;"
-            "   padding: 15px;"
+            "   border-radius: 12px;"
+            "   padding: 14px;"
             "   font-weight: 800;"
-            "   font-size: 16px;"
+            "   font-size: 15px;"
+            "   border: none;"
             "}"
-            "QPushButton#btnLogin:hover {"
-            "   background: #2980B9;"
-            "}"
-        ).arg(blueBase).arg("#1A2F45").arg(accentBlue));
+            "QPushButton#btnLogin:hover { background: #1e3a8a; }"
+            "QPushButton#btnLogin:pressed { background: #172554; }"
+        );
 
         QVBoxLayout *containerLayout = new QVBoxLayout(container);
-        containerLayout->setContentsMargins(40, 20, 40, 40);
-        containerLayout->setSpacing(15);
+        containerLayout->setContentsMargins(0, 0, 0, 0);
+        containerLayout->setSpacing(0);
+
+        // ── Dark green header strip (brand identity) ──────────────────
+        QFrame *headerBand = new QFrame(container);
+        headerBand->setObjectName("loginHeader");
+        headerBand->setStyleSheet(
+            "QFrame#loginHeader {"
+            "   background: qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #1a3a2e,stop:1 #2d5a42);"
+            "   border-top-left-radius: 24px;"
+            "   border-top-right-radius: 24px;"
+            "   border-bottom-left-radius: 0px;"
+            "   border-bottom-right-radius: 0px;"
+            "}"
+        );
+        QVBoxLayout *headerLayout = new QVBoxLayout(headerBand);
+        headerLayout->setContentsMargins(30, 20, 30, 16);
+        headerLayout->setSpacing(6);
+
+        // WasteGuard brand label
+        QLabel *lblBrand = new QLabel("WASTEGUARD", headerBand);
+        lblBrand->setAlignment(Qt::AlignCenter);
+        lblBrand->setStyleSheet("font-size:22px;font-weight:900;color:#ffffff;letter-spacing:4px;background:transparent;");
+        headerLayout->addWidget(lblBrand);
+
+        QLabel *lblTagline = new QLabel("Gestion Intelligente des Dechets", headerBand);
+        lblTagline->setAlignment(Qt::AlignCenter);
+        lblTagline->setStyleSheet("font-size:11px;color:#a8d5b5;letter-spacing:1px;background:transparent;");
+        headerLayout->addWidget(lblTagline);
+
+        containerLayout->addWidget(headerBand);
+
+        // ── Mascot + form area ────────────────────────────────────────
+        QFrame *formArea = new QFrame(container);
+        formArea->setStyleSheet("QFrame{background:transparent;border:none;}");
+        QVBoxLayout *formAreaLayout = new QVBoxLayout(formArea);
+        formAreaLayout->setContentsMargins(36, 16, 36, 32);
+        formAreaLayout->setSpacing(14);
+        containerLayout->addWidget(formArea);
 
         mascot = new MascotWidget(this);
-        mascot->setMinimumHeight(240);
-        containerLayout->addWidget(mascot);
+        mascot->setMinimumHeight(200);
+        mascot->setMaximumHeight(200);
+        formAreaLayout->addWidget(mascot);
 
         QLabel *lblMascotName = new QLabel("LABIB", this);
         lblMascotName->setAlignment(Qt::AlignCenter);
-        lblMascotName->setStyleSheet("font-size: 14px; font-weight: 800; color: #00F2FE; letter-spacing: 4px; margin-top: 5px; margin-bottom: 15px;");
-        containerLayout->addWidget(lblMascotName);
+        lblMascotName->setStyleSheet("font-size:12px;font-weight:800;color:#1e40af;letter-spacing:4px;background:transparent;");
+        formAreaLayout->addWidget(lblMascotName);
 
         stackedWidget = new QStackedWidget(this);
 
         QWidget *pageLogin = new QWidget();
+        pageLogin->setStyleSheet("background:transparent;");
         QVBoxLayout *loginLayout = new QVBoxLayout(pageLogin);
-        loginLayout->setSpacing(14);
+        loginLayout->setSpacing(12);
+        loginLayout->setContentsMargins(0,0,0,0);
 
-        QLabel *lblTitle = new QLabel("ACCES SECURISE - EMAIL/CIN", this);
-        lblTitle->setStyleSheet(QString("font-size: 20px; font-weight: 800; color: %1; letter-spacing: 2px;").arg(accentBlue));
+        // Divider
+        QFrame *divider = new QFrame(); divider->setFrameShape(QFrame::HLine);
+        divider->setStyleSheet("background:#e2e8f0; border:none; max-height:1px;");
+        loginLayout->addWidget(divider);
+        loginLayout->addSpacing(4);
+
+        QLabel *lblTitle = new QLabel("Acces Securise", this);
+        lblTitle->setStyleSheet("font-size:18px;font-weight:800;color:#1e293b;background:transparent;");
         lblTitle->setAlignment(Qt::AlignCenter);
         loginLayout->addWidget(lblTitle);
+
+        QLabel *lblSub = new QLabel("Connectez-vous avec votre email et CIN", this);
+        lblSub->setStyleSheet("font-size:12px;color:#64748b;background:transparent;");
+        lblSub->setAlignment(Qt::AlignCenter);
+        loginLayout->addWidget(lblSub);
         loginLayout->addSpacing(6);
 
+        const QString inputStyle =
+            "QLineEdit { background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:10px;"
+            " padding:12px 14px; color:#1e293b; font-size:14px; }"
+            "QLineEdit:focus { border:2px solid #1e40af; background:#ffffff; }";
+
         txtUser = new QLineEdit(this);
-        txtUser->setPlaceholderText("Email");
+        txtUser->setPlaceholderText("Adresse email");
         txtUser->setMinimumHeight(48);
+        txtUser->setStyleSheet(inputStyle);
         loginLayout->addWidget(txtUser);
-        loginLayout->addSpacing(4);
 
         txtPass = new QLineEdit(this);
         txtPass->setPlaceholderText("CIN / Mot de passe admin");
         txtPass->setEchoMode(QLineEdit::Password);
         txtPass->setMinimumHeight(48);
+        txtPass->setStyleSheet(inputStyle);
         loginLayout->addWidget(txtPass);
-        loginLayout->addSpacing(8);
+        loginLayout->addSpacing(4);
 
         QPushButton *btnLogin = new QPushButton("CONNEXION", this);
         btnLogin->setObjectName("btnLogin");
-        btnLogin->setMinimumHeight(52);
+        btnLogin->setMinimumHeight(50);
         btnLogin->setCursor(Qt::PointingHandCursor);
+        btnLogin->setStyleSheet(
+            "QPushButton { background:#1e40af; color:#ffffff; border-radius:12px;"
+            " padding:14px; font-weight:800; font-size:15px; border:none; }"
+            "QPushButton:hover { background:#1e3a8a; }"
+            "QPushButton:pressed { background:#172554; }"
+        );
         loginLayout->addWidget(btnLogin);
-        loginLayout->addSpacing(6);
 
-        QPushButton *btnFaceId = new QPushButton("CONNEXION PAR VISAGE", this);
-        btnFaceId->setStyleSheet(QString(
-            "QPushButton { background: transparent; color: %1; font-weight: 700; "
-            "font-size: 13px; border-radius: 10px; padding: 10px; border: 1px solid rgba(52, 152, 219, 0.5); } "
-            "QPushButton:hover { background-color: rgba(52, 152, 219, 0.1); }"
-        ).arg(accentBlue));
-        btnFaceId->setMinimumHeight(45);
+        QPushButton *btnFaceId = new QPushButton("Connexion par reconnaissance faciale", this);
+        btnFaceId->setStyleSheet(
+            "QPushButton { background: transparent; color: #1e40af; font-weight: 700; "
+            "font-size: 13px; border-radius: 10px; padding: 10px; "
+            "border: 1.5px solid #bfdbfe; } "
+            "QPushButton:hover { background-color: #eff6ff; border-color: #1e40af; }"
+        );
+        btnFaceId->setMinimumHeight(44);
         btnFaceId->setCursor(Qt::PointingHandCursor);
         loginLayout->addWidget(btnFaceId);
-        loginLayout->addSpacing(4);
 
-        QLabel *lblAuthModes = new QLabel("Choix: (1) Email + CIN, ou (2) Visage + Email (CIN requis seulement a la 1ere inscription)", this);
+        QLabel *lblAuthModes = new QLabel("Email + CIN  ou  Visage + Email", this);
         lblAuthModes->setAlignment(Qt::AlignCenter);
-        lblAuthModes->setStyleSheet("color: #93c5fd; font-size: 12px;");
+        lblAuthModes->setStyleSheet("color:#94a3b8;font-size:11px;background:transparent;");
         loginLayout->addWidget(lblAuthModes);
 
         QWidget *pageFaceId = new QWidget();
+        pageFaceId->setStyleSheet("background:transparent;");
         QVBoxLayout *faceLayout = new QVBoxLayout(pageFaceId);
-        faceLayout->setSpacing(15);
+        faceLayout->setSpacing(12);
+        faceLayout->setContentsMargins(0,0,0,0);
 
-        QLabel *lblFaceTitle = new QLabel("SCAN BIOMETRIQUE", this);
-        lblFaceTitle->setStyleSheet("font-size: 18px; font-weight: 800; color: #E9BC99;");
+        QLabel *lblFaceTitle = new QLabel("Reconnaissance Faciale", this);
+        lblFaceTitle->setStyleSheet("font-size:17px;font-weight:800;color:#1e293b;background:transparent;");
         lblFaceTitle->setAlignment(Qt::AlignCenter);
         faceLayout->addWidget(lblFaceTitle);
 
         facePreview = new QLabel(this);
-        facePreview->setMinimumSize(320, 240);
+        facePreview->setMinimumSize(300, 220);
         facePreview->setAlignment(Qt::AlignCenter);
         facePreview->setText("Camera non demarree");
-        facePreview->setStyleSheet(QString("background-color: rgba(0,0,0,0.5); border: 2px solid %1; border-radius: 15px; color: #dbeafe; font-size: 13px;").arg(accentBlue));
+        facePreview->setStyleSheet("background:#f1f5f9;border:2px solid #bfdbfe;border-radius:14px;color:#64748b;font-size:13px;");
         faceLayout->addWidget(facePreview);
 
         lblStatus = new QLabel("Initialisation du capteur...", this);
-        lblStatus->setStyleSheet(QString("font-size: 14px; color: %1;").arg(lightBlue));
+        lblStatus->setStyleSheet("font-size:13px;color:#475569;background:transparent;");
         lblStatus->setAlignment(Qt::AlignCenter);
         faceLayout->addWidget(lblStatus);
 
         btnFaceCapture = new QPushButton("Capturer et verifier", this);
         btnFaceCapture->setObjectName("btnFaceCapture");
-        btnFaceCapture->setMinimumHeight(44);
+        btnFaceCapture->setMinimumHeight(48);
         btnFaceCapture->setCursor(Qt::PointingHandCursor);
-        btnFaceCapture->setStyleSheet(QString(
-            "QPushButton#btnFaceCapture { background: %1; color: white; border-radius: 10px; font-weight: 700; }"
-            "QPushButton#btnFaceCapture:hover { background: #2563eb; }"
-            "QPushButton#btnFaceCapture:disabled { background: #64748b; }"
-        ).arg(accentBlue));
+        btnFaceCapture->setStyleSheet(
+            "QPushButton#btnFaceCapture { background:#1e40af; color:white; border-radius:10px; font-weight:700; border:none; }"
+            "QPushButton#btnFaceCapture:hover { background:#1e3a8a; }"
+            "QPushButton#btnFaceCapture:disabled { background:#94a3b8; }"
+        );
         faceLayout->addWidget(btnFaceCapture);
 
         QPushButton *btnBack = new QPushButton("Annuler et revenir", this);
-        btnBack->setStyleSheet(QString("color: %1; text-decoration: underline; font-size: 12px; border: none;").arg(accentBlue));
+        btnBack->setStyleSheet("color:#1e40af;font-size:12px;border:none;background:transparent;text-decoration:underline;");
         btnBack->setFlat(true);
         btnBack->setCursor(Qt::PointingHandCursor);
         faceLayout->addWidget(btnBack);
@@ -580,7 +645,8 @@ public:
         stackedWidget->addWidget(pageFaceId);
         stackedWidget->setCurrentIndex(0);
 
-        containerLayout->addWidget(stackedWidget);
+        formAreaLayout->addWidget(stackedWidget);
+        containerLayout->addWidget(formArea);
         mainLayout->addWidget(container);
 
         eyeAnim = new QPropertyAnimation(mascot, "eyeCoverFactor", this);
@@ -1253,9 +1319,6 @@ int main(int argc, char *argv[])
     }
     if (qEnvironmentVariableIsEmpty("QT_OPENGL")) {
         qputenv("QT_OPENGL", QByteArrayLiteral("software"));
-    }
-    if (qEnvironmentVariableIsEmpty("QSG_RHI_BACKEND")) {
-        qputenv("QSG_RHI_BACKEND", QByteArrayLiteral("software"));
     }
     if (qEnvironmentVariableIsEmpty("QT_LOGGING_RULES")) {
         qputenv("QT_LOGGING_RULES",

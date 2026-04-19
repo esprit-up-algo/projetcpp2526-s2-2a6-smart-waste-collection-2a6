@@ -1,4 +1,4 @@
-QT       += core gui widgets sql charts multimedia multimediawidgets printsupport network concurrent opengl openglwidgets serialport
+QT       += core gui widgets sql charts multimedia multimediawidgets printsupport network concurrent opengl openglwidgets
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -28,9 +28,7 @@ SOURCES += \
     accessibilityhelper.cpp \
     voiceassistant.cpp \
     labibassistant.cpp \
-    emailnotificationmanager.cpp \
-    arduino.cpp \
-    arduinowidget.cpp
+    emailnotificationmanager.cpp
 
 HEADERS += \
     client.h \
@@ -50,9 +48,7 @@ HEADERS += \
     accessibilityhelper.h \
     voiceassistant.h \
     labibassistant.h \
-    emailnotificationmanager.h \
-    arduino.h \
-    arduinowidget.h
+    emailnotificationmanager.h
 
 FORMS += \
     mainwindow.ui

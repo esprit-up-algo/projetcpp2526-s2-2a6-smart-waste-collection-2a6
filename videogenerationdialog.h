@@ -24,7 +24,6 @@ public:
                                    int capacity, 
                                    int battery, 
                                    const QStringList &features, 
-                                   const QString &provider,
                                    const QString &imagePath,
                                    QWidget *parent = nullptr);
     ~VideoGenerationDialog();
@@ -45,13 +44,13 @@ private:
     bool isBlockingOverlayEnabled() const;
     void showBlockingOverlay();
     void hideBlockingOverlay();
+    void setAutomationUiHidden(bool hidden);
 
     QString m_productName;
     QString m_reference;
     int m_capacity;
     int m_battery;
     QStringList m_features;
-    QString m_provider;
     QString m_imagePath;
 
     QLabel *m_lblTitle;
@@ -64,6 +63,7 @@ private:
     QWidget *m_blockingOverlay;
     bool m_overlayEnabled;
     bool m_overlayDismissed;
+    bool m_hiddenForAutomation = false;
 
     QProcess *m_nodeProcess;
 };

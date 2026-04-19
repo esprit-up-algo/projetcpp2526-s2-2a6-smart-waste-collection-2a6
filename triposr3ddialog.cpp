@@ -88,11 +88,13 @@ bool prepareTexturedMeshBundle(const QString &meshPath, QString *error = nullptr
 TripoSR3DDialog::TripoSR3DDialog(const QString &productName,
                                  const QString &reference,
                                  const QString &imagePath,
+                                 const QStringList &featureNames,
                                  QWidget *parent)
     : QDialog(parent),
       m_productName(productName),
       m_reference(reference),
       m_imagePath(imagePath),
+      m_featureNames(featureNames),
       m_timerUpdate(nullptr)
 {
     m_process = new QProcess(this);
@@ -123,14 +125,15 @@ QString TripoSR3DDialog::generatedMeshPath() const
 void TripoSR3DDialog::setupUi()
 {
     setWindowTitle(QString::fromUtf8("Generation Modele 3D — %1").arg(m_productName));
-    resize(640, 520);
-    setMinimumSize(560, 440);
+    resize(720, 560);
+    setMinimumSize(640, 480);
     setWindowFlags(Qt::Dialog | Qt::WindowCloseButtonHint);
+    // WasteGuard brand palette: deep navy -> dark teal gradient with emerald accents.
     setStyleSheet(
         "QDialog {"
-        "  background: qlineargradient(x1:0, y1:0, x2:0.4, y2:1,"
-        "    stop:0 #0f0c29, stop:0.5 #1a1145, stop:1 #0a0e1a);"
-        "  color: white;"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1,"
+        "    stop:0 #0a1628, stop:0.55 #0f2b4c, stop:1 #0c2a23);"
+        "  color: #e2e8f0;"
         "}"
     );
 
@@ -140,18 +143,39 @@ void TripoSR3DDialog::setupUi()
 
     // ─── Title Row ───
     QHBoxLayout *titleBar = new QHBoxLayout();
+    titleBar->setSpacing(12);
+
+    QLabel *titleBadge = new QLabel(QString::fromUtf8("\xF0\x9F\xA7\x8A"), this); // cube emoji
+    titleBadge->setFixedSize(40, 40);
+    titleBadge->setAlignment(Qt::AlignCenter);
+    titleBadge->setStyleSheet(
+        "background: qlineargradient(x1:0, y1:0, x2:1, y2:1,"
+        "  stop:0 #10b981, stop:1 #27ae60);"
+        "border-radius: 10px; font-size: 20px;"
+    );
+    titleBar->addWidget(titleBadge);
+
+    QVBoxLayout *titleTextCol = new QVBoxLayout();
+    titleTextCol->setSpacing(0);
     m_lblTitle = new QLabel(QString::fromUtf8("Generateur 3D"), this);
     m_lblTitle->setStyleSheet(
-        "color: #c4b5fd; font-size: 22px; font-weight: 800; font-family: 'Segoe UI';"
+        "color: #34d399; font-size: 22px; font-weight: 800; font-family: 'Segoe UI';"
         "background: transparent; border: none;"
     );
-    titleBar->addWidget(m_lblTitle);
+    QLabel *titleSub = new QLabel(QString::fromUtf8("WasteGuard  -  Atelier 3D"), this);
+    titleSub->setStyleSheet(
+        "color: #94a3b8; font-size: 11px; font-weight: 500; letter-spacing: 1px;"
+        "background: transparent; border: none;"
+    );
+    titleTextCol->addWidget(m_lblTitle);
+    titleTextCol->addWidget(titleSub);
+    titleBar->addLayout(titleTextCol);
     titleBar->addStretch();
 
     m_lblTimer = new QLabel("00:00", this);
     m_lblTimer->setStyleSheet(
-        "color: #818cf8; font-size: 16px; font-weight: bold; font-family: 'Consolas';"
-        "background: rgba(30,27,75,0.7); border: 1px solid rgba(129,140,248,0.25);"
+        "color: #fbbf24; font-size: 16px; font-weight: bold; font-family: 'Consolas';"
+        "background: rgba(15, 43, 76, 0.7); border: 1px solid rgba(251, 191, 36, 0.35);"
         "border-radius: 12px; padding: 6px 16px;"
     );
     m_lblTimer->hide();
@@ -162,19 +186,20 @@ void TripoSR3DDialog::setupUi()
     QFrame *productCard = new QFrame(this);
     productCard->setStyleSheet(
         "QFrame {"
-        "  background: rgba(30, 27, 75, 0.5);"
-        "  border: 1px solid rgba(139, 92, 246, 0.2);"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1,"
+        "    stop:0 rgba(15, 43, 76, 0.75), stop:1 rgba(26, 58, 46, 0.65));"
+        "  border: 1px solid rgba(39, 174, 96, 0.28);"
         "  border-radius: 16px;"
         "}"
     );
     QHBoxLayout *cardLayout = new QHBoxLayout(productCard);
-    cardLayout->setContentsMargins(16, 16, 16, 16);
-    cardLayout->setSpacing(16);
+    cardLayout->setContentsMargins(18, 16, 18, 16);
+    cardLayout->setSpacing(18);
 
     m_lblImagePreview = new QLabel(this);
     m_lblImagePreview->setFixedSize(100, 100);
     m_lblImagePreview->setStyleSheet(
-        "background: rgba(139,92,246,0.08); border: 2px solid rgba(139,92,246,0.25);"
+        "background: rgba(39, 174, 96, 0.10); border: 2px solid rgba(39, 174, 96, 0.35);"
         "border-radius: 12px;"
     );
     m_lblImagePreview->setAlignment(Qt::AlignCenter);
@@ -195,10 +220,10 @@ void TripoSR3DDialog::setupUi()
     m_lblProductInfo->setTextFormat(Qt::RichText);
     m_lblProductInfo->setText(QString(
         "<div>"
-        "<span style='color: #e0d4fd; font-weight: bold; font-size: 16px;'>%1</span><br>"
-        "<span style='color: #8b8fa3; font-size: 12px;'>Ref: </span>"
-        "<span style='color: #c4b5fd; font-size: 12px; font-family: Consolas;'>%2</span><br>"
-        "<span style='color: #8b8fa3; font-size: 12px;'>Image: </span>"
+        "<span style='color: #f1f5f9; font-weight: bold; font-size: 16px;'>%1</span><br>"
+        "<span style='color: #94a3b8; font-size: 12px;'>Ref: </span>"
+        "<span style='color: #6ee7b7; font-size: 12px; font-family: Consolas;'>%2</span><br>"
+        "<span style='color: #94a3b8; font-size: 12px;'>Image: </span>"
         "<span style='color: %3; font-size: 11px;'>%4</span>"
         "</div>"
     ).arg(m_productName, m_reference,
@@ -214,8 +239,8 @@ void TripoSR3DDialog::setupUi()
     statusCard->setStyleSheet(
         "QFrame {"
         "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1,"
-        "    stop:0 rgba(30, 27, 75, 0.7), stop:1 rgba(15, 12, 41, 0.8));"
-        "  border: 1px solid rgba(139, 92, 246, 0.18);"
+        "    stop:0 rgba(15, 43, 76, 0.80), stop:1 rgba(10, 23, 45, 0.85));"
+        "  border: 1px solid rgba(39, 174, 96, 0.22);"
         "  border-radius: 20px;"
         "}"
     );
@@ -229,7 +254,7 @@ void TripoSR3DDialog::setupUi()
     m_lblStatus->setAlignment(Qt::AlignCenter);
     m_lblStatus->setWordWrap(true);
     m_lblStatus->setStyleSheet(
-        "color: #c4b5fd; font-size: 16px; font-weight: 600;"
+        "color: #6ee7b7; font-size: 16px; font-weight: 600;"
         "background: transparent; border: none;"
     );
     statusLayout->addWidget(m_lblStatus);
@@ -248,11 +273,11 @@ void TripoSR3DDialog::setupUi()
     m_progressBar->setTextVisible(false);
     m_progressBar->setStyleSheet(
         "QProgressBar {"
-        "  border: none; background-color: rgba(49, 46, 129, 0.35); border-radius: 3px;"
+        "  border: none; background-color: rgba(15, 43, 76, 0.55); border-radius: 3px;"
         "}"
         "QProgressBar::chunk {"
         "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0,"
-        "    stop:0 #7c3aed, stop:0.5 #a78bfa, stop:1 #38bdf8);"
+        "    stop:0 #27ae60, stop:0.5 #10b981, stop:1 #34d399);"
         "  border-radius: 3px;"
         "}"
     );
@@ -265,11 +290,11 @@ void TripoSR3DDialog::setupUi()
 
     m_btnClose = new QPushButton("Fermer", this);
     m_btnClose->setStyleSheet(
-        "QPushButton { background: rgba(30,27,75,0.6); color: #a5a3c0;"
-        "  border: 1px solid rgba(99,102,241,0.2); border-radius: 12px;"
+        "QPushButton { background: rgba(15, 43, 76, 0.65); color: #cbd5e1;"
+        "  border: 1px solid rgba(71, 85, 105, 0.45); border-radius: 12px;"
         "  padding: 12px 22px; font-weight: 600; font-size: 13px; }"
-        "QPushButton:hover { background: rgba(49,46,129,0.7); color: #c4b5fd;"
-        "  border-color: rgba(139,92,246,0.4); }"
+        "QPushButton:hover { background: rgba(29, 79, 145, 0.75); color: #f1f5f9;"
+        "  border-color: rgba(39, 174, 96, 0.55); }"
     );
     m_btnClose->setCursor(Qt::PointingHandCursor);
     connect(m_btnClose, &QPushButton::clicked, this, &TripoSR3DDialog::closeDialog);
@@ -278,11 +303,11 @@ void TripoSR3DDialog::setupUi()
         "\xF0\x9F\x93\x82  Ouvrir Mesh"), this);
     m_btnOpenMesh->setStyleSheet(
         "QPushButton { background: qlineargradient(x1:0, y1:0, x2:1, y2:0,"
-        "  stop:0 #059669, stop:1 #10b981);"
+        "  stop:0 #0d9488, stop:1 #14b8a6);"
         "  color: white; border: none; border-radius: 12px;"
-        "  padding: 12px 22px; font-weight: bold; font-size: 13px; }"
+        "  padding: 12px 20px; font-weight: bold; font-size: 13px; }"
         "QPushButton:hover { background: qlineargradient(x1:0, y1:0, x2:1, y2:0,"
-        "  stop:0 #10b981, stop:1 #34d399); }"
+        "  stop:0 #14b8a6, stop:1 #2dd4bf); }"
     );
     m_btnOpenMesh->setCursor(Qt::PointingHandCursor);
     m_btnOpenMesh->hide();
@@ -292,11 +317,11 @@ void TripoSR3DDialog::setupUi()
         "\xF0\x9F\x91\x81  Visualiser 3D"), this);
     m_btnViewer3D->setStyleSheet(
         "QPushButton { background: qlineargradient(x1:0, y1:0, x2:1, y2:0,"
-        "  stop:0 #2563eb, stop:1 #7c3aed);"
+        "  stop:0 #1d4f91, stop:1 #2563eb);"
         "  color: white; border: none; border-radius: 12px;"
-        "  padding: 12px 22px; font-weight: bold; font-size: 13px; }"
+        "  padding: 12px 20px; font-weight: bold; font-size: 13px; }"
         "QPushButton:hover { background: qlineargradient(x1:0, y1:0, x2:1, y2:0,"
-        "  stop:0 #3b82f6, stop:1 #8b5cf6); }"
+        "  stop:0 #2563eb, stop:1 #3b82f6); }"
     );
     m_btnViewer3D->setCursor(Qt::PointingHandCursor);
     m_btnViewer3D->hide();
@@ -306,12 +331,12 @@ void TripoSR3DDialog::setupUi()
         "\xF0\x9F\x9A\x80  Generer Modele 3D"), this);
     m_btnGenerate->setStyleSheet(
         "QPushButton { background: qlineargradient(x1:0, y1:0, x2:1, y2:0,"
-        "  stop:0 #7c3aed, stop:1 #6366f1);"
+        "  stop:0 #059669, stop:1 #10b981);"
         "  color: white; border: none; border-radius: 12px;"
-        "  padding: 12px 26px; font-weight: bold; font-size: 14px; }"
+        "  padding: 12px 24px; font-weight: bold; font-size: 14px; }"
         "QPushButton:hover { background: qlineargradient(x1:0, y1:0, x2:1, y2:0,"
-        "  stop:0 #8b5cf6, stop:1 #818cf8); }"
-        "QPushButton:disabled { background: rgba(30,27,75,0.5); color: #6366f1; }"
+        "  stop:0 #10b981, stop:1 #34d399); }"
+        "QPushButton:disabled { background: rgba(15, 43, 76, 0.55); color: #64748b; }"
     );
     m_btnGenerate->setCursor(Qt::PointingHandCursor);
     connect(m_btnGenerate, &QPushButton::clicked, this, &TripoSR3DDialog::onGenerateClicked);
@@ -327,7 +352,7 @@ void TripoSR3DDialog::setupUi()
     if (m_imagePath.isEmpty() || !QFile::exists(m_imagePath)) {
         m_btnGenerate->setEnabled(false);
         m_lblStatus->setText(QString::fromUtf8("Ce produit n'a pas d'image.\nAjoutez une image d'abord."));
-        m_lblStatus->setStyleSheet("color: #ef4444; font-size: 14px; font-weight: bold; background: transparent; border: none;");
+        m_lblStatus->setStyleSheet("color: #fca5a5; font-size: 14px; font-weight: bold; background: transparent; border: none;");
     }
 
     // ─── Fade In ───
@@ -397,7 +422,7 @@ void TripoSR3DDialog::checkExistingMesh()
         m_lblStatus->setText(QString::fromUtf8(
             "\xe2\x9c\x85 Modele 3D pret!\nCliquez sur Visualiser 3D pour l'explorer."));
         m_lblStatus->setStyleSheet(
-            "color: #a3e635; font-size: 16px; font-weight: bold;"
+            "color: #34d399; font-size: 16px; font-weight: bold;"
             "background: transparent; border: none;");
 
         // Show action buttons
@@ -406,7 +431,7 @@ void TripoSR3DDialog::checkExistingMesh()
 
         // Change Generate button to "Re-generate"
         m_btnGenerate->setText(QString::fromUtf8(
-            "\xF0\x9F\x94\x84  Re-generer Modele 3D"));
+            "\xF0\x9F\x94\x84  Regenerer"));
     }
 }
 
@@ -422,7 +447,7 @@ void TripoSR3DDialog::onGenerateClicked()
     const QString tripoDir = findTripoSRPath();
     if (tripoDir.isEmpty()) {
         m_lblStatus->setText(QString::fromUtf8("Erreur: TripoSR introuvable.\nVerifiez l'installation."));
-        m_lblStatus->setStyleSheet("color: #ef4444; font-size: 14px; font-weight: bold; background: transparent; border: none;");
+        m_lblStatus->setStyleSheet("color: #fca5a5; font-size: 14px; font-weight: bold; background: transparent; border: none;");
         m_btnGenerate->setEnabled(true);
         m_progressBar->hide();
         m_lblTimer->hide();
@@ -433,7 +458,7 @@ void TripoSR3DDialog::onGenerateClicked()
     const QString pythonExe = QDir(tripoDir).absoluteFilePath("venv/Scripts/python.exe");
     if (!QFile::exists(pythonExe)) {
         m_lblStatus->setText(QString::fromUtf8("Erreur: Environnement Python introuvable."));
-        m_lblStatus->setStyleSheet("color: #ef4444; font-size: 14px; font-weight: bold; background: transparent; border: none;");
+        m_lblStatus->setStyleSheet("color: #fca5a5; font-size: 14px; font-weight: bold; background: transparent; border: none;");
         m_btnGenerate->setEnabled(true);
         m_progressBar->hide();
         m_lblTimer->hide();
@@ -443,7 +468,7 @@ void TripoSR3DDialog::onGenerateClicked()
     // ─── Verify image exists ───
     if (!QFile::exists(m_imagePath)) {
         m_lblStatus->setText(QString::fromUtf8("Erreur: Image du produit introuvable."));
-        m_lblStatus->setStyleSheet("color: #ef4444; font-size: 14px; font-weight: bold; background: transparent; border: none;");
+        m_lblStatus->setStyleSheet("color: #fca5a5; font-size: 14px; font-weight: bold; background: transparent; border: none;");
         m_btnGenerate->setEnabled(true);
         m_progressBar->hide();
         m_lblTimer->hide();
@@ -478,7 +503,7 @@ void TripoSR3DDialog::onGenerateClicked()
     const QString runScript = QDir(tripoDir).absoluteFilePath("run.py");
     if (!QFile::exists(runScript)) {
         m_lblStatus->setText(QString::fromUtf8("Erreur: Script TripoSR introuvable."));
-        m_lblStatus->setStyleSheet("color: #ef4444; font-size: 14px; font-weight: bold; background: transparent; border: none;");
+        m_lblStatus->setStyleSheet("color: #fca5a5; font-size: 14px; font-weight: bold; background: transparent; border: none;");
         m_btnGenerate->setEnabled(true);
         m_progressBar->hide();
         m_lblTimer->hide();
@@ -492,7 +517,7 @@ void TripoSR3DDialog::onGenerateClicked()
 
     m_lblStatus->setText(QString::fromUtf8("Initialisation de TripoSR..."));
     m_lblStatus->setStyleSheet(
-        "color: #c4b5fd; font-size: 18px; font-weight: bold;"
+        "color: #6ee7b7; font-size: 18px; font-weight: bold;"
         "background: transparent; border: none;");
 
     // ─── Start elapsed timer ───
@@ -524,7 +549,7 @@ void TripoSR3DDialog::onGenerateClicked()
 
     if (!m_process->waitForStarted(5000)) {
         m_lblStatus->setText(QString::fromUtf8("Erreur: Impossible de demarrer la generation."));
-        m_lblStatus->setStyleSheet("color: #ef4444; font-size: 14px; font-weight: bold; background: transparent; border: none;");
+        m_lblStatus->setStyleSheet("color: #fca5a5; font-size: 14px; font-weight: bold; background: transparent; border: none;");
         m_btnGenerate->setEnabled(true);
         m_progressBar->hide();
         m_lblTimer->hide();
@@ -607,7 +632,7 @@ void TripoSR3DDialog::onProcessFinished(int exitCode, QProcess::ExitStatus exitS
             m_btnOpenMesh->show();
             m_btnViewer3D->show();
             m_btnGenerate->setText(QString::fromUtf8(
-                "\xF0\x9F\x94\x84  Re-generer Modele 3D"));
+                "\xF0\x9F\x94\x84  Regenerer"));
         } else {
             m_lblStatus->setText(QString::fromUtf8(
                 "\xe2\x9a\xa0 Generation terminee mais fichier introuvable."));
@@ -644,11 +669,11 @@ void TripoSR3DDialog::onViewer3DClicked()
         return;
     }
 
-    appendLog(QString("Ouverture du Viewer 3D interactif: %1").arg(m_generatedMeshPath), "#a78bfa");
+    appendLog(QString("Ouverture du Viewer 3D interactif: %1").arg(m_generatedMeshPath), "#34d399");
     m_btnViewer3D->setEnabled(false);
 
     // Create the viewer as a child of this dialog so it stays alive
-    Viewer3DDialog *viewer = new Viewer3DDialog(m_generatedMeshPath, m_productName, this);
+    Viewer3DDialog *viewer = new Viewer3DDialog(m_generatedMeshPath, m_productName, m_featureNames, this);
     viewer->setAttribute(Qt::WA_DeleteOnClose, true);
 
     // Re-enable button when viewer closes (normal path)

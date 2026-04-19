@@ -327,6 +327,9 @@ private:
     void applySessionAccessControl();
     void installPageAccessGuard();
     void applyHomogeneousTheme();
+    void ensureNavigationAndButtonConsistency();
+    void installWindowGeometryGuard();
+    void stabilizeWindowGeometry();
     void polishHomogeneousSurfaces();
     void ensureRetractableRightPanels();
     QWidget *ensureStockRightSidebarWidget();

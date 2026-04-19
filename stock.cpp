@@ -1,4 +1,4 @@
-#include "stock.h"
+﻿#include "stock.h"
 #include <QDate>
 #include <QSqlError>
 #include <QSqlQuery>
@@ -87,7 +87,7 @@ bool Stock::resolveFournisseurIdFromInput(const QString &inputRaw, int &idFour, 
     bool isInt;
     int parsedId = input.toInt(&isInt); // First declaration here
 
-    // Vérification de l'existence de la table FOURNISSEUR
+    // VÃ©rification de l'existence de la table FOURNISSEUR
     QSqlQuery probe;
     if (!probe.exec("SELECT 1 FROM FOURNISSEUR WHERE 1=0")) {
         idFour = isInt ? parsedId : 1;

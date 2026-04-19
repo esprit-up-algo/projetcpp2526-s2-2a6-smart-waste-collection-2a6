@@ -8,6 +8,7 @@
 #include <QPushButton>
 #include <QSlider>
 #include <QJsonObject>
+#include <QStringList>
 #include "modelviewerwidget.h"
 
 class Viewer3DDialog : public QDialog
@@ -16,8 +17,12 @@ class Viewer3DDialog : public QDialog
 public:
     explicit Viewer3DDialog(const QString &meshPath,
                             const QString &productName = QString(),
+                            const QStringList &featureNames = QStringList(),
                             QWidget *parent = nullptr);
     ~Viewer3DDialog();
+
+protected:
+    bool eventFilter(QObject *obj, QEvent *event) override;
 
 private slots:
     void onColorClicked();
@@ -50,6 +55,7 @@ private:
     ModelViewerWidget *m_viewer;
     QString m_meshPath;
     QString m_productName;
+    QStringList m_featureNames;
 
     // Tool panel widgets
     QPushButton *m_btnRotate;
@@ -63,6 +69,7 @@ private:
     QSlider *m_sliderBrush;
     QLabel *m_lblBrushSize;
     QLabel *m_webcamPreview = nullptr;
+    QWidget *m_calloutOverlay = nullptr;
 
     // Current selected color button
     QPushButton *m_selectedColorBtn = nullptr;

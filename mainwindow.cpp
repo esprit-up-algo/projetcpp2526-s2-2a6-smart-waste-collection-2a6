@@ -1,5 +1,4 @@
 #include "mainwindow.h"
-#include "arduinowidget.h"
 #include <QScatterSeries>
 #include <QLineSeries>
 #include <QDateTimeAxis>
@@ -61,6 +60,7 @@
 
 #include <QFrame>
 #include <QGraphicsDropShadowEffect>
+#include <QGraphicsSimpleTextItem>
 #include <QPalette>
 #include <QStackedWidget>
 #include <QScrollArea>
@@ -71,6 +71,7 @@
 #include <QVBoxLayout>
 
 #include <QApplication>
+#include <QGuiApplication>
 
 #include <QStyle>
 
@@ -187,6 +188,71 @@ static constexpr int MISSION_ROLE_SCORE = Qt::UserRole + 101;
 namespace {
 
 QString foldTextKey(QString value);
+
+bool hasLikelyMojibake(const QString &text)
+{
+    return text.contains(QString::fromLatin1("Ãƒ"))
+        || text.contains(QString::fromLatin1("Ã‚"))
+        || text.contains(QString::fromLatin1("Ã¢"))
+        || text.contains(QString::fromLatin1("Ã°"))
+        || text.contains(QString::fromLatin1("Ã¯"));
+}
+
+QString decodeLikelyMojibake(const QString &text)
+{
+    if (text.isEmpty() || !hasLikelyMojibake(text)) {
+        return text;
+    }
+    const QByteArray latin1 = text.toLatin1();
+    const QString decoded = QString::fromUtf8(latin1.constData(), latin1.size());
+    if (decoded.isEmpty() || decoded.contains(QChar::ReplacementCharacter)) {
+        return text;
+    }
+    return decoded;
+}
+
+void normalizeMojibakeInWidgetTree(QWidget *root)
+{
+    if (!root) return;
+
+    for (QLabel *label : root->findChildren<QLabel*>()) {
+        if (!label) continue;
+        const QString fixed = decodeLikelyMojibake(label->text());
+        if (fixed != label->text()) {
+            label->setText(fixed);
+        }
+    }
+
+    for (QPushButton *button : root->findChildren<QPushButton*>()) {
+        if (!button) continue;
+        const QString fixed = decodeLikelyMojibake(button->text());
+        if (fixed != button->text()) {
+            button->setText(fixed);
+        }
+    }
+
+    for (QComboBox *combo : root->findChildren<QComboBox*>()) {
+        if (!combo) continue;
+        for (int i = 0; i < combo->count(); ++i) {
+            const QString current = combo->itemText(i);
+            const QString fixed = decodeLikelyMojibake(current);
+            if (fixed != current) {
+                combo->setItemText(i, fixed);
+            }
+        }
+    }
+
+    for (QTabWidget *tabs : root->findChildren<QTabWidget*>()) {
+        if (!tabs) continue;
+        for (int i = 0; i < tabs->count(); ++i) {
+            const QString current = tabs->tabText(i);
+            const QString fixed = decodeLikelyMojibake(current);
+            if (fixed != current) {
+                tabs->setTabText(i, fixed);
+            }
+        }
+    }
+}
 
 bool verifyEmailWithApiIfConfigured(const QString &email, QString &errorText);
 
@@ -2693,13 +2759,22 @@ bool insertMissionAffectationRow(int idEmp, const QString &missionText, double s
         return true;
     }
 
+    // Last resort: Oracle without sequence — use MAX(id_affect)+1 to avoid ORA-01400
+    QSqlQuery insertMaxId;
+    insertMaxId.prepare(
+        "INSERT INTO MISSION_AFFECTATION (id_affect, id_emp, mission_text, score, assigned_at, status, completed_at, reward_amount, experience_gain) "
+        "VALUES ((SELECT NVL(MAX(id_affect),0)+1 FROM MISSION_AFFECTATION), :id_emp, :mission_text, :score, SYSDATE, 'EN_ATTENTE', NULL, 0, 0)");
+    insertMaxId.bindValue(":id_emp", idEmp);
+    insertMaxId.bindValue(":mission_text", missionText);
+    insertMaxId.bindValue(":score", score);
+    if (insertMaxId.exec()) {
+        return true;
+    }
+
     errorText = insertOracleSeq.lastError().text();
-    if (errorText.trimmed().isEmpty()) {
-        errorText = insertOracle.lastError().text();
-    }
-    if (errorText.trimmed().isEmpty()) {
-        errorText = insertFallback.lastError().text();
-    }
+    if (errorText.trimmed().isEmpty()) errorText = insertOracle.lastError().text();
+    if (errorText.trimmed().isEmpty()) errorText = insertFallback.lastError().text();
+    if (errorText.trimmed().isEmpty()) errorText = insertMaxId.lastError().text();
     return false;
 }
 
@@ -3164,7 +3239,7 @@ bool ensureEmployeeLeaveTableExists(QString &errorText)
     return false;
 }
 
-bool resolveEmployeeByEmail(const QString &email, int &idEmp, QString &employeeName, QString &errorText)
+[[maybe_unused]] bool resolveEmployeeByEmail(const QString &email, int &idEmp, QString &employeeName, QString &errorText)
 {
     idEmp = -1;
     employeeName.clear();
@@ -3255,7 +3330,7 @@ QString extractPdfTextHeuristic(const QByteArray &pdfBytes)
     }
 
     if (chunks.size() < 3) {
-        const QRegularExpression textRunRe(R"(([\p{L}0-9][\p{L}0-9 ,.;:/()'\"+\-]{24,220}))");
+        const QRegularExpression textRunRe(R"(([\p{L}0-9][\p{L}0-9 ,.;:/()'"+\-]{24,220}))");
         auto it2 = textRunRe.globalMatch(raw);
         while (it2.hasNext()) {
             const QString c = it2.next().captured(1).trimmed();
@@ -3471,7 +3546,7 @@ QString formatApiReplyError(QNetworkReply *reply, const QByteArray &responseByte
         lines << QString("Reseau: %1").arg(netError);
     }
     if (!requestId.isEmpty()) {
-        lines << QString("OpenAI request_id: %1").arg(requestId);
+        lines << QString("Request ID: %1").arg(requestId);
     }
 
     QString bodyMessage;
@@ -3533,7 +3608,28 @@ QString emailValidationApiKey()
     return settings.value("emailValidation/apiKey").toString().trimmed();
 }
 
-QUrl emailValidationApiUrl(const QString &email)
+bool isEmailApiValidationEnabled()
+{
+    const QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    QSettings settings("WasteGuard", "WasteGuard");
+
+    const QString envValue = env.value("WASTEGUARD_ENABLE_EMAIL_VALIDATION").trimmed().toLower();
+    if (!envValue.isEmpty()) {
+        const bool enabled = !(envValue == "0" || envValue == "false" || envValue == "no" || envValue == "off");
+        settings.setValue("emailValidation/enabled", enabled);
+        return enabled;
+    }
+
+    if (settings.contains("emailValidation/enabled")) {
+        return settings.value("emailValidation/enabled").toBool();
+    }
+
+    // Keep live API verification off by default until the key and endpoint
+    // are known-good in the current deployment.
+    return false;
+}
+
+QUrl emailValidationApiUrl(const QString &email, const QString &apiKey)
 {
     const QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
     const QString baseUrl = env.value("WASTEGUARD_EMAIL_API_URL").trimmed().isEmpty()
@@ -3542,6 +3638,9 @@ QUrl emailValidationApiUrl(const QString &email)
 
     QUrl url(baseUrl);
     QUrlQuery query(url);
+    if (!apiKey.trimmed().isEmpty()) {
+        query.addQueryItem("api_key", apiKey.trimmed());
+    }
     query.addQueryItem("email", email.trimmed());
     url.setQuery(query);
     return url;
@@ -3550,6 +3649,10 @@ QUrl emailValidationApiUrl(const QString &email)
 bool verifyEmailWithApiIfConfigured(const QString &email, QString &errorText)
 {
     errorText.clear();
+
+    if (!isEmailApiValidationEnabled()) {
+        return true;
+    }
 
     const QString apiKey = emailValidationApiKey();
     if (apiKey.isEmpty()) {
@@ -3565,9 +3668,8 @@ bool verifyEmailWithApiIfConfigured(const QString &email, QString &errorText)
         return false;
     }
 
-    QNetworkRequest request(emailValidationApiUrl(email));
+    QNetworkRequest request(emailValidationApiUrl(email, apiKey));
     request.setRawHeader("Accept", "application/json");
-    request.setRawHeader("Authorization", QByteArray("Bearer ") + apiKey.toUtf8());
 
     QNetworkAccessManager manager;
     QEventLoop loop;
@@ -3637,7 +3739,7 @@ bool verifyEmailWithApiIfConfigured(const QString &email, QString &errorText)
     return true;
 }
 
-bool shouldUseLeaveHeuristicFallback(const QString &apiError)
+[[maybe_unused]] bool shouldUseLeaveHeuristicFallback(const QString &apiError)
 {
     const QString e = apiError.toLower();
     return e.contains("http 429")
@@ -5216,7 +5318,7 @@ static QString buildDashboardActionButtonStyle(const QString &startColor,
         .arg(hoverEnd);
 }
 
-static QString buildHomogeneousThemeQss()
+[[maybe_unused]] static QString buildHomogeneousThemeQss()
 {
     return QStringLiteral(R"WGQSS(
 QMainWindow {
@@ -5230,31 +5332,37 @@ QWidget {
 }
 
 QFrame#sidebar {
-    background-color: #0f2e57;
+    background-color: #1a3a2e;
     border: none;
 }
 
 QFrame#sidebar QLabel {
-    color: #f2f7ff;
+    color: #a8d5b5;
     background: transparent;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 QFrame#sidebar QPushButton {
     background-color: transparent;
     border: none;
-    border-radius: 12px;
-    color: #d8e5f3;
+    border-radius: 10px;
+    color: #a8d5b5;
     text-align: left;
-    padding: 12px 16px;
-    font-size: 12pt;
-    font-weight: 700;
+    padding: 11px 16px;
+    font-size: 11pt;
+    font-weight: 600;
+    margin: 2px 8px;
 }
 
-QFrame#sidebar QPushButton:hover,
-QFrame#sidebar QPushButton:checked {
-    background-color: #1a4c84;
+QFrame#sidebar QPushButton:hover {
+    background-color: rgba(39,174,96,0.18);
     color: #ffffff;
+}
+
+QFrame#sidebar QPushButton:checked {
+    background-color: #27ae60;
+    color: #ffffff;
+    font-weight: 700;
 }
 
 QLabel#headerTitle,
@@ -5271,7 +5379,6 @@ QLabel#lb_5 {
 
 QWidget#centralwidget,
 QStackedWidget,
-QWidget#dashboardAccueil,
 QWidget#affichage,
 QWidget#ajout,
 QWidget#modification,
@@ -5283,6 +5390,17 @@ QWidget#page_repertoire,
 QWidget#page_ajouter_client_wrapper,
 QWidget#page_modifier_client_wrapper {
     background-color: #edf2f7;
+}
+
+/* â"€â"€â"€ DASHBOARD REDESIGN â"€â"€â"€ */
+QWidget#dashboardAccueil,
+QWidget#dashboardContent {
+    background-color: #f0f2f5;
+}
+QScrollArea#dashboardScrollArea,
+QScrollArea#dashboardScrollArea > QWidget > QWidget {
+    background-color: #f0f2f5;
+    border: none;
 }
 
 QScrollArea {
@@ -5302,7 +5420,9 @@ QWidget#sideDashboard, QWidget#sideAjout, QWidget#sideMod,
 QFrame#sidePanel_Employe, QWidget#sidepanel,
 QWidget#rightSidebar, QWidget#rightSidebar_Commande,
 QWidget#stockRightSidebar,
-QWidget#prod_rightSidebar {
+QWidget#prod_rightSidebar,
+QWidget#commsCard,
+QWidget#sidePanel_Client {
     background-color: #ffffff;
     border: 1px solid #d4e0ea;
     border-radius: 20px;
@@ -5312,13 +5432,24 @@ QWidget#sideDashboard QLabel, QWidget#sideAjout QLabel, QWidget#sideMod QLabel,
 QFrame#sidePanel_Employe QLabel, QWidget#sidepanel QLabel,
 QWidget#rightSidebar QLabel, QWidget#rightSidebar_Commande QLabel,
 QWidget#stockRightSidebar QLabel,
-QWidget#prod_rightSidebar QLabel {
-    color: #183751;
+QWidget#prod_rightSidebar QLabel,
+QWidget#commsCard QLabel,
+QWidget#sidePanel_Client QLabel {
+    color: #1f2d3d;
     background: transparent;
+}
+
+QWidget[unifiedRightSidebar="true"] {
+    background-color: #ffffff;
+    border: 1px solid #d4e0ea;
+    border-radius: 20px;
+    /* Ensure the widget stretches to fill its allocated row in the parent layout */
+    min-height: 0;
 }
 
 QWidget[retractHandleHost="true"] {
     background: transparent;
+    min-height: 0;
 }
 
 QToolButton[retractHandle="true"] {
@@ -5415,31 +5546,50 @@ QPushButton#btnNouveau,
 QPushButton#btnNouveau_Client,
 QPushButton#btnNew,
 QPushButton#btnAddDashboard,
-QPushButton#prod_btnAddProduct,
 QPushButton#btnGotoAjout,
 QPushButton#btnSave,
 QPushButton#btnAjouter,
 QPushButton#btn_save_ajouter,
 QPushButton#btn_save_modifier,
 QPushButton#btnAffecterMission {
-    background-color: #114d8b;
-    color: #ffffff;
-    border: 1px solid #114d8b;
+    background-color: #f0c343;
+    color: #2d2100;
+    border: 1px solid #d39c1e;
 }
 
 QPushButton#btnNouveau:hover,
 QPushButton#btnNouveau_Client:hover,
 QPushButton#btnNew:hover,
 QPushButton#btnAddDashboard:hover,
-QPushButton#prod_btnAddProduct:hover,
 QPushButton#btnGotoAjout:hover,
 QPushButton#btnSave:hover,
 QPushButton#btnAjouter:hover,
 QPushButton#btn_save_ajouter:hover,
 QPushButton#btn_save_modifier:hover,
 QPushButton#btnAffecterMission:hover {
-    background-color: #0d3f73;
-    border-color: #0d3f73;
+    background-color: #e3b232;
+    border-color: #c88f16;
+}
+
+QPushButton#btnSave,
+QPushButton#btnAjouter,
+QPushButton#btn_save_ajouter,
+QPushButton#btn_save_modifier,
+QPushButton#btnAffecterMission {
+    background-color: #1e40af;
+    color: #ffffff;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 22px;
+    font-weight: 800;
+    font-size: 13px;
+}
+QPushButton#btnSave:hover,
+QPushButton#btnAjouter:hover,
+QPushButton#btn_save_ajouter:hover,
+QPushButton#btn_save_modifier:hover,
+QPushButton#btnAffecterMission:hover {
+    background-color: #1e3a8a;
 }
 
 QPushButton#btnDelete,
@@ -5450,9 +5600,13 @@ QPushButton#btn_annuler_modifier,
 QPushButton#btnAnnuler,
 QPushButton#btnAnnuler_Ajout,
 QPushButton#btnCancel_Add {
-    background-color: #ffffff;
-    color: #8f2332;
-    border: 1px solid #e7b8bf;
+    background-color: #f1f5f9;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 10px 22px;
+    font-weight: 700;
+    font-size: 13px;
 }
 
 QPushButton#btnDelete:hover,
@@ -5463,8 +5617,9 @@ QPushButton#btn_annuler_modifier:hover,
 QPushButton#btnAnnuler:hover,
 QPushButton#btnAnnuler_Ajout:hover,
 QPushButton#btnCancel_Add:hover {
-    background-color: #fff5f6;
-    border-color: #d8939d;
+    background-color: #e2e8f0;
+    color: #1e293b;
+    border-color: #94a3b8;
 }
 
 QTableWidget, QTableView {
@@ -6423,7 +6578,7 @@ private:
     QPushButton *m_btnSubmit = nullptr;
 };
 
-void ensureEmployePhotoColumnExists()
+[[maybe_unused]] void ensureEmployePhotoColumnExists()
 {
     static bool checked = false;
     if (checked) return;
@@ -7116,7 +7271,7 @@ QString moduleKeyForSpecialite(const QString &specialite)
     if (s.contains("sav") || s.contains("service apres vente") || s.contains("relation client") || s.contains("client")) return "clients";
     if (s.contains("employe") || s.contains("rh")) return "employes";
 
-    // Anciennes valeurs de compatibilitÃ©
+    // Anciennes valeurs de compatibilitÃƒÂ©
     if (s.contains("mecanicien") || s.contains("production") || s.contains("atelier")) {
         return "produits";
     }
@@ -7209,7 +7364,13 @@ bool missionLooksMaintenanceRelated(const QString &missionText)
     const QStringList tokens = {
         "maintenance", "maitenance", "maintennance", "maintnance",
         "intervention", "depannage", "reparation", "repartation", "repar",
-        "panne", "curatif", "preventif", "incident technique"
+        "panne", "curatif", "preventif", "incident technique",
+        "entretien", "revision", "inspection", "controle",
+        "dysfonctionnement", "defaillance", "anomalie", "avarie",
+        "bris", "casse", "fuite", "blocage", "grippage",
+        "usure", "corrosion", "vibration", "bruit anormal",
+        "remplacer", "changer", "reparer", "nettoyer", "verifier",
+        "debloquer", "regler", "ajuster", "lubrifier", "graisser"
     };
     for (const QString &token : tokens) {
         if (t.contains(token)) return true;
@@ -7227,7 +7388,22 @@ bool isMaintenanceSpecialityLabel(const QString &specialite)
            || s.contains("repar")
            || s.contains("techn")
            || s.contains("mecan")
-           || s.contains("electri");
+           || s.contains("electri")
+           || s.contains("soudeur") || s.contains("soudur") || s.contains("soudage")
+           || s.contains("plomb")
+           || s.contains("hydraul")
+           || s.contains("pneumat")
+           || s.contains("chauffag")
+           || s.contains("frigorist")
+           || s.contains("climatis")
+           || s.contains("tuyaut")
+           || s.contains("chaudronn")
+           || s.contains("automaticien") || s.contains("automatis")
+           || s.contains("instrumentation")
+           || s.contains("operateur") || s.contains("operatrice")
+           || s.contains("agent de mainten")
+           || s.contains("agent terrain")
+           || s.contains("responsable mainten") || s.contains("responsable maint");
 }
 
 QStringList missionSpecialityHints(const QString &missionText)
@@ -7245,20 +7421,31 @@ QStringList missionSpecialityHints(const QString &missionText)
     };
 
     addIfAny({"moteur", "mecanique", "panne moteur", "transmission", "frein", "embrayage",
-              "porte", "charniere", "verin", "roue", "roulette", "couvercle", "bac", "benne"}, "mecanique");
+              "porte", "charniere", "verin", "roue", "roulette", "couvercle", "bac", "benne",
+              "pompe", "compresseur", "vanne", "tuyau", "circuit hydraulique", "courroie",
+              "roulement", "engrenage", "chassis", "carrosserie", "suspension"}, "mecanique");
     addIfAny({"stock", "inventaire", "magasin", "magasinage", "approvisionnement", "fournisseur",
               "matiere premiere", "matiere", "seuil", "rupture", "entrepot"}, "stock");
     addIfAny({"vente", "commande", "livraison", "transport", "devis", "facturation"}, "commandes");
     addIfAny({"sav", "service apres vente", "service client", "client", "reclamation", "support"}, "clients");
     addIfAny({"fabrication", "production", "assemblage", "atelier", "chaine", "produit", "usine"}, "produits");
-    addIfAny({"intervention", "maintenance", "maitenance", "maintennance", "depannage", "reparation", "repartation", "panne", "diagnostic", "curatif", "preventif"}, "intervention");
+    addIfAny({"intervention", "maintenance", "maitenance", "maintennance", "depannage",
+              "reparation", "repartation", "panne", "diagnostic", "curatif", "preventif",
+              "entretien", "revision", "controle technique", "inspection", "dysfonctionnement",
+              "defaillance", "anomalie", "avarie", "bris", "casse", "fuite", "blocage",
+              "grippage", "usure", "corrosion", "vibration", "bruit anormal"}, "intervention");
     addIfAny({"electrique", "electronique", "capteur", "carte", "circuit", "batterie",
               "ampoule", "lampe", "led", "eclairage", "luminaire", "neon",
-              "interrupteur", "prise", "cablage", "fil", "courant"}, "electricite");
-    addIfAny({"livraison", "transport", "conduite", "collecte", "camion"}, "conduite");
-    addIfAny({"soudure", "metal", "assemblage", "cassure", "fissure", "structure"}, "soudure");
-    addIfAny({"logiciel", "reseau", "iot", "ia", "systeme", "intelligent", "capteur"}, "it");
-    addIfAny({"coordination", "planification", "supervision", "chef"}, "management");
+              "interrupteur", "prise", "cablage", "fil", "courant",
+              "contacteur", "relais", "fusible", "disjoncteur", "variateur"}, "electricite");
+    addIfAny({"livraison", "transport", "conduite", "collecte", "camion",
+              "tournee", "ramassage", "evacuation", "acheminement"}, "conduite");
+    addIfAny({"soudure", "metal", "assemblage", "cassure", "fissure", "structure",
+              "tole", "inox", "aluminium", "brasage", "meulage"}, "soudure");
+    addIfAny({"logiciel", "reseau", "iot", "ia", "systeme", "intelligent", "capteur",
+              "informatique", "programme", "automate", "plc", "supervision"}, "it");
+    addIfAny({"coordination", "planification", "supervision", "chef",
+              "responsable", "encadrement", "gestion equipe"}, "management");
 
     return out;
 }
@@ -7331,8 +7518,16 @@ bool missionLooksInDomain(const QString &missionText, const QStringList &require
 bool isEmployeeAvailable(const QString &status)
 {
     const QString s = foldTextKey(status);
-    if (s.contains("indispon") || s.contains("mission") || s.contains("conge")) return false;
-    return s.contains("dispon");
+    if (s.contains("indispon")) return false;
+    if (s.contains("mission")) return false;
+    if (s.contains("interven")) return false;   // EN_INTERVENTION
+    if (s.contains("conge")) return false;
+    if (s.contains("maladie")) return false;
+    if (s.contains("absent")) return false;
+    // Explicitly available
+    if (s.contains("dispon")) return true;
+    // Unknown / empty status: treat as available so employees without a status are not silently excluded
+    return true;
 }
 
 bool specialityMatches(const QString &employeeSpeciality, const QStringList &requiredHints)
@@ -7880,9 +8075,9 @@ void styleModelAddButton(QPushButton *button)
 
         "QPushButton {"
 
-        " background-color: #0f2b4c;"
+        " background-color: #f0c343;"
 
-        " color: #ffffff;"
+        " color: #2d2100;"
 
         " border: none;"
 
@@ -7896,12 +8091,89 @@ void styleModelAddButton(QPushButton *button)
 
         "}"
 
-        "QPushButton:hover { background-color: #1a4270; }"
+        "QPushButton:hover { background-color: #e3b232; }"
 
-        "QPushButton:pressed { background-color: #0b223c; }"
+        "QPushButton:pressed { background-color: #d39c1e; }"
 
     );
 
+}
+
+void styleTableActionButton(QPushButton *button, bool compact = false)
+{
+    Q_UNUSED(compact)
+    if (!button) return;
+
+    // Apply layout constraints to the container parent to "clean up" the table row
+    if (QWidget* parent = button->parentWidget()) {
+        parent->setStyleSheet(".QWidget { background-color: transparent; border: none; }");
+        if (auto layout = qobject_cast<QHBoxLayout*>(parent->layout())) {
+            layout->setContentsMargins(0, 0, 0, 0);
+            layout->setSpacing(10);
+            layout->setAlignment(Qt::AlignCenter);
+        }
+    }
+
+    button->setCursor(Qt::PointingHandCursor);
+    button->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+
+    // Detect role from original text before replacing
+    const QString txt = button->text().toLower();
+    const bool isDelete = txt.contains("suppr") || txt.contains("delet") || txt.contains("remove") || button->text() == QString::fromUtf8("\xE2\x9D\x8C");
+    const bool isPdf    = txt.contains("pdf") || button->text() == QString::fromUtf8("\u2193");
+
+    // Use Segoe UI Emoji for better emoji rendering on Windows
+    QFont iconFont("Segoe UI Emoji", 16); // Reduced to 16 to avoid cutting off
+    button->setFont(iconFont);
+
+    if (isDelete) {
+        button->setText(QString::fromUtf8("\xE2\x9D\x8C")); // ❌
+        button->setToolTip("Supprimer");
+    } else if (isPdf) {
+        button->setText("\u2193"); // ↓ download arrow
+        button->setToolTip("Exporter PDF");
+    } else {
+        button->setText(QString::fromUtf8("\xF0\x9F\x93\x9D")); // 📝
+        button->setToolTip("Modifier");
+    }
+
+    // Slightly larger perfectly circular size so emoji doesn't get cut by radius
+    button->setMinimumSize(36, 36);
+    button->setMaximumSize(36, 36);
+
+    QString bgHover, textColor, borderColor;
+    if (isDelete) {
+        bgHover = "rgba(185, 28, 28, 0.1)";  // slight red/bordeaux tint
+        textColor = "#b91c1c";               // rouge vif/bordeaux
+        borderColor = "#fca5a5";
+    } else if (isPdf) {
+        bgHover = "rgba(37, 99, 235, 0.1)"; 
+        textColor = "#1e40af"; 
+        borderColor = "#bfdbfe";
+    } else {
+        bgHover = "rgba(4, 120, 87, 0.1)";   // slight emerald green tint
+        textColor = "#047857";               // vert émeraude foncé
+        borderColor = "#a7f3d0";
+    }
+
+    button->setStyleSheet(QString(
+        "QPushButton {"
+        " background-color: transparent;"
+        " color: %2;"
+        " border: 1px solid %3;"
+        " border-radius: 18px;" // perfectly circular for 36x36
+        " text-align: center;"
+        " padding: 0;"
+        " margin: 0;"
+        "}"
+        "QPushButton:hover {"
+        " background-color: %1;"
+        " border-color: %2;"
+        "}"
+        "QPushButton:pressed {"
+        " background-color: rgba(0,0,0, 0.1);"
+        "}"
+    ).arg(bgHover, textColor, borderColor));
 }
 
 
@@ -7972,10 +8244,7 @@ void moveWidgetBefore(QWidget *root, const char *widgetName, const char *layoutN
 
 }
 
-
-
 void moveWidgetToStart(QWidget *root, const char *widgetName, const char *layoutName)
-
 {
 
     if (!root) return;
@@ -8055,6 +8324,7 @@ void MainWindow::verifyFournisseurEmail(QLineEdit *emailField)
     if (!emailField) return;
 
     emailField->setProperty("emailVerified", false);
+    emailField->setProperty("emailVerificationState", "failed");
 
     const QString email = emailField->text().trimmed();
     if (email.isEmpty()) {
@@ -8069,20 +8339,31 @@ void MainWindow::verifyFournisseurEmail(QLineEdit *emailField)
         return;
     }
 
+    if (!isEmailApiValidationEnabled()) {
+        emailField->setProperty("emailVerified", true);
+        emailField->setProperty("emailVerificationState", "bypassed");
+        emailField->setStyleSheet("border: 2px solid #27ae60; border-radius: 5px;");
+        emailField->setToolTip("Format valide. Verification API desactivee.");
+        return;
+    }
+
     emailField->setStyleSheet("border: 2px solid orange; border-radius: 5px;");
     emailField->setToolTip("Verification en cours via l'API...");
+    emailField->setProperty("emailVerificationState", "pending");
     qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
 
     QString apiError;
     const bool ok = verifyEmailWithApiIfConfigured(email, apiError);
     if (ok) {
         emailField->setProperty("emailVerified", true);
+        emailField->setProperty("emailVerificationState", "verified");
         emailField->setStyleSheet("border: 2px solid #27ae60; border-radius: 5px;");
         emailField->setToolTip("E-mail valide avec succes.");
         return;
     }
 
     emailField->setProperty("emailVerified", false);
+    emailField->setProperty("emailVerificationState", "failed");
     emailField->setStyleSheet("border: 2px solid red; border-radius: 5px;");
     emailField->setToolTip(apiError.isEmpty() ? "E-mail non valide." : apiError);
 }
@@ -8119,92 +8400,761 @@ void MainWindow::applyHomogeneousTheme()
 {
     if (!ui) return;
 
-    if (!property("_wgBaseTheme").isValid()) {
-        setProperty("_wgBaseTheme", styleSheet());
+    // =================================================================
+    // WasteGuard â€" Design System Tokens
+    // =================================================================
+    // Backgrounds
+    static const char *BG_APP      = "#f0f2f5";
+    static const char *BG_CARD     = "#ffffff";
+    static const char *BG_CARD_ALT = "#f8fafb";
+    // Borders
+    static const char *BORDER      = "#e8ecf0";
+    static const char *BORDER_FOCUS= "#1e40af";
+    // Text
+    static const char *TEXT_TITLE  = "#1a1a2e";
+    static const char *TEXT_BODY   = "#374151";
+    static const char *TEXT_MUTED  = "#6c757d";
+    static const char *TEXT_WHITE  = "#ffffff";
+    // Primary: navy blue for form buttons / focus
+    static const char *PRIMARY     = "#1e40af";
+    static const char *PRIMARY_DK  = "#1e3a8a";
+    static const char *PRIMARY_LT  = "#dbeafe";
+    static const char *PRIMARY_BORDER = "#bfdbfe";
+    // Sidebar hero
+    static const char *SIDEBAR_BG  = "#1a3a2e";
+    static const char *SIDEBAR_BG2 = "#2d5a42";
+    // Danger
+    static const char *DANGER      = "#e74c3c";
+
+    Q_UNUSED(DANGER);
+
+    // =================================================================
+    // 1. SIDEBAR â€" enforce dark-green theme
+    // =================================================================
+    if (ui->sidebar) {
+        ui->sidebar->setStyleSheet(
+            QString(
+                "QFrame#sidebar{"
+                " background-color:%1; border:none;"
+                "}"
+                "QFrame#sidebar QLabel{"
+                " color:#a8d5b5; background:transparent; font-weight:600;"
+                "}"
+                "QFrame#sidebar QPushButton{"
+                " background-color:transparent; border:none; border-radius:10px;"
+                " color:#a8d5b5; text-align:left;"
+                " padding:11px 16px; font-size:11pt; font-weight:600; margin:2px 8px;"
+                "}"
+                "QFrame#sidebar QPushButton:hover{"
+                " background-color:rgba(39,174,96,0.18); color:#ffffff;"
+                "}"
+                "QFrame#sidebar QPushButton:checked{"
+                " background-color:%2; color:%3; font-weight:700;"
+                "}"
+                "QPushButton#btnLogout{"
+                " background:transparent; border:none; border-radius:10px;"
+                " color:#e57373; text-align:left;"
+                " padding:11px 16px; font-size:11pt; font-weight:600; margin:2px 8px;"
+                "}"
+                "QPushButton#btnLogout:hover{"
+                " background:rgba(229,115,115,0.15); color:#ff8a80;"
+                "}"
+            ).arg(SIDEBAR_BG, PRIMARY, TEXT_WHITE)
+        );
     }
 
-    const QString baseTheme = property("_wgBaseTheme").toString();
-    if (styleSheet() != baseTheme) {
-        setStyleSheet(baseTheme);
+    // =================================================================
+    // 2. PAGE BACKGROUNDS
+    // =================================================================
+    if (centralWidget()) {
+        centralWidget()->setAttribute(Qt::WA_StyledBackground, true);
     }
-
-    // Global ComboBox polish for all modules (field + popup list)
-    const QString comboFieldStyle =
-        "QComboBox {"
-        " background-color:#ffffff;"
-        " color:#1f2d3d;"
-        " border:1px solid #9bb3c9;"
-        " border-radius:8px;"
-        " padding:6px 30px 6px 10px;"
-        " min-height:34px;"
-        " font-size:14px;"
-        "}"
-        "QComboBox:hover {"
-        " border:1px solid #5d8fbe;"
-        " background-color:#f9fcff;"
-        "}"
-        "QComboBox:focus {"
-        " border:2px solid #2f78bc;"
-        " padding:5px 29px 5px 9px;"
-        " background-color:#ffffff;"
-        "}"
-        "QComboBox::drop-down {"
-        " subcontrol-origin:padding;"
-        " subcontrol-position:top right;"
-        " width:24px;"
-        " border:none;"
-        " border-left:1px solid #d7e2ec;"
-        "}";
-
-    const QString comboPopupStyle =
-        "QAbstractItemView {"
-        " background-color:#ffffff;"
-        " color:#1f2d3d;"
-        " border:1px solid #9bb3c9;"
-        " border-radius:0px;"
-        " selection-background-color:#0f2b4c;"
-        " selection-color:#ffffff;"
-        " outline:0;"
-        " padding:0px;"
-        "}"
-        "QAbstractItemView::item {"
-        " min-height:28px;"
-        " padding:6px 8px;"
-        " border-radius:0px;"
-        "}"
-        "QAbstractItemView::item:hover {"
-        " background-color:#eaf3fb;"
-        " color:#0f2b4c;"
-        "}";
-
-    const auto combos = findChildren<QComboBox*>();
-    for (QComboBox *combo : combos) {
-        if (!combo) continue;
-        combo->setMaxVisibleItems(10);
-        if (combo->minimumHeight() < 34) {
-            combo->setMinimumHeight(34);
+    const QStringList pageNames = {
+        "pageProduit","pageStock","pageMaintenance","pageClient",
+        "pageEmploye","pageCommande","page_Maintenance_Tab",
+        "page_Maint_Dash","page_Maint_Ajout","page_Maint_Modif",
+        "scrollContentMaint","dashboardContent"
+    };
+    for (const QString &name : pageNames) {
+        if (auto *w = findChild<QWidget*>(name)) {
+            w->setAttribute(Qt::WA_StyledBackground, true);
+            QString cur = w->styleSheet();
+            if (!cur.contains(QString(BG_APP)))
+                w->setStyleSheet(cur + QString("background-color:%1;").arg(BG_APP));
         }
-        combo->setStyleSheet(comboFieldStyle);
-        if (QAbstractItemView *popup = combo->view()) {
+    }
+
+    // =================================================================
+    // 3. HEADER BARS (all modules)
+    // =================================================================
+    const QStringList headerNames = {
+        "headerBar","topBar","header_Client","topBar_Employe",
+        "headerMaint","headerCommande","headerStock"
+    };
+    for (const QString &name : headerNames) {
+        if (auto *w = findChild<QWidget*>(name)) {
+            w->setStyleSheet(
+                QString("background-color:%1;"
+                        "border:none;border-bottom:1px solid %2;")
+                    .arg(BG_CARD, BORDER)
+            );
+        }
+    }
+
+    // =================================================================
+    // 4. ALL QLineEdit
+    // =================================================================
+    const QString lineEditStyle = QString(
+        "QLineEdit{"
+        " background-color:%1; color:%2; border:1px solid %3;"
+        " border-radius:8px; padding:8px 12px; font-size:13px; min-height:34px;"
+        "}"
+        "QLineEdit:focus{ border:2px solid %4; background-color:#f7fdf9; }"
+        "QLineEdit:disabled{ background-color:#f3f4f6; color:#9ca3af; }"
+    ).arg(BG_CARD, TEXT_BODY, BORDER, BORDER_FOCUS);
+
+    for (QLineEdit *le : findChildren<QLineEdit*>()) {
+        if (!le) continue;
+        le->setStyleSheet(lineEditStyle);
+        if (le->minimumHeight() < 34) le->setMinimumHeight(34);
+    }
+
+    // =================================================================
+    // 5. ALL QComboBox
+    // =================================================================
+    const QString comboStyle = QString(
+        "QComboBox{"
+        " background-color:%1; color:%2; border:1px solid %3;"
+        " border-radius:8px; padding:6px 30px 6px 10px;"
+        " min-height:34px; font-size:13px;"
+        "}"
+        "QComboBox:hover{ border:1px solid %4; background-color:#f7fdf9; }"
+        "QComboBox:focus{ border:2px solid %4; background-color:%1; }"
+        "QComboBox::drop-down{"
+        " subcontrol-origin:padding; subcontrol-position:top right;"
+        " width:26px; border:none; border-left:1px solid %3;"
+        "}"
+    ).arg(BG_CARD, TEXT_BODY, BORDER, BORDER_FOCUS);
+
+    const QString comboPopupStyle = QString(
+        "QAbstractItemView{"
+        " background-color:%1; color:%2; border:1px solid %3;"
+        " selection-background-color:%4; selection-color:%5; outline:0;"
+        "}"
+        "QAbstractItemView::item{ min-height:30px; padding:6px 10px; }"
+        "QAbstractItemView::item:hover{ background-color:%6; color:%7; }"
+    ).arg(BG_CARD, TEXT_BODY, BORDER, PRIMARY, TEXT_WHITE,
+          PRIMARY_LT, SIDEBAR_BG);
+
+    for (QComboBox *cb : findChildren<QComboBox*>()) {
+        if (!cb) continue;
+        cb->setMaxVisibleItems(10);
+        if (cb->minimumHeight() < 34) cb->setMinimumHeight(34);
+        cb->setStyleSheet(comboStyle);
+        if (QAbstractItemView *popup = cb->view()) {
             popup->setStyleSheet(comboPopupStyle);
             popup->setFrameShape(QFrame::NoFrame);
             popup->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-            if (QWidget *popupWindow = popup->window()) {
-                popupWindow->setAttribute(Qt::WA_StyledBackground, true);
-                popupWindow->setStyleSheet("background-color:#ffffff; border:1px solid #9bb3c9;");
-                popupWindow->setContentsMargins(0, 0, 0, 0);
+            if (QWidget *pw = popup->window()) {
+                pw->setAttribute(Qt::WA_StyledBackground, true);
+                pw->setStyleSheet(
+                    QString("background-color:%1;border:1px solid %2;")
+                        .arg(BG_CARD, BORDER));
+                pw->setContentsMargins(0,0,0,0);
             }
         }
     }
 
+    // =================================================================
+    // 6. QSpinBox / QDoubleSpinBox
+    // =================================================================
+    const QString spinStyle = QString(
+        "QSpinBox,QDoubleSpinBox{"
+        " background:%1; color:%2; border:1px solid %3;"
+        " border-radius:8px; padding:6px 34px 6px 10px; min-height:34px; font-size:13px;"
+        "}"
+        "QSpinBox:focus,QDoubleSpinBox:focus{ border:2px solid %4; }"
+        "QSpinBox::up-button,QSpinBox::down-button,"
+        "QDoubleSpinBox::up-button,QDoubleSpinBox::down-button{"
+        " background:%1; border:none; border-radius:4px; width:22px; right:6px;"
+        "}"
+        "QSpinBox::up-button,QDoubleSpinBox::up-button{ subcontrol-origin:border; subcontrol-position:top right; height:16px; top:4px; }"
+        "QSpinBox::down-button,QDoubleSpinBox::down-button{ subcontrol-origin:border; subcontrol-position:bottom right; height:16px; bottom:4px; }"
+        "QSpinBox::up-arrow,QDoubleSpinBox::up-arrow{ image: url(:/assets/icons/spin_up.png); width:12px; height:12px; }"
+        "QSpinBox::down-arrow,QDoubleSpinBox::down-arrow{ image: url(:/assets/icons/spin_down.png); width:12px; height:12px; }"
+    ).arg(BG_CARD, TEXT_BODY, BORDER, BORDER_FOCUS);
+    for (QAbstractSpinBox *sb : findChildren<QAbstractSpinBox*>()) {
+        if (sb) sb->setStyleSheet(spinStyle);
+    }
+
+    // =================================================================
+    // 7. QDateEdit / QDateTimeEdit
+    // =================================================================
+    const QString dateStyle = QString(
+        "QDateEdit,QDateTimeEdit{"
+        " background:%1; color:%2; border:1px solid %3;"
+        " border-radius:8px; padding:6px 10px; min-height:34px; font-size:13px;"
+        "}"
+        "QDateEdit:focus,QDateTimeEdit:focus{ border:2px solid %4; }"
+        "QDateEdit::drop-down,QDateTimeEdit::drop-down{ border:none; width:22px; }"
+    ).arg(BG_CARD, TEXT_BODY, BORDER, BORDER_FOCUS);
+    for (QDateTimeEdit *de : findChildren<QDateTimeEdit*>()) {
+        if (de) de->setStyleSheet(dateStyle);
+    }
+
+    // =================================================================
+    // 8. QTextEdit / QPlainTextEdit
+    // =================================================================
+    const QString textEditStyle = QString(
+        "QTextEdit,QPlainTextEdit{"
+        " background:%1; color:%2; border:1px solid %3;"
+        " border-radius:8px; padding:8px; font-size:13px;"
+        "}"
+        "QTextEdit:focus,QPlainTextEdit:focus{ border:2px solid %4; }"
+    ).arg(BG_CARD, TEXT_BODY, BORDER, BORDER_FOCUS);
+    for (QTextEdit *te : findChildren<QTextEdit*>()) {
+        if (te) te->setStyleSheet(textEditStyle);
+    }
+
+    // =================================================================
+    // 9. ALL QTableWidget
+    // =================================================================
+    const QString tableStyle = QString(
+        "QTableWidget{"
+        " background-color:%1; color:%2; gridline-color:transparent;"
+        " border:none; font-size:13px;"
+        " selection-background-color:%3; selection-color:%4;"
+        " alternate-background-color:%5;"
+        "}"
+        "QTableWidget::item{ padding:10px 8px; border-bottom:1px solid %6; }"
+        "QTableWidget::item:selected{ background:%3; color:%4; }"
+        "QTableWidget::item:hover{ background:#eff6ff; }"
+        "QHeaderView::section{"
+        " background:%5; color:%7; font-weight:700; font-size:11px;"
+        " letter-spacing:1px; padding:10px 8px; border:none; border-bottom:2px solid %8;"
+        "}"
+        "QHeaderView{ background:%5; border:none; }"
+        "QTableWidget QTableCornerButton::section{ background:%5; border:none; }"
+    ).arg(BG_CARD, TEXT_BODY, PRIMARY_LT, SIDEBAR_BG,
+          BG_CARD_ALT, BORDER, TEXT_MUTED, PRIMARY);
+
+    for (QTableWidget *tw : findChildren<QTableWidget*>()) {
+        if (!tw) continue;
+        tw->setStyleSheet(tableStyle);
+        tw->setShowGrid(false);
+        tw->setAlternatingRowColors(true);
+        if (tw->horizontalHeader())
+            tw->horizontalHeader()->setHighlightSections(false);
+        if (tw->verticalHeader()) {
+            tw->verticalHeader()->setDefaultSectionSize(62);
+            tw->verticalHeader()->setMinimumSectionSize(62);
+        }
+    }
+
+    // =================================================================
+    // 10. QListWidget
+    // =================================================================
+    const QString listStyle = QString(
+        "QListWidget{"
+        " background:%1; color:%2; border:1px solid %3; border-radius:8px; font-size:13px;"
+        "}"
+        "QListWidget::item{ padding:8px 10px; border-bottom:1px solid %3; }"
+        "QListWidget::item:selected{ background:%4; color:%5; border-radius:6px; }"
+        "QListWidget::item:hover{ background:%6; }"
+    ).arg(BG_CARD, TEXT_BODY, BORDER, PRIMARY, TEXT_WHITE, PRIMARY_LT);
+    for (QListWidget *lw : findChildren<QListWidget*>()) {
+        if (lw) lw->setStyleSheet(listStyle);
+    }
+
+    // =================================================================
+    // 11. ALL QPushButton â€" classify & apply
+    // =================================================================
+    const QString btnPrimaryStyle = QString(
+        "QPushButton{"
+        " background-color:#f0c343; color:#2d2100; border:none; border-radius:8px;"
+        " padding:8px 14px; font-size:14px; font-weight:700; min-height:36px;"
+        "}"
+        "QPushButton:hover{ background-color:#e3b232; }"
+        "QPushButton:pressed{ background-color:#d39c1e; }"
+        "QPushButton:disabled{ background-color:#e5d6a6; color:#6a5a2a; }"
+    );
+
+    const QString btnSecondaryStyle = QString(
+        "QPushButton{"
+        " background-color:%1; color:#d39c1e; border:1.5px solid #f0c343;"
+        " border-radius:8px; padding:8px 14px; font-size:14px;"
+        " font-weight:700; min-height:36px;"
+        "}"
+        "QPushButton:hover{ background-color:#f0c343; color:#2d2100; border-color:#f0c343; }"
+    ).arg(BG_CARD);
+
+    const QString btnDangerStyle = QString(
+        "QPushButton{"
+        " background-color:%1; color:%2; border:none; border-radius:10px;"
+        " padding:8px 18px; font-size:13px; font-weight:700; min-height:38px;"
+        "}"
+        "QPushButton:hover{ background-color:#c0392b; }"
+    ).arg(DANGER, TEXT_WHITE);
+
+    const QString btnRightSidebarStyle = QString(
+        "QPushButton{"
+        " background-color:%1; color:%2; border:none; border-radius:10px;"
+        " padding:10px 22px; font-size:13px; font-weight:700; min-height:38px;"
+        "}"
+        "QPushButton:hover{ background-color:%3; }"
+        "QPushButton:pressed{ background-color:#163225; }"
+        "QPushButton:disabled{ background-color:#6b7280; color:#d1d5db; }"
+    ).arg(SIDEBAR_BG, TEXT_WHITE, SIDEBAR_BG2);
+
+    const QString btnGoldAddStyle = QString(
+        "QPushButton{"
+        " background-color:%1; color:#ffffff; border:none; border-radius:8px;"
+        " padding:8px 14px; font-size:14px; font-weight:700; min-height:36px;"
+        "}"
+        "QPushButton:hover{ background-color:#3a7254; }" // A slightly brighter green for hover
+        "QPushButton:pressed{ background-color:#1f402d; }"
+        "QPushButton:disabled{ background-color:#9ca3af; color:#e5e7eb; }"
+    ).arg(SIDEBAR_BG2);
+
+    auto isAddButton = [](QPushButton *btn, const QString &nameLower) {
+        if (!btn) return false;
+        static const QSet<QString> addNames = {
+            "btnnouveau", "btnnouveau_client", "btnnew", "btngotoajout",
+            "btnadddashboard", "btnaddproduct_2", "prod_btnaddproduct",
+            "btnajouter", "btn_save_ajouter"
+        };
+        if (addNames.contains(nameLower)) return true;
+
+        const QString textLower = btn->text().toLower();
+        return textLower.contains("nouveau") || textLower.contains("ajouter") || textLower.contains("+ ");
+    };
+
+    auto isInRightSidebar = [](QPushButton *button) {
+        if (!button) return false;
+        QWidget *p = button->parentWidget();
+        while (p) {
+            const QString name = p->objectName();
+            if (name == "rightSidebar"
+                || name == "rightSidebar_Commande"
+                || name == "stockRightSidebar"
+                || name == "prod_rightSidebar"
+                || name.compare("sidepanel", Qt::CaseInsensitive) == 0
+                || name.compare("sidepanel_employe", Qt::CaseInsensitive) == 0) {
+                return true;
+            }
+            p = p->parentWidget();
+        }
+        return false;
+    };
+
+    auto isInsideTableWidget = [](QPushButton *button) {
+        if (!button) return false;
+        QWidget *p = button->parentWidget();
+        while (p) {
+            if (qobject_cast<QTableWidget*>(p)) return true;
+            p = p->parentWidget();
+        }
+        return false;
+    };
+
+    for (QPushButton *btn : findChildren<QPushButton*>()) {
+        if (!btn) continue;
+        const QString n = btn->objectName().toLower();
+        // Skip sidebar buttons
+        if (btn->parentWidget() && btn->parentWidget()->objectName() == "sidebar") continue;
+        if (n == "btnlogout") continue;
+        // Skip icon-only / accessibility buttons
+        if (n.contains("toggle") || n.contains("microphone")
+            || n.contains("notif") || n.contains("profil")
+            || n.contains("highcontrast")
+            || n.contains("zoomplus") || n.contains("zoomminus")) {
+            btn->setStyleSheet(
+                QString("QPushButton{ background:%1; color:%2; border:1px solid %3;"
+                        " border-radius:8px; padding:6px 10px; }"
+                        "QPushButton:hover{ background:%4; border-color:%2; }"
+                ).arg(BG_CARD, PRIMARY, PRIMARY_BORDER, PRIMARY_LT));
+            continue;
+        }
+        if (isInRightSidebar(btn)) {
+            btn->setStyleSheet(btnRightSidebarStyle);
+            btn->setCursor(Qt::PointingHandCursor);
+            continue;
+        }
+
+        const QString textLower = btn->text().toLower();
+        const bool isTableActionButton =
+            isInsideTableWidget(btn)
+            && (textLower.contains("modifier")
+                || textLower.contains("supprimer")
+                || textLower == "pdf"
+                || btn->text() == QString::fromUtf8("\xE2\x9D\x8C")
+                || btn->text() == QString::fromUtf8("\xF0\x9F\x93\x9D")
+                || btn->text() == QString::fromUtf8("\u2193")
+                || n == "btnproductaction");
+
+        if (isTableActionButton) {
+            const bool compact = false;
+            styleTableActionButton(btn, compact);
+            btn->setCursor(Qt::PointingHandCursor);
+            continue;
+        }
+
+        if (isAddButton(btn, n)) {
+            btn->setStyleSheet(btnGoldAddStyle);
+            btn->setCursor(Qt::PointingHandCursor);
+            continue;
+        }
+
+        // Classify by name
+        if (n.contains("supprimer") || n.contains("delete")) {
+            btn->setStyleSheet(btnDangerStyle);
+        } else if (n.contains("annuler") || n.contains("cancel")
+                   || n.contains("retour") || n.contains("back")) {
+            btn->setStyleSheet(btnSecondaryStyle);
+        } else {
+            btn->setStyleSheet(btnPrimaryStyle);
+        }
+        btn->setCursor(Qt::PointingHandCursor);
+    }
+
+    // =================================================================
+    // 12. QGroupBox
+    // =================================================================
+    const QString groupBoxStyle = QString(
+        "QGroupBox{"
+        " background:%1; border:1px solid %2; border-radius:10px;"
+        " margin-top:14px; padding-top:10px; font-size:13px; font-weight:700; color:%3;"
+        "}"
+        "QGroupBox::title{"
+        " subcontrol-origin:margin; subcontrol-position:top left;"
+        " padding:0 8px; color:%4; background:%1;"
+        "}"
+    ).arg(BG_CARD, BORDER, TEXT_TITLE, PRIMARY);
+    for (QGroupBox *gb : findChildren<QGroupBox*>()) {
+        if (gb) gb->setStyleSheet(groupBoxStyle);
+    }
+
+    // =================================================================
+    // 13. QTabWidget
+    // =================================================================
+    const QString tabStyle = QString(
+        "QTabWidget::pane{ border:1px solid %1; border-radius:0 0 10px 10px; background:%2; }"
+        "QTabBar::tab{"
+        " background:%2; color:%3; border:1px solid %1; border-bottom:none;"
+        " border-radius:8px 8px 0 0; padding:8px 18px; font-size:13px; font-weight:600; margin-right:2px;"
+        "}"
+        "QTabBar::tab:selected{ background:%4; color:%5; border-color:%4; }"
+        "QTabBar::tab:hover:!selected{ background:%6; color:%7; }"
+    ).arg(BORDER, BG_CARD, TEXT_MUTED, PRIMARY, TEXT_WHITE, PRIMARY_LT, SIDEBAR_BG);
+    for (QTabWidget *tw : findChildren<QTabWidget*>()) {
+        if (tw) tw->setStyleSheet(tabStyle);
+    }
+
+    // =================================================================
+    // 14. QScrollBar
+    // =================================================================
+    const QString scrollStyle =
+        "QScrollBar:vertical{ background:#f0f2f5; width:8px; border-radius:4px; margin:0; }"
+        "QScrollBar::handle:vertical{ background:#c0cacf; border-radius:4px; min-height:30px; }"
+        "QScrollBar::handle:vertical:hover{ background:#27ae60; }"
+        "QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical{ height:0px; }"
+        "QScrollBar:horizontal{ background:#f0f2f5; height:8px; border-radius:4px; margin:0; }"
+        "QScrollBar::handle:horizontal{ background:#c0cacf; border-radius:4px; min-width:30px; }"
+        "QScrollBar::handle:horizontal:hover{ background:#27ae60; }"
+        "QScrollBar::add-line:horizontal,QScrollBar::sub-line:horizontal{ width:0px; }";
+    for (QScrollBar *sb : findChildren<QScrollBar*>()) {
+        if (sb) sb->setStyleSheet(scrollStyle);
+    }
+
+    // =================================================================
+    // 15. QScrollArea
+    // =================================================================
+    for (QScrollArea *sa : findChildren<QScrollArea*>()) {
+        if (!sa) continue;
+        sa->setFrameShape(QFrame::NoFrame);
+        if (!sa->styleSheet().contains(BG_APP)) {
+            sa->setStyleSheet(
+                QString("QScrollArea{ background:%1; border:none; }"
+                        "QScrollArea>QWidget>QWidget{ background:%1; }")
+                    .arg(BG_APP));
+        }
+    }
+
+    // =================================================================
+    // 16. FORM PAGES: Add / Modify â€" uniform card panels
+    // =================================================================
+    const QStringList formPageNames = {
+        // Employe
+        "pageAjoutEmploye","pageModifEmploye","page_ajout_emp","page_modif_emp",
+        // Produit
+        "prod_ajout","prod_modification","pageProdAjout","pageProdModif",
+        // Stock
+        "pageStockAjout","pageStockModif","page_add_stock","page_mod_stock",
+        // Client
+        "page_ajouter_client_wrapper","page_modifier_client_wrapper",
+        "pageAjoutClient","pageModifClient",
+        // Maintenance
+        "page_Maint_Ajout","page_Maint_Modif",
+        // Commande
+        "pageAddCommande","pageModCommande","page_add_cmd","page_mod_cmd",
+    };
+    const QString formPageStyle = QString(
+        "QWidget{ background-color:%1; }"
+        "QFrame{ background-color:%1; border:none; }"
+        "QLabel{ color:%2; font-size:13px; font-weight:600; background:transparent; }"
+        "QLineEdit,QComboBox,QDateEdit,QDateTimeEdit,QSpinBox,QDoubleSpinBox{"
+        " background-color:%3; color:%4; border:1px solid %5;"
+        " border-radius:8px; padding:8px 12px; font-size:13px; min-height:36px;"
+        "}"
+        "QLineEdit:focus,QComboBox:focus,QDateEdit:focus{ border:2px solid %6; background-color:#f7fdf9; }"
+        "QPushButton{"
+        " background-color:%6; color:%7; border:none; border-radius:10px;"
+        " padding:10px 22px; font-size:13px; font-weight:700; min-height:38px;"
+        "}"
+        "QPushButton:hover{ background-color:%8; }"
+    ).arg(BG_APP, TEXT_TITLE, BG_CARD, TEXT_BODY, BORDER,
+          PRIMARY, TEXT_WHITE, PRIMARY_DK);
+
+    for (const QString &name : formPageNames) {
+        if (auto *w = findChild<QWidget*>(name)) {
+            w->setStyleSheet(formPageStyle);
+        }
+    }
+
+    // Re-apply add/new gold style after form-page QSS, which can otherwise override button colors.
+    const QStringList addButtonObjectNames = {
+        "btnNouveau", "btnNouveau_Client", "btnNew", "btnGotoAjout",
+        "btnAddDashboard", "btnAddProduct_2", "prod_btnAddProduct",
+        "btnAjouter", "btn_save_ajouter"
+    };
+    for (const QString &name : addButtonObjectNames) {
+        const auto matches = findChildren<QPushButton*>(name);
+        for (QPushButton *btn : matches) {
+            if (!btn) continue;
+            btn->setStyleSheet(btnGoldAddStyle);
+            btn->setCursor(Qt::PointingHandCursor);
+        }
+    }
+
+    // =================================================================
+    // 17. RETRACTABLE RIGHT PANELS
+    // =================================================================
     ensureRetractableRightPanels();
+
+    // =================================================================
+    // 18. FINAL REPOLISH
+    // =================================================================
     repolishRecursive(this);
 }
+
 
 void MainWindow::polishHomogeneousSurfaces()
 {
     if (!ui) return;
     ensureRetractableRightPanels();
+    ensureNavigationAndButtonConsistency();
+}
+
+void MainWindow::installWindowGeometryGuard()
+{
+    auto relaxPageConstraints = [](QWidget *page) {
+        if (!page) return;
+
+        page->setMinimumSize(0, 0);
+        page->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
+        page->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+        if (QLayout *pageLayout = page->layout()) {
+            pageLayout->setSizeConstraint(QLayout::SetNoConstraint);
+        }
+
+        const auto heavyChildren = page->findChildren<QWidget*>();
+        for (QWidget *child : heavyChildren) {
+            if (!child) continue;
+
+            const bool isHeavy =
+                child->inherits("QChartView")
+                || child->inherits("QTableWidget")
+                || child->inherits("QTableView")
+                || child->inherits("QScrollArea")
+                || child->inherits("QStackedWidget");
+
+            if (!isHeavy) continue;
+
+            child->setMinimumSize(0, 0);
+            child->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
+            child->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+            if (auto *sa = qobject_cast<QScrollArea*>(child)) {
+                sa->setWidgetResizable(true);
+                sa->setSizeAdjustPolicy(QAbstractScrollArea::AdjustIgnored);
+                if (QWidget *content = sa->widget()) {
+                    content->setMinimumSize(0, 0);
+                    content->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
+                    content->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+                    if (QLayout *contentLayout = content->layout()) {
+                        contentLayout->setSizeConstraint(QLayout::SetNoConstraint);
+                    }
+                }
+            }
+
+            if (auto *nestedStack = qobject_cast<QStackedWidget*>(child)) {
+                nestedStack->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+            }
+        }
+    };
+
+    const auto stacks = findChildren<QStackedWidget*>();
+    for (QStackedWidget *sw : stacks) {
+        if (!sw) continue;
+        if (sw->property("windowGeometryGuardInstalled").toBool()) continue;
+
+        sw->setMinimumSize(0, 0);
+        sw->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
+        sw->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+        if (QLayout *stackLayout = sw->layout()) {
+            stackLayout->setSizeConstraint(QLayout::SetNoConstraint);
+        }
+        for (int i = 0; i < sw->count(); ++i) {
+            if (QWidget *page = sw->widget(i)) {
+                relaxPageConstraints(page);
+            }
+        }
+
+        connect(sw, &QStackedWidget::currentChanged, this, [this, sw, relaxPageConstraints](int) {
+            if (QWidget *currentPage = sw ? sw->currentWidget() : nullptr) {
+                relaxPageConstraints(currentPage);
+            }
+            QTimer::singleShot(0, this, [this]() { stabilizeWindowGeometry(); });
+        });
+
+        sw->setProperty("windowGeometryGuardInstalled", true);
+    }
+
+    QTimer::singleShot(0, this, [this]() { stabilizeWindowGeometry(); });
+}
+
+void MainWindow::stabilizeWindowGeometry()
+{
+    if (!isVisible()) return;
+    if (windowState() & Qt::WindowFullScreen) return;
+
+    // Always clear minimum size constraints so no child widget can force
+    // the window to grow beyond the screen (even when maximized).
+    setMinimumSize(0, 0);
+    setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
+    if (ui && ui->centralwidget) {
+        ui->centralwidget->setMinimumSize(0, 0);
+        if (QLayout *cl = ui->centralwidget->layout())
+            cl->setSizeConstraint(QLayout::SetNoConstraint);
+    }
+
+    if (isMaximized()) return;
+
+    QScreen *screen = nullptr;
+    if (windowHandle() && windowHandle()->screen()) {
+        screen = windowHandle()->screen();
+    }
+    if (!screen) {
+        screen = QGuiApplication::screenAt(frameGeometry().center());
+    }
+    if (!screen) {
+        screen = QApplication::primaryScreen();
+    }
+    if (!screen) return;
+
+    const QRect avail = screen->availableGeometry();
+    if (!avail.isValid()) return;
+
+    int newW = width() > 0 ? width() : qMin(1200, avail.width());
+    int newH = height() > 0 ? height() : qMin(800, avail.height());
+
+    newW = qMin(newW, avail.width());
+    newH = qMin(newH, avail.height());
+    if (newW < 320) newW = qMin(320, avail.width());
+    if (newH < 240) newH = qMin(240, avail.height());
+
+    if (newW != width() || newH != height()) {
+        resize(newW, newH);
+    }
+
+    const QPoint p = pos();
+    int x = p.x();
+    int y = p.y();
+
+    const int maxX = avail.right() - width() + 1;
+    const int maxY = avail.bottom() - height() + 1;
+    x = qBound(avail.left(), x, maxX);
+    y = qBound(avail.top(), y, maxY);
+
+    if (x != p.x() || y != p.y()) {
+        move(x, y);
+    }
+}
+
+void MainWindow::ensureNavigationAndButtonConsistency()
+{
+    const QString backBtnStyle =
+        "QPushButton {"
+        " background-color: #e2e8f0;"
+        " color: #1e293b;"
+        " border: 1px solid #cbd5e1;"
+        " border-radius: 10px;"
+        " padding: 8px 14px;"
+        " font-size: 13px;"
+        " font-weight: 700;"
+        " min-height: 36px;"
+        "}"
+        "QPushButton:hover {"
+        " background-color: #cbd5e1;"
+        "}"
+        "QPushButton:pressed {"
+        " background-color: #b8c4d2;"
+        "}";
+
+    auto applyBackStyle = [&](QPushButton *btn) {
+        if (!btn) return;
+        btn->setStyleSheet(backBtnStyle);
+        btn->setCursor(Qt::PointingHandCursor);
+    };
+
+    // Harmonize all return/cancel/back buttons appearance across modules.
+    for (QPushButton *btn : findChildren<QPushButton*>()) {
+        if (!btn) continue;
+        const QString probe = (btn->objectName() + " " + btn->text()).toLower();
+        if (probe.contains("retour")
+            || probe.contains("back")
+            || probe.contains("annuler")
+            || probe.contains("cancel")) {
+            applyBackStyle(btn);
+        }
+    }
+
+    // Critical navigation safety net for product pages.
+    const QStringList productBackButtons = {
+        "prod_btnCancel_Add",
+        "prod_btnCancel_Mod",
+        "prod_btnReturnStats",
+        "prod_btnRetourStats" // Legacy typo compatibility
+    };
+    for (const QString &name : productBackButtons) {
+        if (QPushButton *btn = findChild<QPushButton*>(name)) {
+            QObject::disconnect(btn, &QPushButton::clicked, this, &MainWindow::goAffichage);
+            connect(btn, &QPushButton::clicked, this, &MainWindow::goAffichage, Qt::UniqueConnection);
+            applyBackStyle(btn);
+        }
+    }
+
+    // Explicitly wire Commande cancel buttons (in addition to auto-connect).
+    if (QPushButton *btn = findChild<QPushButton*>("btnCancel_Mod_3")) {
+        QObject::disconnect(btn, &QPushButton::clicked, this, &MainWindow::on_btnCancel_Mod_3_clicked);
+        connect(btn, &QPushButton::clicked, this, &MainWindow::on_btnCancel_Mod_3_clicked, Qt::UniqueConnection);
+        applyBackStyle(btn);
+    }
+    if (QPushButton *btn = findChild<QPushButton*>("btnCancel_CmdMod")) {
+        QObject::disconnect(btn, &QPushButton::clicked, this, &MainWindow::on_btnCancel_CmdMod_clicked);
+        connect(btn, &QPushButton::clicked, this, &MainWindow::on_btnCancel_CmdMod_clicked, Qt::UniqueConnection);
+        applyBackStyle(btn);
+    }
 }
 
 QWidget *MainWindow::ensureStockRightSidebarWidget()
@@ -8222,6 +9172,9 @@ QWidget *MainWindow::ensureStockRightSidebarWidget()
     auto *rightColumnLayout = inventairePage->findChild<QVBoxLayout*>("rightColumn");
     if (!dashboardLayout || !rightColumnLayout) return nullptr;
 
+    dashboardLayout->setContentsMargins(0, 0, 0, 0);
+    dashboardLayout->setSpacing(0);
+
     int layoutIndex = -1;
     for (int i = 0; i < dashboardLayout->count(); ++i) {
         QLayoutItem *item = dashboardLayout->itemAt(i);
@@ -8234,6 +9187,7 @@ QWidget *MainWindow::ensureStockRightSidebarWidget()
 
     const int stretch = dashboardLayout->stretch(layoutIndex);
     QLayoutItem *taken = dashboardLayout->takeAt(layoutIndex);
+    Q_UNUSED(taken);
 
     auto *stockSidebar = new QFrame(inventairePage);
     stockSidebar->setObjectName("stockRightSidebar");
@@ -8259,10 +9213,158 @@ QWidget *MainWindow::ensureStockRightSidebarWidget()
     stockSidebar->setLayout(rightColumnLayout);
     dashboardLayout->insertWidget(layoutIndex, stockSidebar, stretch > 0 ? stretch : 1);
 
-    // DONT delete "taken", because taken->layout() == rightColumnLayout, 
-    // and deleting it destroys the layout we just applied to stockSidebar!
+    // Do not delete "taken": it owns rightColumnLayout, and deleting it
+    // would destroy the layout that is now attached to stockSidebar.
 
     return stockSidebar;
+}
+
+static void configureSidebarScrollArea(QScrollArea *scrollArea)
+{
+    if (!scrollArea) return;
+    scrollArea->setFrameShape(QFrame::NoFrame);
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    scrollArea->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+}
+
+static void normalizeRightSidebarShell(QWidget *panel)
+{
+    if (!panel) return;
+    const QString panelName = panel->objectName().trimmed();
+
+    panel->setAttribute(Qt::WA_StyledBackground, true);
+    panel->setProperty("unifiedRightSidebar", true);
+    panel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+
+    int minW = panel->minimumWidth();
+    if (minW <= 0) minW = 300;
+    minW = qBound(260, minW, 360);
+    panel->setMinimumWidth(minW);
+
+    int maxW = panel->maximumWidth();
+    if (maxW <= 0 || maxW >= QWIDGETSIZE_MAX / 2 || maxW > 420) {
+        maxW = 360;
+    }
+    if (maxW < minW) maxW = minW;
+    panel->setMaximumWidth(maxW);
+
+    if (QLayout *layout = panel->layout()) {
+        layout->setContentsMargins(0, 0, 0, 0);
+        layout->setSpacing(0);
+        layout->setSizeConstraint(QLayout::SetNoConstraint);
+
+        for (int i = 0; i < layout->count(); ++i) {
+            if (auto *sa = qobject_cast<QScrollArea*>(layout->itemAt(i)->widget())) {
+                configureSidebarScrollArea(sa);
+            }
+        }
+
+        const bool allowAutoWrap = (panelName.compare("commsCard", Qt::CaseInsensitive) != 0);
+        const bool wrapped = panel->property("sidebarAutoWrapped").toBool();
+        bool hasDirectScroll = false;
+        for (int i = 0; i < layout->count(); ++i) {
+            if (qobject_cast<QScrollArea*>(layout->itemAt(i)->widget())) {
+                hasDirectScroll = true;
+                break;
+            }
+        }
+
+        if (allowAutoWrap && !wrapped && !hasDirectScroll && layout->count() > 0) {
+            auto *scrollArea = new QScrollArea(panel);
+            scrollArea->setObjectName(panelName + "_autoSidebarScroll");
+            configureSidebarScrollArea(scrollArea);
+
+            auto *scrollContent = new QWidget(scrollArea);
+            scrollContent->setObjectName(panelName + "_autoSidebarContent");
+            auto *scrollLayout = new QVBoxLayout(scrollContent);
+            scrollLayout->setContentsMargins(10, 10, 10, 10);
+            scrollLayout->setSpacing(10);
+
+            while (layout->count() > 0) {
+                QLayoutItem *item = layout->takeAt(0);
+                if (!item) continue;
+
+                if (QWidget *w = item->widget()) {
+                    scrollLayout->addWidget(w);
+                } else if (QLayout *childLayout = item->layout()) {
+                    scrollLayout->addLayout(childLayout);
+                }
+                delete item;
+            }
+
+            scrollLayout->addStretch();
+            scrollArea->setWidget(scrollContent);
+            layout->addWidget(scrollArea);
+            panel->setProperty("sidebarAutoWrapped", true);
+        }
+    }
+
+    // Align action buttons with the Employees module style while preserving behavior.
+    const auto sidebarButtons = panel->findChildren<QPushButton*>();
+    for (QPushButton *btn : sidebarButtons) {
+        if (!btn) continue;
+
+        const QString btnName = btn->objectName().toLower();
+        if (btnName.contains("toggle")
+            || btnName.contains("retract")
+            || btnName == "btncommssend") {
+            continue;
+        }
+        if (btn->text().trimmed().isEmpty()) continue;
+
+        if (btn->minimumHeight() < 40) {
+            btn->setMinimumHeight(40);
+        }
+        btn->setCursor(Qt::PointingHandCursor);
+        btn->setStyleSheet(
+            "QPushButton{"
+            " background-color:#1f4d3a;"
+            " color:#ffffff;"
+            " border:1px solid #2a6a51;"
+            " border-radius:10px;"
+            " padding:10px 14px;"
+            " font-weight:700;"
+            " font-size:12px;"
+            " text-align:center;"
+            "}"
+            "QPushButton:hover{"
+            " background-color:#27ae60;"
+            " color:#ffffff;"
+            " border-color:#27ae60;"
+            "}"
+            "QPushButton:pressed{"
+            " background-color:#1f7d49;"
+            "}"
+            "QPushButton:disabled{"
+            " background-color:#9ca3af;"
+            " color:#f3f4f6;"
+            " border-color:#9ca3af;"
+            "}"
+        );
+    }
+
+    if (QWidget *host = panel->parentWidget(); host && host->property("retractHandleHost").toBool()) {
+        host->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
+        if (QLayout *hostLayout = host->layout()) {
+            hostLayout->setContentsMargins(0, 0, 0, 0);
+        }
+    }
+
+    // Zero only the top/bottom margins of the parent container so the sidebar is flush
+    // vertically (full height). Left/right margins and spacing are intentionally preserved
+    // to maintain horizontal breathing room between the central area and the sidebar.
+    if (QWidget *parentW = panel->parentWidget()) {
+        if (!parentW->property("retractHandleHost").toBool()) {
+            if (auto *parentBox = qobject_cast<QBoxLayout*>(parentW->layout())) {
+                QMargins m = parentBox->contentsMargins();
+                m.setTop(0);
+                m.setBottom(0);
+                parentBox->setContentsMargins(m);
+            }
+        }
+    }
 }
 
 bool MainWindow::retractableRightPanelAvailable(const QString &panelObjectName) const
@@ -8272,8 +9374,10 @@ bool MainWindow::retractableRightPanelAvailable(const QString &panelObjectName) 
         "rightSidebar_Commande",
         "stockRightSidebar",
         "prod_rightSidebar",
+        "commsCard",
         "sidePanel_Employe",
-        "sidepanel"
+        "sidepanel",
+        "sidePanel_Client"
     };
     return allowedPanels.contains(panelObjectName);
 }
@@ -8283,6 +9387,8 @@ void MainWindow::installRetractableRightPanel(QWidget *panel)
     if (!panel) return;
     const QString panelName = panel->objectName().trimmed();
     if (panelName.isEmpty() || !retractableRightPanelAvailable(panelName)) return;
+
+    normalizeRightSidebarShell(panel);
 
     if (panel->property("retractInstalled").toBool()) {
         updateRetractableRightPanel(panel);
@@ -8323,10 +9429,19 @@ void MainWindow::installRetractableRightPanel(QWidget *panel)
     const int panelIndex = parentLayout->indexOf(panel);
     if (panelIndex < 0) return;
 
+    {
+        QMargins pm = parentLayout->contentsMargins();
+        pm.setTop(0);
+        pm.setBottom(0);
+        parentLayout->setContentsMargins(pm);
+    }
+
     QWidget *host = new QWidget(parent);
     host->setObjectName(panelName + "_retractHost");
     host->setProperty("retractHandleHost", true);
-    host->setSizePolicy(QSizePolicy::Fixed, panel->sizePolicy().verticalPolicy());
+    host->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
+
+    panel->setSizePolicy(panel->sizePolicy().horizontalPolicy(), QSizePolicy::Expanding);
 
     auto *hostLayout = new QHBoxLayout(host);
     hostLayout->setContentsMargins(0, 0, 0, 0);
@@ -8343,9 +9458,9 @@ void MainWindow::installRetractableRightPanel(QWidget *panel)
     toggleBtn->setMinimumHeight(66);
     toggleBtn->setStyleSheet(
         "QToolButton {"
-        " background-color: #0f2b4c;"
+        " background-color: #2d5a42;"
         " color: #ffffff;"
-        " border: 1px solid #0f2b4c;"
+        " border: none;"
         " border-radius: 16px;"
         " font-size: 18px;"
         " font-weight: 800;"
@@ -8353,12 +9468,10 @@ void MainWindow::installRetractableRightPanel(QWidget *panel)
         " margin: 0px;"
         "}"
         "QToolButton:hover {"
-        " background-color: #1a4270;"
-        " border-color: #1a4270;"
+        " background-color: #3a7254;"
         "}"
         "QToolButton:pressed {"
-        " background-color: #0b223c;"
-        " border-color: #0b223c;"
+        " background-color: #1f402d;"
         "}"
     );
 
@@ -8513,12 +9626,15 @@ void MainWindow::ensureRetractableRightPanels()
         "rightSidebar_Commande",
         "stockRightSidebar",
         "prod_rightSidebar",
+        "commsCard",
         "sidePanel_Employe",
-        "sidepanel"
+        "sidepanel",
+        "sidePanel_Client"
     };
 
     if (QWidget *stockPanel = ensureStockRightSidebarWidget()) {
         if (!stockPanel->objectName().trimmed().isEmpty()) {
+            normalizeRightSidebarShell(stockPanel);
             installRetractableRightPanel(stockPanel);
         }
     }
@@ -8526,7 +9642,21 @@ void MainWindow::ensureRetractableRightPanels()
     for (const QString &panelName : panelNames) {
         const auto panels = findChildren<QWidget*>(panelName);
         for (QWidget *panel : panels) {
+            normalizeRightSidebarShell(panel);
             installRetractableRightPanel(panel);
+        }
+    }
+
+    // Panels that should keep the same full-height shell even when not retractable.
+    const QStringList shellOnlyPanels = {
+        "sideDashboard",
+        "sideAjout",
+        "sideMod"
+    };
+    for (const QString &panelName : shellOnlyPanels) {
+        const auto panels = findChildren<QWidget*>(panelName);
+        for (QWidget *panel : panels) {
+            normalizeRightSidebarShell(panel);
         }
     }
 }
@@ -8584,6 +9714,15 @@ MainWindow::MainWindow(QWidget *parent)
 {
 
     ui->setupUi(this);
+
+    // Prevent the main QStackedWidget from imposing its maximum sizeHint
+    // (which is the max of ALL pages) on the window layout. Using Ignored
+    // means the stacked widget fills whatever space the layout gives it,
+    // instead of driving the window to grow when switching pages.
+    if (ui->stackedWidget) {
+        ui->stackedWidget->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+    }
+
     if (ui->statusbar) {
         ui->statusbar->setSizeGripEnabled(false);
         ui->statusbar->hide();
@@ -8647,6 +9786,9 @@ MainWindow::MainWindow(QWidget *parent)
     setupCommandesModule();
     TRACE_STEP("applyHomogeneousTheme");
     applyHomogeneousTheme();
+    ensureNavigationAndButtonConsistency();
+    installWindowGeometryGuard();
+    normalizeMojibakeInWidgetTree(this);
 
     // --- AGGRESSIVE RELOAD OF STOCK SIDEBAR STYLES ---
     // We use a timer to ensure all widgets are fully initialized
@@ -8785,10 +9927,8 @@ MainWindow::MainWindow(QWidget *parent)
 
 
 
-        // --- APPLY STOCK STYLE TO PRODUCT SIDEBAR ---
-
-        // 1. Main Stats Preview Card
-
+        // --- APPLY STOCK STYLE TO PRODUCT SIDEBAR --- (DISABLED: superseded by setupProduitModule green theme)
+        if (false) {
         if (QWidget *prodStats = this->findChild<QWidget*>("prod_statsPreview")) {
 
             prodStats->setStyleSheet(
@@ -8991,6 +10131,7 @@ MainWindow::MainWindow(QWidget *parent)
              }
 
         }
+        } // end if(false) disabled navy product sidebar styling
 
     });
 
@@ -9013,9 +10154,7 @@ MainWindow::MainWindow(QWidget *parent)
 
         ui->btnEmployes, ui->btnMaintenance,
 
-        this->findChild<QPushButton*>("btnCommandes"),
-
-        this->findChild<QPushButton*>("btnArduino")
+        this->findChild<QPushButton*>("btnCommandes")
 
     };
 
@@ -9029,24 +10168,6 @@ MainWindow::MainWindow(QWidget *parent)
 
         sidebarGroup->addButton(btn);
 
-    }
-
-    // Ensure the Arduino sidebar button exists (covers stale ui_mainwindow.h builds)
-    if (ui->sidebar && ui->sidebar->layout() && !ui->sidebar->findChild<QPushButton*>("btnArduino")) {
-        auto *btnArd = new QPushButton(ui->sidebar);
-        btnArd->setObjectName("btnArduino");
-        btnArd->setText("Arduino");
-        btnArd->setCursor(Qt::PointingHandCursor);
-        btnArd->setCheckable(true);
-        if (auto *layout = qobject_cast<QVBoxLayout*>(ui->sidebar->layout())) {
-            int insertIndex = layout->count();
-            for (int i = 0; i < layout->count(); ++i) {
-                QLayoutItem *item = layout->itemAt(i);
-                if (item && item->spacerItem()) { insertIndex = i; break; }
-            }
-            layout->insertWidget(insertIndex, btnArd);
-        }
-        sidebarGroup->addButton(btnArd);
     }
 
     if (ui->sidebar && ui->sidebar->layout() && !ui->sidebar->findChild<QPushButton*>("btnLogout")) {
@@ -9071,7 +10192,71 @@ MainWindow::MainWindow(QWidget *parent)
         connect(btnLogout, &QPushButton::clicked, this, &MainWindow::on_btnLogout_clicked);
     }
 
+    // â"€â"€â"€ Sidebar button icons (emoji + label) â"€â"€â"€
+    struct SidebarIconMap { const char *objName; const char *icon; const char *label; };
+    static const SidebarIconMap sidebarIcons[] = {
+        { "btnAccueil",     "\xF0\x9F\x8F\xA0",  "  Dashboard"     },
+        { "btnStock",       "\xF0\x9F\x93\xA6",  "  Stock"         },
+        { "btnCommandes",   "\xF0\x9F\x9B\x92",  "  Commandes"     },
+        { "btnProduits",    "\xF0\x9F\x97\x91",  "  Produits"      },
+        { "btnClient",      "\xF0\x9F\x91\xA4",  "  Clients"       },
+        { "btnEmployes",    "\xF0\x9F\x91\xA5",  "  Employ" "\xC3\xA9" "s" },
+        { "btnMaintenance", "\xF0\x9F\x94\xA7",  "  Maintenance"   },
+        { "btnLogout",      "\xF0\x9F\x94\x93",  "  D" "\xC3\xA9" "connexion" },
+    };
+    for (const auto &entry : sidebarIcons) {
+        if (auto *btn = findChild<QPushButton*>(entry.objName)) {
+            btn->setText(QString::fromUtf8(entry.icon) + QString::fromUtf8(entry.label));
+        }
+    }
+    // Style the toggle button to match the new sidebar
+    if (ui->btnToggleSidebar) {
+        ui->btnToggleSidebar->setText("\u2630");
+        ui->btnToggleSidebar->setStyleSheet(
+            "QPushButton { background:transparent; color:#a8d5b5; font-size:18px; border:none; padding:8px 16px; text-align:left; }"
+            "QPushButton:hover { color:#ffffff; }"
+        );
+    }
+    // Style the logout button distinctly (red tint at bottom)
+    if (auto *btnLogoutPtr = findChild<QPushButton*>("btnLogout")) {
+        btnLogoutPtr->setStyleSheet(
+            "QPushButton#btnLogout { background:transparent; border:none; border-radius:10px;"
+            " color:#e57373; text-align:left; padding:11px 16px; font-size:11pt; font-weight:600; margin:2px 8px; }"
+            "QPushButton#btnLogout:hover { background:rgba(229,115,115,0.15); color:#ff8a80; }"
+        );
+    }
 
+    // â"€â"€â"€ Insert a "NAVIGATION" section header between logo and first button â"€â"€â"€
+    if (ui->sidebar && ui->sidebar->layout()) {
+        if (auto *sideLayout = qobject_cast<QVBoxLayout*>(ui->sidebar->layout())) {
+            // Find the logo label position
+            int logoIdx = -1;
+            for (int i = 0; i < sideLayout->count(); ++i) {
+                QLayoutItem *itm = sideLayout->itemAt(i);
+                if (itm && itm->widget() && itm->widget()->objectName() == "label_logo") {
+                    logoIdx = i;
+                    break;
+                }
+            }
+            if (logoIdx >= 0 && !ui->sidebar->findChild<QLabel*>("sidebarNavLabel")) {
+                // Thin separator line under logo
+                auto *sepLine = new QFrame(ui->sidebar);
+                sepLine->setFrameShape(QFrame::HLine);
+                sepLine->setStyleSheet("border:none;border-top:1px solid rgba(168,213,181,0.2);margin:0 8px;");
+                sepLine->setFixedHeight(1);
+                sideLayout->insertWidget(logoIdx + 1, sepLine);
+
+                // "NAVIGATION" header label
+                auto *navLabel = new QLabel("NAVIGATION", ui->sidebar);
+                navLabel->setObjectName("sidebarNavLabel");
+                navLabel->setStyleSheet(
+                    "color:rgba(168,213,181,0.5);font-size:9pt;font-weight:700;"
+                    "letter-spacing:2px;padding:8px 16px 4px 16px;background:transparent;border:none;"
+                );
+                sideLayout->insertWidget(logoIdx + 2, navLabel);
+            }
+        }
+    }
 
     if (ui->btnAccueil) {
 
@@ -9235,52 +10420,6 @@ MainWindow::MainWindow(QWidget *parent)
 
 
 
-    // --- ARDUINO INTEGRATION ---
-
-    if (QPushButton* btnArd = this->findChild<QPushButton*>("btnArduino")) {
-
-        sidebarGroup->addButton(btnArd);
-
-        btnArd->setCheckable(true);
-
-        connect(btnArd, &QPushButton::clicked, this, [this](){
-
-            if (auto *sw = mainStacked()) {
-
-                QWidget *page = sw->findChild<QWidget*>("pageArduino", Qt::FindDirectChildrenOnly);
-
-                if (!page) {
-
-                    page = new QWidget(sw);
-
-                    page->setObjectName("pageArduino");
-
-                    auto *lay = new QVBoxLayout(page);
-
-                    lay->setContentsMargins(0, 0, 0, 0);
-
-                    lay->addWidget(new ArduinoWidget(page));
-
-                    sw->addWidget(page);
-
-                }
-
-                sw->setCurrentWidget(page);
-
-            }
-
-            QTimer::singleShot(0, this, [this]() {
-
-                polishHomogeneousSurfaces();
-
-            });
-
-        });
-
-    }
-
-
-
     // Internal Navigation for Commandes
 
     auto safeConnectCmd = [this](const QString& btnName, const QString& targetPageName){
@@ -9402,7 +10541,7 @@ MainWindow::MainWindow(QWidget *parent)
 
         ui->tableDashboard->setWordWrap(false);
 
-        ui->tableDashboard->verticalHeader()->setDefaultSectionSize(40);
+        ui->tableDashboard->verticalHeader()->setDefaultSectionSize(62);
 
 
 
@@ -9414,7 +10553,7 @@ MainWindow::MainWindow(QWidget *parent)
 
         }
 
-        ui->tableDashboard->setColumnWidth(8, 190);
+        ui->tableDashboard->setColumnWidth(8, 240);
     }
 
     // Commandes table (pageCommandes): add example row + actions (Modifier / Supprimer)
@@ -9432,7 +10571,7 @@ MainWindow::MainWindow(QWidget *parent)
 
         ui->tableProduits_2->setWordWrap(false);
 
-        ui->tableProduits_2->verticalHeader()->setDefaultSectionSize(40);
+        ui->tableProduits_2->verticalHeader()->setDefaultSectionSize(62);
 
 
 
@@ -9444,7 +10583,7 @@ MainWindow::MainWindow(QWidget *parent)
             
         }
         
-        ui->tableProduits_2->setColumnWidth(8, 190);
+        ui->tableProduits_2->setColumnWidth(8, 320);
 
 
 
@@ -9528,7 +10667,7 @@ MainWindow::MainWindow(QWidget *parent)
         ui->tableEmployes->setWordWrap(false);
         ui->tableEmployes->setIconSize(QSize(28, 28));
 
-        ui->tableEmployes->verticalHeader()->setDefaultSectionSize(40);
+        ui->tableEmployes->verticalHeader()->setDefaultSectionSize(62);
 
 
 
@@ -9556,7 +10695,7 @@ MainWindow::MainWindow(QWidget *parent)
 
         }
 
-        ui->tableEmployes->setColumnWidth(EMP_COL_ACTIONS, 220);
+        ui->tableEmployes->setColumnWidth(EMP_COL_ACTIONS, 236);
 
 
     refreshEmployes();
@@ -9711,11 +10850,29 @@ MainWindow::MainWindow(QWidget *parent)
         ui->tableResultat->setAlternatingRowColors(true);
         ui->tableResultat->setShowGrid(false);
         ui->tableResultat->setStyleSheet(
-            "QTableWidget#tableResultat { background: #ffffff; border: 1px solid #dbeafe; border-radius: 10px; }"
+            "QTableWidget#tableResultat { background: #ffffff; border: 1px solid #e8ecf0; border-radius: 10px; }"
             "QTableWidget#tableResultat::item { padding: 6px; }"
-            "QTableWidget#tableResultat::item:selected { background: #dbeafe; color: #0f172a; }"
-            "QHeaderView::section { background:#0f2e57; color:white; font-weight:700; padding:6px; border:none; }");
+            "QTableWidget#tableResultat::item:selected { background: #e8f5e9; color: #0f172a; }"
+            "QHeaderView::section { background:#1a3a2e; color:white; font-weight:700; padding:8px 6px; border:none; border-right:1px solid #2d5a42; }");
+        // Initialize with correct column count and headers
+        ui->tableResultat->setColumnCount(5);
+        ui->tableResultat->setHorizontalHeaderLabels({"Choix", "Matricule", "Nom", "Competence", "Score Match"});
+        if (auto *header = ui->tableResultat->horizontalHeader()) {
+            header->setStretchLastSection(false);
+            header->setSectionResizeMode(0, QHeaderView::Fixed);
+            header->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+            header->setSectionResizeMode(2, QHeaderView::Stretch);
+            header->setSectionResizeMode(3, QHeaderView::Stretch);
+            header->setSectionResizeMode(4, QHeaderView::ResizeToContents);
+        }
+        ui->tableResultat->setColumnWidth(0, 70);
+        ui->tableResultat->verticalHeader()->setVisible(false);
         ui->tableResultat->setProperty("missionUiReady", true);
+    }
+    // Clear stale placeholder text from the result label
+    if (ui->lblResultat && !ui->lblResultat->property("missionLblReady").toBool()) {
+        ui->lblResultat->clear();
+        ui->lblResultat->setProperty("missionLblReady", true);
     }
 
     QWidget *missionPage = nullptr;
@@ -9881,9 +11038,17 @@ MainWindow::MainWindow(QWidget *parent)
                         ++assigned;
 
                         QSqlQuery markBusy;
-                        markBusy.prepare("UPDATE EMPLOYE SET disponibilite='INDISPONIBLE' WHERE id_emp=:id");
+                        markBusy.prepare("UPDATE EMPLOYE SET disponibilite=:dispo WHERE id_emp=:id");
+                        markBusy.bindValue(":dispo", QString("INDISPONIBLE"));
                         markBusy.bindValue(":id", s.idEmp);
-                        markBusy.exec();
+                        if (!markBusy.exec()) {
+                            // Retry with EN_INTERVENTION (also a valid unavailable status)
+                            QSqlQuery markBusy2;
+                            markBusy2.prepare("UPDATE EMPLOYE SET disponibilite=:dispo WHERE id_emp=:id");
+                            markBusy2.bindValue(":dispo", QString("EN_INTERVENTION"));
+                            markBusy2.bindValue(":id", s.idEmp);
+                            markBusy2.exec();
+                        }
                     }
 
                     if (assigned <= 0) {
@@ -10187,9 +11352,9 @@ MainWindow::MainWindow(QWidget *parent)
         ui->tableWidget_Client->setColumnWidth(5, 150); // Date Creation
         ui->tableWidget_Client->setColumnWidth(6, 150); // Date Expiration
         ui->tableWidget_Client->setColumnWidth(7, 150); // Telephone
-        ui->tableWidget_Client->setColumnWidth(8, 220);
+        ui->tableWidget_Client->setColumnWidth(8, 240);
 
-        
+
 
         // Load clients from database
         refreshClients();
@@ -10317,6 +11482,8 @@ MainWindow::MainWindow(QWidget *parent)
     forceApplySidebarStyles();
 
     applyHomogeneousTheme();
+    ensureNavigationAndButtonConsistency();
+    installWindowGeometryGuard();
 
     showDashboardHome();
 
@@ -10342,7 +11509,7 @@ bool MainWindow::isModuleAccessAllowed(const QString &moduleKey) const
     const QString key = moduleKey.trimmed().toLower();
     if (key.isEmpty()) return false;
     if (m_isAdminSession) return true;
-    if (key == "accueil" || key == "taches" || key == "conge" || key == "arduino") return true;
+    if (key == "accueil" || key == "taches" || key == "conge") return true;
     return !m_employeeAllowedModule.trimmed().isEmpty()
         && key == m_employeeAllowedModule.trimmed().toLower();
 }
@@ -10382,8 +11549,7 @@ void MainWindow::applySessionAccessControl()
         {"clients", ui ? ui->btnClient : nullptr},
         {"employes", ui ? ui->btnEmployes : nullptr},
         {"maintenance", ui ? ui->btnMaintenance : nullptr},
-        {"commandes", findChild<QPushButton*>("btnCommandes")},
-        {"arduino", findChild<QPushButton*>("btnArduino")}
+        {"commandes", findChild<QPushButton*>("btnCommandes")}
     };
 
     for (const SidebarAccess &entry : entries) {
@@ -10713,6 +11879,8 @@ void MainWindow::setSessionContext(bool isAdmin, const QString &email)
         applySessionAccessControl();
         forceApplySidebarStyles();
         applyHomogeneousTheme();
+        ensureNavigationAndButtonConsistency();
+        installWindowGeometryGuard();
 
         if (!m_isAdminSession) {
             showDashboardHome();
@@ -11179,7 +12347,14 @@ void MainWindow::on_btnNouveau_clicked()
 
             for (QLabel *lbl : labels) {
 
-                lbl->setStyleSheet(lbl->styleSheet() + " background: transparent; color: #0f2b4c; border: none;");
+                if (!lbl) continue;
+                const QString existing = lbl->styleSheet();
+                // Keep explicit label colors (e.g. white text inside green employee cards).
+                if (existing.contains("color:", Qt::CaseInsensitive)) {
+                    lbl->setStyleSheet(existing + " background: transparent; border: none;");
+                    continue;
+                }
+                lbl->setStyleSheet(existing + " background: transparent; color: #0f2b4c; border: none;");
 
             }
 
@@ -11247,30 +12422,14 @@ void MainWindow::installEmployeActionButtonsForRow(int row)
     QWidget *pWidget = new QWidget(ui->tableEmployes);
 
     QPushButton *btnEdit = new QPushButton("Modifier", pWidget);
-
-    btnEdit->setCursor(Qt::PointingHandCursor);
-
-    btnEdit->setStyleSheet("QPushButton { background-color: #3498db; color: white; border-radius: 4px; padding: 4px 8px; font-weight: bold; }");
-
-    btnEdit->setMinimumWidth(84);
+    styleTableActionButton(btnEdit);
 
     btnEdit->setProperty("row", row);
 
 
 
     QPushButton *btnDelete = new QPushButton("Supprimer", pWidget);
-
-    btnDelete->setCursor(Qt::PointingHandCursor);
-
-    btnDelete->setStyleSheet(
-
-        "QPushButton { background-color: #e74c3c; color: white; border-radius: 4px; padding: 4px 10px; font-weight: bold; }"
-
-        "QPushButton:hover { background-color: #cf3e2e; }"
-
-    );
-
-    btnDelete->setMinimumWidth(96);
+    styleTableActionButton(btnDelete);
 
     btnDelete->setProperty("row", row);
 
@@ -11292,9 +12451,11 @@ void MainWindow::installEmployeActionButtonsForRow(int row)
 
     pLayout->setAlignment(Qt::AlignCenter);
 
-    pLayout->setContentsMargins(0, 0, 0, 0);
+    pLayout->setContentsMargins(4, 10, 4, 10);
 
     pWidget->setLayout(pLayout);
+
+    ui->tableEmployes->setRowHeight(row, qMax(ui->tableEmployes->rowHeight(row), 62));
 
 
 
@@ -11800,9 +12961,34 @@ void MainWindow::on_btnModifier_clicked()
 
             QList<QLabel*> labels = side->findChildren<QLabel*>();
 
+            auto isInEmployeeGreenBlock = [](QLabel *label) {
+                QWidget *w = label;
+                while (w) {
+                    const QString name = w->objectName();
+                    if (name == "empHero" || name == "empQuickActionsLabelWrap") {
+                        return true;
+                    }
+                    w = w->parentWidget();
+                }
+                return false;
+            };
+
             for (QLabel *lbl : labels) {
 
-                lbl->setStyleSheet(lbl->styleSheet() + " background: transparent; color: #0f2b4c; border: none;");
+                if (!lbl) continue;
+                const QString existing = lbl->styleSheet();
+
+                if (isInEmployeeGreenBlock(lbl)) {
+                    lbl->setStyleSheet(existing + " background: transparent; color: #ffffff; border: none;");
+                    continue;
+                }
+
+                if (existing.contains("color:", Qt::CaseInsensitive)) {
+                    lbl->setStyleSheet(existing + " background: transparent; border: none;");
+                    continue;
+                }
+
+                lbl->setStyleSheet(existing + " background: transparent; color: #0f2b4c; border: none;");
 
             }
 
@@ -12234,28 +13420,32 @@ void MainWindow::on_btnAnalyser_clicked()
         c.responsibleMatch = c.moduleMatch && specialityMatchesResponsibleModule(c.specialite, targetModule);
 
         const bool hasSpecificHints = !requiredHints.isEmpty();
-        const double availabilityScore = c.available ? 100.0 : 20.0;
-        const double specialityScore = hasSpecificHints ? (c.specMatch ? 100.0 : 20.0) : 50.0;
+        const double availabilityScore = c.available ? 100.0 : 15.0;
+        const double specialityScore = hasSpecificHints ? (c.specMatch ? 100.0 : 15.0) : 50.0;
+        // Clamp experienceScore so that 0 years still gives a fair base (30 instead of 20)
+        // to avoid over-penalising employees whose experience is not recorded in the DB.
         double experienceScore = (100.0 * static_cast<double>(c.experienceYears)) / static_cast<double>(requiredYears);
-        experienceScore = qBound(20.0, experienceScore, 95.0);
+        experienceScore = qBound(30.0, experienceScore, 95.0);
 
-        const double availabilityWeight = (difficulty >= 3) ? 0.25 : 0.45;
-        const double specialityWeight = (difficulty >= 3) ? 0.25 : 0.40;
-        const double experienceWeight = (difficulty >= 3) ? 0.50 : 0.15;
+        // Weights: speciality and availability are the primary signals;
+        // experience is secondary so that employees without DB experience data still surface.
+        const double availabilityWeight = (difficulty >= 3) ? 0.35 : 0.45;
+        const double specialityWeight   = (difficulty >= 3) ? 0.40 : 0.40;
+        const double experienceWeight   = (difficulty >= 3) ? 0.25 : 0.15;
 
         c.score = (availabilityScore * availabilityWeight)
             + (specialityScore * specialityWeight)
             + (experienceScore * experienceWeight);
-        if (!hasSpecificHints) c.score -= 20.0;
-        if (difficulty >= 3 && !c.available) c.score -= 25.0;
-        if (hasSpecificHints && !c.specMatch) c.score -= 30.0;
-        if (!targetModule.isEmpty() && !c.moduleMatch) c.score -= 45.0;
+        if (!hasSpecificHints) c.score -= 15.0;
+        if (difficulty >= 3 && !c.available) c.score -= 20.0;
+        if (hasSpecificHints && !c.specMatch) c.score -= 25.0;
+        if (!targetModule.isEmpty() && !c.moduleMatch) c.score -= 40.0;
         if (forceMaintenanceModule) {
-            if (c.maintenanceSpeciality) c.score += 18.0;
-            else c.score -= 55.0;
+            if (c.maintenanceSpeciality) c.score += 15.0;
+            else c.score -= 45.0;
         }
-        if (!targetModule.isEmpty() && c.responsibleMatch) c.score += (difficulty >= 3 ? 16.0 : 10.0);
-        if (!targetModule.isEmpty() && c.moduleMatch && !c.responsibleMatch) c.score -= (difficulty >= 3 ? 10.0 : 4.0);
+        if (!targetModule.isEmpty() && c.responsibleMatch) c.score += (difficulty >= 3 ? 14.0 : 10.0);
+        if (!targetModule.isEmpty() && c.moduleMatch && !c.responsibleMatch) c.score -= (difficulty >= 3 ? 6.0 : 3.0);
         c.score = qBound(0.0, c.score, 98.0);
 
         candidates.append(c);
@@ -12372,7 +13562,7 @@ void MainWindow::on_btnAnalyser_clicked()
 
     QVector<int> eligibleOrder;
     eligibleOrder.reserve(preferredOrder.size());
-    const double minScore = (difficulty >= 4) ? 78.0 : ((difficulty == 3) ? 70.0 : ((difficulty == 2) ? 62.0 : (requiredHints.isEmpty() ? 65.0 : 58.0)));
+    const double minScore = (difficulty >= 4) ? 75.0 : ((difficulty == 3) ? 63.0 : ((difficulty == 2) ? 55.0 : (requiredHints.isEmpty() ? 55.0 : 50.0)));
     const bool needsSpecMatch = !requiredHints.isEmpty();
     const bool requireResponsibleRole = !targetModule.isEmpty() && targetModule != "maintenance";
     const bool requireMaintenanceSpeciality = forceMaintenanceModule;
@@ -12461,6 +13651,23 @@ void MainWindow::on_btnAnalyser_clicked()
         }
     }
 
+    // Ultimate fallback: if still empty (e.g. no maintenance-speciality employees in DB),
+    // propose the best-scored available employees regardless of module/speciality constraints.
+    if (eligibleOrder.isEmpty()) {
+        for (int idx : preferredOrder) {
+            const Candidate &c = candidates.at(idx);
+            if (!c.available) continue;
+            eligibleOrder.append(idx);
+            if (eligibleOrder.size() >= targetTeamSize) break;
+        }
+        // If even no available employees, just take the highest-scored ones
+        if (eligibleOrder.isEmpty()) {
+            for (int idx = 0; idx < candidates.size() && eligibleOrder.size() < targetTeamSize; ++idx) {
+                eligibleOrder.append(idx);
+            }
+        }
+    }
+
     if (difficulty == 3 && targetTeamSize == 1) {
         std::stable_sort(eligibleOrder.begin(), eligibleOrder.end(), [&](int left, int right) {
             const Candidate &a = candidates.at(left);
@@ -12479,7 +13686,7 @@ void MainWindow::on_btnAnalyser_clicked()
     ui->tableResultat->clearContents();
     ui->tableResultat->setRowCount(0);
     ui->tableResultat->setColumnCount(5);
-    ui->tableResultat->setHorizontalHeaderLabels({"Choix", "Matricule", "Nom", "Competence cible", "Score Match"});
+    ui->tableResultat->setHorizontalHeaderLabels({"Choix", "Matricule", "Nom", "Competence", "Score Match"});
     if (auto *header = ui->tableResultat->horizontalHeader()) {
         header->setStretchLastSection(false);
         header->setMinimumSectionSize(80);
@@ -12491,7 +13698,7 @@ void MainWindow::on_btnAnalyser_clicked()
     }
     ui->tableResultat->setColumnWidth(0, 70);
     ui->tableResultat->verticalHeader()->setVisible(false);
-    ui->tableResultat->verticalHeader()->setDefaultSectionSize(38);
+    ui->tableResultat->verticalHeader()->setDefaultSectionSize(60);
     ui->tableResultat->setAlternatingRowColors(true);
     ui->tableResultat->setShowGrid(false);
 
@@ -13101,500 +14308,347 @@ void MainWindow::setupAccueilDashboard()
     } else {
 
         QWidget *page = new QWidget();
-
         page->setObjectName("dashboardAccueil");
 
-
-
-        auto *mainLayout = new QHBoxLayout(page);
-
-        mainLayout->setContentsMargins(20, 20, 20, 20);
-
-        mainLayout->setSpacing(16);
-
-
-
-        auto *leftLayout = new QVBoxLayout();
-
-        leftLayout->setSpacing(20);
-
-
-
-        auto *title = new QLabel("Tableau de Bord");
-
-        title->setStyleSheet("font-size: 28px; font-weight: 700; color: #34495e;");
-
-        leftLayout->addWidget(title);
-        refreshDashboardTable();
-
-        auto *welcomeCard = new QFrame();
-
-        welcomeCard->setObjectName("welcomeCard");
-
-        welcomeCard->setFrameShape(QFrame::StyledPanel);
-
-        welcomeCard->setStyleSheet(
-
-            "#welcomeCard {"
-
-            "    background: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1, stop:0 #0f2b4c, stop:1 #3498db);"
-
-            "    border-radius: 15px;"
-
-            "    color: white;"
-
-            "}"
-
-        );
-
-        auto *welcomeLayout = new QVBoxLayout(welcomeCard);
-
-        welcomeLayout->setContentsMargins(30, 30, 30, 30);
-
-        
-
-        auto *welcomeTitle = new QLabel("WasteGuard : L'Innovation au Service de la Ville Durable.");
-
-        welcomeTitle->setStyleSheet("font-size: 22px; font-weight: 700; color: #ffffff; background: transparent;");
-
-        auto *welcomeMsg = new QLabel(QString::fromUtf8("Nous optimisons la collecte des d\xC3\xA9" "chets urbains gr\xC3\xA2" "ce \xC3\xA0 l'intelligence artificielle (IA) et aux objets connect\xC3\xA9s (IoT)."));
-
-        welcomeMsg->setWordWrap(true);
-
-        welcomeMsg->setStyleSheet("font-size: 15px; font-weight: 400; color: #ecf0f1; margin-top: 10px; background: transparent;");
-
-        
-
-        welcomeLayout->addWidget(welcomeTitle);
-
-        welcomeLayout->addWidget(welcomeMsg);
-
-        leftLayout->addWidget(welcomeCard);
-
-
-
-        // --- FINANCE CARDS ---
-
-        auto *financeRow = new QHBoxLayout();
-
-        financeRow->setSpacing(20);
-
-
-
-        // CARD 1: CA MENSIEL
-
-        auto *financeCard1 = new QFrame();
-
-        financeCard1->setObjectName("financeCard");
-
-        financeCard1->setStyleSheet(
-
-            "#financeCard {"
-
-            "    background-color: #ffffff;"
-
-            "    border-radius: 15px;"
-
-            "    border-left: 10px solid #2980b9;"
-
-            "    border-right: 1px solid #dce1e6;"
-
-            "    border-top: 1px solid #dce1e6;"
-
-            "    border-bottom: 2px solid #dce1e6;"
-
-            "}"
-
-        );
-
-        auto *f1 = new QVBoxLayout(financeCard1);
-
-        f1->setContentsMargins(25, 25, 25, 25);
-
-        
-
-        QLabel *lblTitle1 = new QLabel("CHIFFRE D'AFFAIRES MENSUEL (CA)");
-        lblTitle1->setObjectName("dashboardMetric1Title");
-
-        lblTitle1->setStyleSheet("color: #7f8c8d; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; background: transparent;");
-
-        
-
-        QLabel *lblValue1 = new QLabel("125 k TND");
-        lblValue1->setObjectName("dashboardMetric1Value");
-
-        lblValue1->setStyleSheet("color: #2c3e50; font-size: 48px; font-weight: 800; margin-top: 5px; margin-bottom: 5px; background: transparent;");
-
-        
-
-        QLabel *lblDesc1 = new QLabel("Montant total des ventes (bacs intelligents + abonnements) ce mois-ci.");
-        lblDesc1->setObjectName("dashboardMetric1Desc");
-
-        lblDesc1->setWordWrap(true);
-
-        lblDesc1->setStyleSheet("color: #95a5a6; font-size: 13px; font-style: italic; background: transparent;");
-
-        
-
-        f1->addWidget(lblTitle1);
-
-        f1->addWidget(lblValue1);
-
-        f1->addWidget(lblDesc1);
-
-
-
-        // CARD 2: MARGE NETTE
-
-        auto *financeCard2 = new QFrame();
-
-        financeCard2->setObjectName("financeCard_2");
-
-        financeCard2->setStyleSheet(
-
-            "#financeCard_2 {"
-
-            "    background-color: #ffffff;"
-
-            "    border-radius: 15px;"
-
-            "    border-left: 10px solid #27ae60;"
-
-            "    border-right: 1px solid #dce1e6;"
-
-            "    border-top: 1px solid #dce1e6;"
-
-            "    border-bottom: 2px solid #dce1e6;"
-
-            "}"
-
-        );
-
-        auto *f2 = new QVBoxLayout(financeCard2);
-
-        f2->setContentsMargins(25, 25, 25, 25);
-
-        
-
-        QLabel *lblTitle2 = new QLabel("TAUX DE LIVRAISON (MOIS)");
-        lblTitle2->setObjectName("dashboardMetric2Title");
-
-        lblTitle2->setStyleSheet("color: #7f8c8d; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; background: transparent;");
-
-        
-
-        QLabel *lblValue2 = new QLabel("0 %");
-        lblValue2->setObjectName("dashboardMetric2Value");
-
-        lblValue2->setStyleSheet("color: #27ae60; font-size: 48px; font-weight: 800; margin-top: 5px; margin-bottom: 5px; background: transparent;");
-
-        
-
-        QLabel *lblDesc2 = new QLabel("Part des commandes livrees ou installees ce mois-ci.");
-        lblDesc2->setObjectName("dashboardMetric2Desc");
-
-        lblDesc2->setWordWrap(true);
-
-        lblDesc2->setStyleSheet("color: #95a5a6; font-size: 13px; font-style: italic; background: transparent;");
-
-        
-
-        f2->addWidget(lblTitle2);
-
-        f2->addWidget(lblValue2);
-
-        f2->addWidget(lblDesc2);
-
-
-
-        financeRow->addWidget(financeCard1);
-
-        financeRow->addWidget(financeCard2);
-
-        leftLayout->addLayout(financeRow);
-
-
-
-        // --- CHARTS ROW ---
-
-        auto *chartsRow = new QHBoxLayout();
-
-        chartsRow->setSpacing(20);
-
-
-
-        auto *teamsCard = new QFrame();
-
-        teamsCard->setObjectName("hrChartCard");
-
-        teamsCard->setStyleSheet("background-color: white; border-radius: 12px; border: 1px solid #dce1e6;");
-
-        auto *teamsLayout = new QVBoxLayout(teamsCard);
-
-        
-
-        QLabel *lblTeamTitle = new QLabel("Gestion des Ressources Humaines");
-
-        lblTeamTitle->setStyleSheet("font-size: 16px; font-weight: 700; color: #2c3e50; margin-bottom: 10px; background: transparent;");
-
-        teamsLayout->addWidget(lblTeamTitle);
-
-        
-
-        auto *teamsView = new QChartView();
-
-        teamsView->setObjectName("chartViewTeams");
-
-        teamsView->setMinimumHeight(250);
-
-        teamsLayout->addWidget(teamsView);
-
-
-
-        auto *prodCard = new QFrame();
-
-        prodCard->setObjectName("productionChartCard");
-
-        prodCard->setStyleSheet("background-color: white; border-radius: 12px; border: 1px solid #dce1e6;");
-
-        auto *prodLayout = new QVBoxLayout(prodCard);
-
-        
-
-        QLabel *lblProdTitle = new QLabel("Production & Logistique");
-
-        lblProdTitle->setStyleSheet("font-size: 16px; font-weight: 700; color: #2c3e50; margin-bottom: 10px; background: transparent;");
-
-        prodLayout->addWidget(lblProdTitle);
-
-        
-
-        auto *prodView = new QChartView();
-
-        prodView->setObjectName("chartViewProduction");
-
-        prodView->setMinimumHeight(250);
-
-        prodLayout->addWidget(prodView);
-
-
-
-        chartsRow->addWidget(teamsCard);
-
-        chartsRow->addWidget(prodCard);
-
-        leftLayout->addLayout(chartsRow);
-
-        
-
-        leftLayout->addStretch();
-
-
-
-        // --- RIGHT SIDEBAR (COMMS) ---
-
+        // â"€â"€â"€ Outer layout: scroll(3) + right sidebar(1) â"€â"€â"€
+        auto *outerH = new QHBoxLayout(page);
+        outerH->setContentsMargins(0, 0, 0, 0);
+        outerH->setSpacing(0);
+
+        auto *scroll = new QScrollArea();
+        scroll->setObjectName("dashboardScrollArea");
+        scroll->setWidgetResizable(true);
+        scroll->setFrameShape(QFrame::NoFrame);
+        scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        scroll->setStyleSheet("QScrollArea#dashboardScrollArea{background:#f0f2f5;border:none;}");
+
+        auto *content = new QWidget();
+        content->setObjectName("dashboardContent");
+        content->setAttribute(Qt::WA_StyledBackground, true);
+        auto *contentV = new QVBoxLayout(content);
+        contentV->setContentsMargins(24, 24, 24, 24);
+        contentV->setSpacing(20);
+        scroll->setWidget(content);
+
+        // â"€â"€â"€ KPI DB Queries â"€â"€â"€
+        int kpiOrders = 0, kpiEmployees = 0, kpiBacs = 0, kpiAlerts = 0;
+        { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM COMMANDE") && q.next()) kpiOrders = q.value(0).toInt(); }
+        { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM EMPLOYE") && q.next()) kpiEmployees = q.value(0).toInt(); }
+        { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM BAC_INTEL") && q.next()) kpiBacs = q.value(0).toInt(); }
+        { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM MATIERE_PREMIERE WHERE QUANTITE <= SEUIL_CRITIQUE") && q.next()) kpiAlerts += q.value(0).toInt(); }
+        { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM INTERVENTION WHERE UPPER(NVL(STATUT,'X')) NOT LIKE '%TERMIN%'") && q.next()) kpiAlerts += q.value(0).toInt(); }
+
+        // â"€â"€â"€ Employee availability breakdown (for stats row) â"€â"€â"€
+        int empAvail = 0, empBusy = 0, empAbsent = 0;
+        {
+            QSqlQuery q;
+            if (q.exec(
+                "SELECT "
+                "NVL(SUM(CASE WHEN UPPER(NVL(DISPONIBILITE,'')) LIKE 'DISPONIBLE%' THEN 1 ELSE 0 END),0),"
+                "NVL(SUM(CASE WHEN UPPER(NVL(DISPONIBILITE,'')) LIKE '%MISSION%' OR UPPER(NVL(DISPONIBILITE,'')) LIKE '%INDISPONIBLE%' THEN 1 ELSE 0 END),0),"
+                "NVL(SUM(CASE WHEN UPPER(NVL(DISPONIBILITE,'')) LIKE '%CONGE%' OR UPPER(NVL(DISPONIBILITE,'')) LIKE '%ABSENT%' THEN 1 ELSE 0 END),0) FROM EMPLOYE")
+                && q.next()) {
+                empAvail  = q.value(0).toInt();
+                empBusy   = q.value(1).toInt();
+                empAbsent = q.value(2).toInt();
+            }
+        }
+
+        // â"€â"€â"€ Title Row â"€â"€â"€
+        {
+            auto *titleRow = new QHBoxLayout();
+            auto *pageTitle = new QLabel(QString::fromUtf8("Tableau de Bord"));
+            pageTitle->setStyleSheet("font-size:22px;font-weight:800;color:#1a1a2e;background:transparent;");
+            auto *dateLabel = new QLabel(QDate::currentDate().toString(QString::fromUtf8("dddd d MMMM yyyy")));
+            dateLabel->setStyleSheet("font-size:13px;color:#6c757d;background:transparent;");
+            titleRow->addWidget(pageTitle);
+            titleRow->addStretch();
+            titleRow->addWidget(dateLabel);
+            contentV->addLayout(titleRow);
+        }
+
+        // â"€â"€â"€ KPI Card Builder Lambda â"€â"€â"€
+        auto makeKpiCard = [&](const QString &title, const QString &objectNameSuffix,
+                                const QString &valueStr, const QString &subtitle,
+                                const QString &iconChar, const QString &iconBg,
+                                const QString &valueColor = QString("#27ae60")) -> QFrame* {
+            auto *card = new QFrame();
+            card->setAttribute(Qt::WA_StyledBackground, true);
+            card->setStyleSheet("QFrame{background:#ffffff;border-radius:12px;border:1px solid #e8ecf0;}");
+            applySoftCardShadow(card, QColor(0,0,0,22), 20, QPoint(0,6));
+            auto *h = new QHBoxLayout(card);
+            h->setContentsMargins(20,20,20,20); h->setSpacing(14);
+            auto *tv = new QVBoxLayout(); tv->setSpacing(4);
+            auto *t = new QLabel(title);
+            t->setObjectName("dashboardMetric" + objectNameSuffix + "Title");
+            t->setStyleSheet("font-size:11px;font-weight:700;color:#6c757d;letter-spacing:1px;background:transparent;");
+            auto *v = new QLabel(valueStr);
+            v->setObjectName("dashboardMetric" + objectNameSuffix + "Value");
+            v->setStyleSheet(QString("font-size:32px;font-weight:800;color:%1;background:transparent;").arg(valueColor));
+            auto *s = new QLabel(subtitle);
+            s->setObjectName("dashboardMetric" + objectNameSuffix + "Desc");
+            s->setStyleSheet("font-size:12px;color:#6c757d;background:transparent;");
+            tv->addWidget(t); tv->addWidget(v); tv->addWidget(s);
+            h->addLayout(tv, 1);
+            auto *ic = new QLabel(iconChar);
+            ic->setFixedSize(52, 52); ic->setAlignment(Qt::AlignCenter);
+            ic->setStyleSheet(QString("background:%1;border-radius:12px;font-size:22px;border:none;").arg(iconBg));
+            h->addWidget(ic, 0, Qt::AlignVCenter);
+            return card;
+        };
+
+        // â"€â"€â"€ 4 KPI Cards Row â"€â"€â"€
+        {
+            auto *kpiRow = new QHBoxLayout(); kpiRow->setSpacing(16);
+            kpiRow->addWidget(makeKpiCard("TOTAL COMMANDES", "1", QString::number(kpiOrders),   QString::fromUtf8("Toutes commandes"),     "\xF0\x9F\x93\xA6", "#e8f5e9"));
+            kpiRow->addWidget(makeKpiCard("TOTAL EMPLOYES",  "2", QString::number(kpiEmployees),QString::fromUtf8("Personnel actif"),       "\xF0\x9F\x91\xA5", "#e3f2fd"));
+            kpiRow->addWidget(makeKpiCard("TOTAL BACS",      "3", QString::number(kpiBacs),     QString::fromUtf8("Bacs intelligents"),     "\xF0\x9F\x97\x91", "#fff3e0"));
+            kpiRow->addWidget(makeKpiCard("TOTAL ALERTES",   "4", QString::number(kpiAlerts),   QString::fromUtf8("Critique + actives"),    "\xE2\x9A\xA0\xEF\xB8\x8F", "#fce4ec",
+                                          kpiAlerts > 0 ? QString("#e74c3c") : QString("#27ae60")));
+            contentV->addLayout(kpiRow);
+        }
+
+        // â"€â"€â"€ Chart Card Builder Lambda â"€â"€â"€
+        auto makeChartCard = [&](const QString &cardName, const QString &title,
+                                  const QString &badge, const QString &chartViewName) -> QPair<QFrame*, QChartView*> {
+            auto *card = new QFrame();
+            card->setObjectName(cardName);
+            card->setAttribute(Qt::WA_StyledBackground, true);
+            card->setStyleSheet(QString("QFrame#%1{background:#ffffff;border-radius:12px;border:1px solid #e8ecf0;}").arg(cardName));
+            applySoftCardShadow(card, QColor(0,0,0,18), 20, QPoint(0,6));
+            auto *v = new QVBoxLayout(card); v->setContentsMargins(16,16,16,12);
+            auto *hdr = new QHBoxLayout();
+            auto *lbl = new QLabel(title);
+            lbl->setStyleSheet("font-size:14px;font-weight:700;color:#1a1a2e;background:transparent;");
+            auto *bdg = new QLabel(badge);
+            bdg->setStyleSheet("background:#e8f5e9;color:#27ae60;font-size:11px;font-weight:700;border-radius:8px;padding:2px 8px;border:none;");
+            hdr->addWidget(lbl); hdr->addStretch(); hdr->addWidget(bdg);
+            v->addLayout(hdr);
+            auto *cv = new QChartView();
+            cv->setObjectName(chartViewName);
+            cv->setMinimumHeight(260);
+            cv->setRenderHint(QPainter::Antialiasing);
+            v->addWidget(cv);
+            return qMakePair(card, cv);
+        };
+
+        // â"€â"€â"€ Charts Row â"€â"€â"€
+        {
+            auto teamsP = makeChartCard("hrChartCard",         QString::fromUtf8("Disponibilite des Equipes"), "RH",         "chartViewTeams");
+            auto prodP  = makeChartCard("productionChartCard", QString::fromUtf8("Collecte des Bacs"),         "Logistique", "chartViewProduction");
+            auto *chartsRow = new QHBoxLayout(); chartsRow->setSpacing(16);
+            chartsRow->addWidget(teamsP.first); chartsRow->addWidget(prodP.first);
+            contentV->addLayout(chartsRow);
+        }
+
+        // â"€â"€â"€ Employee Stats Badge Builder â"€â"€â"€
+        auto makeStatBadge = [](const QString &label, int count, const QString &dotColor) -> QFrame* {
+            auto *f = new QFrame();
+            f->setAttribute(Qt::WA_StyledBackground, true);
+            f->setStyleSheet("QFrame{background:#ffffff;border-radius:10px;border:1px solid #e8ecf0;}");
+            applySoftCardShadow(f, QColor(0,0,0,15), 14, QPoint(0,4));
+            auto *h = new QHBoxLayout(f); h->setContentsMargins(16,14,16,14); h->setSpacing(10);
+            auto *dot = new QLabel(); dot->setFixedSize(12, 12);
+            dot->setStyleSheet(QString("background:%1;border-radius:6px;border:none;").arg(dotColor));
+            auto *tv = new QVBoxLayout(); tv->setSpacing(2);
+            auto *vl = new QLabel(QString::number(count));
+            vl->setStyleSheet("font-size:22px;font-weight:800;color:#1a1a2e;background:transparent;");
+            auto *ll = new QLabel(label);
+            ll->setStyleSheet("font-size:12px;color:#6c757d;background:transparent;");
+            tv->addWidget(vl); tv->addWidget(ll);
+            h->addWidget(dot, 0, Qt::AlignVCenter); h->addLayout(tv, 1);
+            return f;
+        };
+
+        // â"€â"€â"€ Employee Stats Row â"€â"€â"€
+        {
+            auto *empTotalCard = new QFrame();
+            empTotalCard->setAttribute(Qt::WA_StyledBackground, true);
+            empTotalCard->setStyleSheet(
+                "QFrame{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,"
+                "stop:0 #1a3a2e,stop:1 #2d5a42);border-radius:10px;border:none;}");
+            applySoftCardShadow(empTotalCard, QColor(26,58,46,60), 18, QPoint(0,6));
+            {
+                auto *h = new QHBoxLayout(empTotalCard); h->setContentsMargins(20,16,20,16);
+                auto *tv = new QVBoxLayout(); tv->setSpacing(2);
+                auto *vl = new QLabel(QString::number(kpiEmployees));
+                vl->setStyleSheet("font-size:28px;font-weight:800;color:#ffffff;background:transparent;");
+                auto *ll = new QLabel(QString::fromUtf8("Total Employ\xC3\xA9s"));
+                ll->setStyleSheet("font-size:12px;color:#a8d5b5;background:transparent;");
+                tv->addWidget(vl); tv->addWidget(ll); h->addLayout(tv);
+            }
+
+            auto *statsRow = new QHBoxLayout(); statsRow->setSpacing(16);
+            statsRow->addWidget(empTotalCard, 2);
+            statsRow->addWidget(makeStatBadge("Disponibles", empAvail,  "#27ae60"), 1);
+            statsRow->addWidget(makeStatBadge("En mission",  empBusy,   "#f39c12"), 1);
+            statsRow->addWidget(makeStatBadge("Absents",     empAbsent, "#e74c3c"), 1);
+            contentV->addLayout(statsRow);
+        }
+
+        contentV->addStretch();
+        outerH->addWidget(scroll, 3);
+
+        // â"€â"€â"€ Right Sidebar: Alertes & Communication â"€â"€â"€
         auto *rightCard = new QFrame();
-
         rightCard->setObjectName("commsCard");
-
-        rightCard->setMinimumWidth(360);
-
-        rightCard->setMaximumWidth(420);
+        rightCard->setMinimumWidth(300);
+        rightCard->setMaximumWidth(380);
+        rightCard->setAttribute(Qt::WA_StyledBackground, true);
 
         auto *rightLayout = new QVBoxLayout(rightCard);
+        rightLayout->setContentsMargins(16, 16, 16, 16);
+        rightLayout->setSpacing(12);
 
-        rightLayout->setContentsMargins(20, 20, 20, 20);
+        // â"€â"€â"€ Connected Account Card â"€â"€â"€
+        {
+            auto *accountCard = new QFrame();
+            accountCard->setAttribute(Qt::WA_StyledBackground, true);
+            accountCard->setObjectName("sidebarAccountCard");
+            accountCard->setStyleSheet(
+                "QFrame#sidebarAccountCard{"
+                " background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #1a3a2e,stop:1 #2d5a42);"
+                " border-radius:12px; border:none;"
+                "}"
+            );
+            auto *accH = new QHBoxLayout(accountCard);
+            accH->setContentsMargins(12, 10, 12, 10);
+            accH->setSpacing(10);
 
-        rightLayout->setSpacing(15);
+            // Avatar circle
+            auto *avatar = new QLabel();
+            avatar->setFixedSize(40, 40);
+            avatar->setAlignment(Qt::AlignCenter);
+            const bool isAdmin = m_isAdminSession;
+            avatar->setText(isAdmin ? "\xF0\x9F\x91\x91" : "\xF0\x9F\x91\xA4");  // ðŸ‘‘ or ðŸ‘¤
+            avatar->setStyleSheet(
+                "background:rgba(39,174,96,0.35);border-radius:20px;"
+                "font-size:18px;border:none;color:white;"
+            );
 
+            // Text column
+            auto *accV = new QVBoxLayout(); accV->setSpacing(1);
+            QString displayName = m_sessionEmail.isEmpty() ? "Utilisateur" : m_sessionEmail;
+            // Shorten long emails for display
+            if (displayName.length() > 22) {
+                int at = displayName.indexOf('@');
+                displayName = at > 0 ? displayName.left(at) : displayName.left(20) + "...";
+            }
+            auto *lblName = new QLabel(displayName);
+            lblName->setObjectName("sidebarAccountName");
+            lblName->setStyleSheet(
+                "color:#ffffff;font-size:12px;font-weight:700;background:transparent;border:none;"
+            );
+            auto *lblRole = new QLabel(isAdmin
+                ? QString::fromUtf8("Administrateur")
+                : QString::fromUtf8("Employ\xC3\xA9"));
+            lblRole->setStyleSheet(
+                "color:#a8d5b5;font-size:11px;font-weight:400;background:transparent;border:none;"
+            );
+            accV->addWidget(lblName);
+            accV->addWidget(lblRole);
 
+            // Status dot
+            auto *statusDot = new QLabel();
+            statusDot->setFixedSize(10, 10);
+            statusDot->setStyleSheet(
+                "background:#27ae60;border-radius:5px;border:2px solid #1a3a2e;"
+            );
 
-        auto *commsTitle = new QLabel("Communication Interne");
+            accH->addWidget(avatar, 0, Qt::AlignVCenter);
+            accH->addLayout(accV, 1);
+            accH->addWidget(statusDot, 0, Qt::AlignVCenter);
 
-        commsTitle->setObjectName("lblCommsTitle");
+            rightLayout->addWidget(accountCard);
 
-        rightLayout->addWidget(commsTitle);
+            // Thin separator
+            auto *sep = new QFrame();
+            sep->setFrameShape(QFrame::HLine);
+            sep->setStyleSheet("border:none; border-top:1px solid #e8ecf0;");
+            sep->setFixedHeight(1);
+            rightLayout->addWidget(sep);
+        }
 
-        
+        // Header with badge
+        {
+            auto *alertHeader = new QHBoxLayout();
+            auto *commsTitle = new QLabel(QString::fromUtf8("Alertes & Communication"));
+            commsTitle->setObjectName("lblCommsTitle");
+            auto *alertBadge = new QLabel("EN DIRECT");
+            alertBadge->setStyleSheet(
+                "background:#e74c3c;color:white;font-size:10px;font-weight:800;"
+                "border-radius:6px;padding:2px 6px;border:none;");
+            alertHeader->addWidget(commsTitle);
+            alertHeader->addStretch();
+            alertHeader->addWidget(alertBadge);
+            rightLayout->addLayout(alertHeader);
+        }
 
         auto *list = new QListWidget();
-
         list->setObjectName("listComms");
-
-        list->setMinimumHeight(220);
-
+        list->setMinimumHeight(300);
         list->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-
         list->setWordWrap(true);
-
         list->setTextElideMode(Qt::ElideNone);
-
-        rightLayout->addWidget(list);
-
-
+        rightLayout->addWidget(list, 1);
 
         auto *inputRow = new QHBoxLayout();
-
         auto *input = new QLineEdit();
-
         input->setObjectName("txtCommsInput");
-
         input->setPlaceholderText(QString::fromUtf8("\xC3\x89" "crire un message..."));
-
         input->setMinimumHeight(40);
-
-        
-
-        auto *btnSend = new QPushButton("Envoyer");
-
-        btnSend->setObjectName("btnCommsSend");
-
-        btnSend->setMinimumWidth(80);
-
-        btnSend->setMinimumHeight(40);
-
-        btnSend->setCursor(Qt::PointingHandCursor);
-
-        
-
+        auto *btnSend2 = new QPushButton(QString::fromUtf8("Envoyer"));
+        btnSend2->setObjectName("btnCommsSend");
+        btnSend2->setMinimumHeight(40);
+        btnSend2->setMinimumWidth(80);
+        btnSend2->setCursor(Qt::PointingHandCursor);
         inputRow->addWidget(input);
-
-        inputRow->addWidget(btnSend);
-
+        inputRow->addWidget(btnSend2);
         rightLayout->addLayout(inputRow);
 
-
-
         rightCard->setStyleSheet(
-
             "QFrame#commsCard {"
-
             " background-color: #ffffff;"
-
-            " border: 1px solid #dce1e6;"
-
-            " border-radius: 12px;"
-
+            " border: none;"
+            " border-left: 1px solid #e8ecf0;"
             "}"
-
             "QLabel#lblCommsTitle {"
-
-            " color: #0f2b4c;"
-
-            " font-size: 18px;"
-
-            " font-weight: 700;"
-
-            " border: none;"
-
-            " background: transparent;"
-
+            " color: #1a1a2e; font-size: 16px; font-weight: 700; background: transparent; border: none;"
             "}"
-
             "QListWidget#listComms {"
-
-            " background-color: #f8f9fa;"
-
-            " color: #2c3e50;"
-
-            " border: 1px solid #e9ecef;"
-
-            " border-radius: 10px;"
-
-            " padding: 10px;"
-
-            " font-size: 13px;"
-
+            " background: #f8fafb; border: 1px solid #e8ecf0; border-radius: 10px;"
+            " padding: 8px; font-size: 13px; color: #1a1a2e;"
             "}"
-
             "QListWidget#listComms::item {"
-
-            " padding: 8px;"
-
-            " margin-bottom: 5px;"
-
-            " border-bottom: 1px solid #e9ecef;"
-
-            " border-radius: 6px;"
-
+            " padding: 10px 8px; margin-bottom: 4px;"
+            " border-bottom: 1px solid #f0f2f5; border-radius: 6px;"
             "}"
-
             "QListWidget#listComms::item:selected {"
-
-            " background: qlineargradient(x1:0,y1:0,x2:1,y2:0,"
-            "  stop:0 #0f2b4c, stop:1 #1a4270);"
-
-            " color: white;"
-
-            " border: none;"
-
+            " background: #e8f5e9; color: #1a3a2e; border: none;"
             "}"
-
             "QListWidget#listComms::item:hover:!selected {"
-
-            " background-color: #e8f0fe;"
-
-            " color: #0f2b4c;"
-
+            " background: #f0f7f4; color: #1a3a2e;"
             "}"
-
             "QLineEdit#txtCommsInput {"
-
-            " background-color: #ffffff;"
-
-            " color: #2c3e50;"
-
-            " border: 2px solid #e9ecef;"
-
-            " border-radius: 8px;"
-
-            " padding: 0px 12px;"
-
-            " font-size: 13px;"
-
+            " background: #ffffff; color: #1a1a2e;"
+            " border: 2px solid #e8ecf0; border-radius: 8px;"
+            " padding: 0 12px; font-size: 13px;"
             "}"
-
-            "QLineEdit#txtCommsInput:focus {"
-
-            " border: 2px solid #3498db;"
-
-            "}"
-
+            "QLineEdit#txtCommsInput:focus { border: 2px solid #27ae60; }"
             "QPushButton#btnCommsSend {"
-
-            " background-color: #3498db;"
-
-            " color: white;"
-
-            " border: none;"
-
-            " border-radius: 8px;"
-
-            " font-weight: bold;"
-
-            " font-size: 13px;"
-
+            " background-color: #27ae60; color: white; border: none;"
+            " border-radius: 8px; font-weight: 700; font-size: 13px;"
             "}"
-
-            "QPushButton#btnCommsSend:hover {"
-
-            " background-color: #2980b9;"
-
-            "}"
-
+            "QPushButton#btnCommsSend:hover { background-color: #219a52; }"
+            "QPushButton#btnCommsSend:pressed { background-color: #1a7a42; }"
         );
 
-
-
-        mainLayout->addLayout(leftLayout, 3);
-
-        mainLayout->addWidget(rightCard, 1);
-
-
+        outerH->addWidget(rightCard, 1);
 
         homeDashboardPage = page;
-
         sw->insertWidget(0, page);
+
+        refreshDashboardTable();
 
     }
 
@@ -13621,27 +14675,12 @@ void MainWindow::setupAccueilDashboard()
         btnSend->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
         btnSend->setStyleSheet(
-
             "QPushButton#btnCommsSend {"
-
-            " background-color: #0f2b4c;"
-
-            " color: white;"
-
-            " border: 1px solid #0b223c;"
-
-            " border-radius: 8px;"
-
-            " font-weight: 700;"
-
-            " padding: 6px 14px;"
-
+            " background-color: #27ae60; color: white; border: none;"
+            " border-radius: 8px; font-weight: 700; font-size: 13px; padding: 6px 14px;"
             "}"
-
-            "QPushButton#btnCommsSend:hover { background-color: #1a4270; }"
-
-            "QPushButton#btnCommsSend:pressed { background-color: #0b223c; }"
-
+            "QPushButton#btnCommsSend:hover { background-color: #219a52; }"
+            "QPushButton#btnCommsSend:pressed { background-color: #1a7a42; }"
         );
 
         connect(btnSend, &QPushButton::clicked, this, &MainWindow::on_btnCommsSend_clicked, Qt::UniqueConnection);
@@ -13682,7 +14721,7 @@ void MainWindow::setupAccueilDashboard()
 
         list->addItem(systemAlert);
 
-        // Ã¢â€â‚¬Ã¢â€â‚¬ Live Stock Alerts from DB Ã¢â€â‚¬Ã¢â€â‚¬
+        // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Live Stock Alerts from DB ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
         // Depletion alerts
         {
             QSqlQuery sq;
@@ -13750,120 +14789,61 @@ void MainWindow::setupAccueilDashboard()
 
     }
 
-    // Keep accueil KPIs live from DB each time this page is initialized/refreshed.
+    // â"€â"€â"€ Refresh KPI cards live from DB â"€â"€â"€
     {
-        QLabel *metric1Title = findChild<QLabel*>("dashboardMetric1Title");
-        QLabel *metric1Value = findChild<QLabel*>("dashboardMetric1Value");
-        QLabel *metric1Desc = findChild<QLabel*>("dashboardMetric1Desc");
-        QLabel *metric2Title = findChild<QLabel*>("dashboardMetric2Title");
-        QLabel *metric2Value = findChild<QLabel*>("dashboardMetric2Value");
-        QLabel *metric2Desc = findChild<QLabel*>("dashboardMetric2Desc");
+        // Card 1: Total Orders
+        int totalOrders = 0;
+        { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM COMMANDE") && q.next()) totalOrders = q.value(0).toInt(); }
+        if (auto *v = findChild<QLabel*>("dashboardMetric1Value"))
+            v->setText(QString::number(totalOrders));
+        if (auto *t = findChild<QLabel*>("dashboardMetric1Title"))
+            t->setText("TOTAL COMMANDES");
+        if (auto *d = findChild<QLabel*>("dashboardMetric1Desc"))
+            d->setText(QString::fromUtf8("Toutes commandes enregistr\xC3\xA9" "es"));
 
-        if (metric1Title) metric1Title->setText("CHIFFRE D'AFFAIRES MENSUEL (CA)");
-        if (metric2Title) metric2Title->setText("TAUX DE LIVRAISON (MOIS)");
+        // Card 2: Total Employees
+        int totalEmps = 0;
+        { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM EMPLOYE") && q.next()) totalEmps = q.value(0).toInt(); }
+        if (auto *v = findChild<QLabel*>("dashboardMetric2Value"))
+            v->setText(QString::number(totalEmps));
+        if (auto *t = findChild<QLabel*>("dashboardMetric2Title"))
+            t->setText("TOTAL EMPLOYES");
+        if (auto *d = findChild<QLabel*>("dashboardMetric2Desc"))
+            d->setText("Personnel actif");
 
-        const auto formatMoneyTnd = [](double amount) {
-            const double absAmount = std::fabs(amount);
-            if (absAmount >= 1000000.0) {
-                return QString("%1 M TND").arg(QString::number(amount / 1000000.0, 'f', 1));
+        // Card 3: Total Bacs
+        int totalBacs = 0;
+        { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM BAC_INTEL") && q.next()) totalBacs = q.value(0).toInt(); }
+        if (auto *v = findChild<QLabel*>("dashboardMetric3Value"))
+            v->setText(QString::number(totalBacs));
+
+        // Card 4: Total Alerts (critical stock + active interventions)
+        int totalAlerts = 0;
+        { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM MATIERE_PREMIERE WHERE QUANTITE <= SEUIL_CRITIQUE") && q.next()) totalAlerts += q.value(0).toInt(); }
+        { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM INTERVENTION WHERE UPPER(NVL(STATUT,'X')) NOT LIKE '%TERMIN%'") && q.next()) totalAlerts += q.value(0).toInt(); }
+        if (auto *v = findChild<QLabel*>("dashboardMetric4Value")) {
+            v->setText(QString::number(totalAlerts));
+            v->setStyleSheet(totalAlerts > 0
+                ? "font-size:32px;font-weight:800;color:#e74c3c;background:transparent;"
+                : "font-size:32px;font-weight:800;color:#27ae60;background:transparent;");
+        }
+
+        // Refresh account card name (in case session changed after first construction)
+        if (auto *lblAccName = findChild<QLabel*>("sidebarAccountName")) {
+            QString displayName = m_sessionEmail.isEmpty() ? "Utilisateur" : m_sessionEmail;
+            if (displayName.length() > 22) {
+                int at = displayName.indexOf('@');
+                displayName = at > 0 ? displayName.left(at) : displayName.left(20) + "...";
             }
-            if (absAmount >= 1000.0) {
-                return QString("%1 k TND").arg(QString::number(amount / 1000.0, 'f', 1));
-            }
-            return QString("%1 TND").arg(QString::number(amount, 'f', 2));
-        };
-
-        const QDate currentMonthDate = QDate::currentDate();
-        const QDate prevMonthDate = currentMonthDate.addMonths(-1);
-
-        int monthOrders = 0;
-        int deliveredOrders = 0;
-        int activeClients = 0;
-        double monthRevenue = 0.0;
-        double prevRevenue = 0.0;
-
-        QSqlQuery qMonth;
-        qMonth.prepare(
-            "SELECT COUNT(*), "
-            "       NVL(SUM(PRIX_TOTAL), 0), "
-            "       NVL(SUM(CASE WHEN UPPER(NVL(STATUT, '')) LIKE 'LIVR%' "
-            "                    OR UPPER(NVL(STATUT, '')) LIKE 'INSTALL%' "
-            "                THEN 1 ELSE 0 END), 0) "
-            "FROM COMMANDE "
-            "WHERE DATE_COMMANDE IS NOT NULL "
-            "  AND EXTRACT(YEAR FROM DATE_COMMANDE) = :year "
-            "  AND EXTRACT(MONTH FROM DATE_COMMANDE) = :month"
-        );
-        qMonth.bindValue(":year", currentMonthDate.year());
-        qMonth.bindValue(":month", currentMonthDate.month());
-        if (qMonth.exec() && qMonth.next()) {
-            monthOrders = qMonth.value(0).toInt();
-            monthRevenue = qMonth.value(1).toDouble();
-            deliveredOrders = qMonth.value(2).toInt();
-        }
-
-        QSqlQuery qPrev;
-        qPrev.prepare(
-            "SELECT NVL(SUM(PRIX_TOTAL), 0) "
-            "FROM COMMANDE "
-            "WHERE DATE_COMMANDE IS NOT NULL "
-            "  AND EXTRACT(YEAR FROM DATE_COMMANDE) = :year "
-            "  AND EXTRACT(MONTH FROM DATE_COMMANDE) = :month"
-        );
-        qPrev.bindValue(":year", prevMonthDate.year());
-        qPrev.bindValue(":month", prevMonthDate.month());
-        if (qPrev.exec() && qPrev.next()) {
-            prevRevenue = qPrev.value(0).toDouble();
-        }
-
-        QSqlQuery qClients;
-        qClients.prepare(
-            "SELECT COUNT(DISTINCT ID_CLIENT) "
-            "FROM COMMANDE "
-            "WHERE DATE_COMMANDE IS NOT NULL "
-            "  AND EXTRACT(YEAR FROM DATE_COMMANDE) = :year "
-            "  AND EXTRACT(MONTH FROM DATE_COMMANDE) = :month"
-        );
-        qClients.bindValue(":year", currentMonthDate.year());
-        qClients.bindValue(":month", currentMonthDate.month());
-        if (qClients.exec() && qClients.next()) {
-            activeClients = qClients.value(0).toInt();
-        }
-
-        const double deliveryRate = (monthOrders > 0)
-            ? (100.0 * static_cast<double>(deliveredOrders) / static_cast<double>(monthOrders))
-            : 0.0;
-        const double revenueDelta = monthRevenue - prevRevenue;
-        const double revenueDeltaPct = (prevRevenue > 0.0)
-            ? (100.0 * revenueDelta / prevRevenue)
-            : (monthRevenue > 0.0 ? 100.0 : 0.0);
-
-        if (metric1Value) {
-            metric1Value->setText(formatMoneyTnd(monthRevenue));
-        }
-        if (metric1Desc) {
-            metric1Desc->setText(QString("%1 commande(s), %2 client(s) actif(s). Evolution vs mois precedent: %3%")
-                                     .arg(monthOrders)
-                                     .arg(activeClients)
-                                     .arg(QString::number(revenueDeltaPct, 'f', 1)));
-        }
-
-        if (metric2Value) {
-            const QString color = (deliveryRate >= 75.0)
-                ? "#27ae60"
-                : (deliveryRate >= 45.0 ? "#f39c12" : "#c0392b");
-            metric2Value->setStyleSheet(QString("color: %1; font-size: 48px; font-weight: 800; margin-top: 5px; margin-bottom: 5px; background: transparent;")
-                                         .arg(color));
-            metric2Value->setText(QString("%1 %").arg(QString::number(deliveryRate, 'f', 1)));
-        }
-        if (metric2Desc) {
-            metric2Desc->setText(QString("%1/%2 commande(s) finalisees (livrees/installees) ce mois.")
-                                     .arg(deliveredOrders)
-                                     .arg(monthOrders));
+            lblAccName->setText(displayName);
         }
     }
 
 
+
+    // Ensure the dashboard communication sidebar follows the shared
+    // retractable right-panel behavior used by other modules.
+    ensureRetractableRightPanels();
 
     setupDashboardCharts();
 
@@ -13916,35 +14896,54 @@ void MainWindow::setupDashboardCharts()
     const int residualStatuses = qMax(0, totalEmployees - (availableCount + busyCount + absentCount));
     absentCount += residualStatuses;
 
-    QPieSeries *teamSeries = new QPieSeries();
-    teamSeries->setHoleSize(0.45);
+    // â"€â"€â"€ Chart 1: Vertical bar chart â€" green theme â"€â"€â"€
+    auto *setAvail  = new QBarSet(QString("Disponibles (%1)").arg(availableCount));
+    auto *setBusy   = new QBarSet(QString("En mission (%1)").arg(busyCount));
+    auto *setAbsent = new QBarSet(QString("Absents (%1)").arg(absentCount));
+    setAvail->setColor(QColor("#27ae60"));  setAvail->setBorderColor(Qt::transparent);
+    setBusy->setColor(QColor("#f39c12"));   setBusy->setBorderColor(Qt::transparent);
+    setAbsent->setColor(QColor("#e74c3c")); setAbsent->setBorderColor(Qt::transparent);
+    *setAvail  << (totalEmployees > 0 ? availableCount : 0);
+    *setBusy   << (totalEmployees > 0 ? busyCount      : 0);
+    *setAbsent << (totalEmployees > 0 ? absentCount    : 0);
 
-    if (totalEmployees <= 0) {
-        teamSeries->append("Aucune donnee", 1);
-        teamSeries->slices().at(0)->setBrush(QColor("#bdc3c7"));
-        teamSeries->slices().at(0)->setLabelVisible(true);
-    } else {
-        teamSeries->append(QString("Disponibles (%1)").arg(availableCount), availableCount);
-        teamSeries->append(QString("En mission (%1)").arg(busyCount), busyCount);
-        teamSeries->append(QString("Absents (%1)").arg(absentCount), absentCount);
-
-        if (teamSeries->count() >= 3) {
-            teamSeries->slices().at(0)->setBrush(QColor("#27ae60"));
-            teamSeries->slices().at(1)->setBrush(QColor("#f39c12"));
-            teamSeries->slices().at(2)->setBrush(QColor("#c0392b"));
-        }
-        for (QPieSlice *slice : teamSeries->slices()) {
-            slice->setLabelVisible(true);
-            slice->setLabelColor(Qt::black);
-        }
-    }
+    auto *teamBarSeries = new QBarSeries();
+    teamBarSeries->append(setAvail);
+    teamBarSeries->append(setBusy);
+    teamBarSeries->append(setAbsent);
+    teamBarSeries->setBarWidth(0.5);
 
     QChart *teamChart = new QChart();
-    teamChart->addSeries(teamSeries);
-    teamChart->legend()->setAlignment(Qt::AlignBottom);
+    teamChart->addSeries(teamBarSeries);
+    teamChart->setTitle(QString::fromUtf8("Effectif (%1 employ\xC3\xA9s)").arg(totalEmployees));
+    teamChart->setTitleFont(QFont("Segoe UI", 11, QFont::Bold));
+    teamChart->setTitleBrush(QBrush(QColor("#1a1a2e")));
     teamChart->setAnimationOptions(QChart::SeriesAnimations);
-    teamChart->setTitle(QString("Disponibilite des equipes (%1 employes)").arg(totalEmployees));
+    teamChart->setBackgroundBrush(QColor("#ffffff"));
+    teamChart->setPlotAreaBackgroundVisible(true);
+    teamChart->setPlotAreaBackgroundBrush(QColor("#fafcfb"));
+    teamChart->legend()->setAlignment(Qt::AlignBottom);
+    teamChart->legend()->setLabelColor(QColor("#6c757d"));
+    teamChart->setMargins(QMargins(0, 0, 0, 0));
+
+    auto *teamAxisX = new QBarCategoryAxis();
+    QStringList teamCats; teamCats << QString::fromUtf8("Employ\xC3\xA9s");
+    teamAxisX->append(teamCats);
+    teamAxisX->setLabelsColor(QColor("#6c757d"));
+    teamAxisX->setGridLineColor(Qt::transparent);
+    teamChart->addAxis(teamAxisX, Qt::AlignBottom);
+    teamBarSeries->attachAxis(teamAxisX);
+
+    auto *teamAxisY = new QValueAxis();
+    teamAxisY->setRange(0, qMax(1, totalEmployees + 2));
+    teamAxisY->setLabelsColor(QColor("#6c757d"));
+    teamAxisY->setGridLineColor(QColor("#f0f2f5"));
+    teamChart->addAxis(teamAxisY, Qt::AlignLeft);
+    teamBarSeries->attachAxis(teamAxisY);
+
     teamsView->setChart(teamChart);
+    teamsView->setBackgroundBrush(QColor("#ffffff"));
+    teamsView->setStyleSheet("background: transparent; border: none;");
     teamsView->setRenderHint(QPainter::Antialiasing);
 
     const QDate now = QDate::currentDate();
@@ -13991,45 +14990,66 @@ void MainWindow::setupDashboardCharts()
         }
     }
 
-    const double maxRevenue = *std::max_element(weeklyRevenue.begin(), weeklyRevenue.end());
-    const bool revenueInK = maxRevenue >= 1000.0;
-
-    QBarSet *setRevenue = new QBarSet(revenueInK ? "CA hebdo (k TND)" : "CA hebdo (TND)");
-    setRevenue->setColor(QColor("#95a5a6"));
-    QBarSet *setQty = new QBarSet("Qte commandee");
-    setQty->setColor(QColor("#3498db"));
-
-    double axisMax = 0.0;
-    for (int i = 0; i < weeklyRevenue.size(); ++i) {
-        const double revenueValue = revenueInK ? (weeklyRevenue[i] / 1000.0) : weeklyRevenue[i];
-        const double qtyValue = weeklyQty[i];
-        *setRevenue << revenueValue;
-        *setQty << qtyValue;
-        axisMax = qMax(axisMax, qMax(revenueValue, qtyValue));
+    // â"€â"€â"€ Chart 2: Area chart with green gradient â€" green theme â"€â"€â"€
+    auto *upperLine = new QLineSeries();
+    auto *lowerLine = new QLineSeries();
+    for (int i = 0; i < 4; ++i) {
+        upperLine->append(i, weeklyQty[i]);
+        lowerLine->append(i, 0);
     }
+    QPen greenPen(QColor("#27ae60"));
+    greenPen.setWidth(3);
+    upperLine->setPen(greenPen);
+    lowerLine->setPen(Qt::NoPen);
 
-    QBarSeries *prodSeries = new QBarSeries();
-    prodSeries->append(setRevenue);
-    prodSeries->append(setQty);
+    auto *areaSeries = new QAreaSeries(upperLine, lowerLine);
+    areaSeries->setName(QString::fromUtf8("Collectes (quantit\xC3\xA9)"));
+    areaSeries->setPen(greenPen);
+    QLinearGradient areaGrad(0, 0, 0, 1);
+    areaGrad.setCoordinateMode(QGradient::ObjectBoundingMode);
+    areaGrad.setColorAt(0.0, QColor("#27ae60"));
+    areaGrad.setColorAt(1.0, QColor(39, 174, 96, 30));
+    areaSeries->setBrush(areaGrad);
 
     QChart *prodChart = new QChart();
-    prodChart->addSeries(prodSeries);
-    prodChart->setTitle("Commandes sur les 4 dernieres semaines");
-    prodChart->legend()->setAlignment(Qt::AlignBottom);
+    prodChart->addSeries(areaSeries);
+    prodChart->setTitle(QString::fromUtf8("Collecte des Bacs \xe2\x80\x94 4 semaines"));
+    prodChart->setTitleFont(QFont("Segoe UI", 11, QFont::Bold));
+    prodChart->setTitleBrush(QBrush(QColor("#1a1a2e")));
     prodChart->setAnimationOptions(QChart::SeriesAnimations);
+    prodChart->setBackgroundBrush(QColor("#ffffff"));
+    prodChart->setPlotAreaBackgroundVisible(true);
+    prodChart->setPlotAreaBackgroundBrush(QColor("#fafcfb"));
+    prodChart->legend()->setAlignment(Qt::AlignBottom);
+    prodChart->legend()->setLabelColor(QColor("#6c757d"));
+    prodChart->setMargins(QMargins(0, 0, 0, 0));
 
-    QBarCategoryAxis *axisX = new QBarCategoryAxis();
-    axisX->append(weeks);
-    prodChart->addAxis(axisX, Qt::AlignBottom);
-    prodSeries->attachAxis(axisX);
+    auto *prodAxisX = new QBarCategoryAxis();
+    prodAxisX->append(weeks);
+    prodAxisX->setLabelsColor(QColor("#6c757d"));
+    prodAxisX->setGridLineColor(Qt::transparent);
+    prodChart->addAxis(prodAxisX, Qt::AlignBottom);
 
-    QValueAxis *axisY = new QValueAxis();
-    axisY->setRange(0, qMax(1.0, axisMax * 1.20));
-    axisY->setTitleText(revenueInK ? "Volume / semaine (k TND et qte)" : "Volume / semaine (TND et qte)");
-    prodChart->addAxis(axisY, Qt::AlignLeft);
-    prodSeries->attachAxis(axisY);
+    auto *prodAxisY = new QValueAxis();
+    const double qtyMax = *std::max_element(weeklyQty.begin(), weeklyQty.end());
+    prodAxisY->setRange(0, qMax(1.0, qtyMax * 1.25));
+    prodAxisY->setLabelsColor(QColor("#6c757d"));
+    prodAxisY->setGridLineColor(QColor("#f0f2f5"));
+    prodChart->addAxis(prodAxisY, Qt::AlignLeft);
+
+    // QAreaSeries must use QValueAxis for X when data uses integer indices
+    auto *prodAxisXVal = new QValueAxis();
+    prodAxisXVal->setRange(0, 3);
+    prodAxisXVal->setTickCount(4);
+    prodAxisXVal->setLabelsVisible(false);
+    prodAxisXVal->setGridLineColor(Qt::transparent);
+    prodChart->addAxis(prodAxisXVal, Qt::AlignBottom);
+    areaSeries->attachAxis(prodAxisXVal);
+    areaSeries->attachAxis(prodAxisY);
 
     productionView->setChart(prodChart);
+    productionView->setBackgroundBrush(QColor("#ffffff"));
+    productionView->setStyleSheet("background: transparent; border: none;");
     productionView->setRenderHint(QPainter::Antialiasing);
 
 }
@@ -14209,6 +15229,10 @@ void MainWindow::applyUnifiedTopBarStyle()
     if (auto *profil = findChild<QPushButton*>("btnProfil")) profil->hide();
 
     moveWidgetBefore(this, "btnGotoAjout", "topLayout_1", "userLabel");
+    if (auto *btn = findChild<QPushButton*>("btnGotoAjout")) {
+        btn->setMinimumWidth(160);
+        btn->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
+    }
 
 
 
@@ -14249,12 +15273,28 @@ void MainWindow::applyUnifiedTopBarStyle()
     }
 
     moveWidgetBefore(this, "btnNouveau_Client", "horizontalLayout_header_Client", "responsable_Client");
+    if (auto *btn = findChild<QPushButton*>("btnNouveau_Client")) {
+        btn->setMinimumWidth(170);
+        btn->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
+    }
 
 
 
-    // Employes top bar: keep + button directly before user block.
-
+    // Employes top bar: move button into header then fix sizing.
     moveWidgetToStart(this, "btnNouveau", "horizontalLayout_UserHeader");
+
+    if (auto *btn = findChild<QPushButton*>("btnNouveau")) {
+        btn->setMinimumWidth(170);
+        btn->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
+    }
+    if (auto *frame = findChild<QFrame*>("frameUser")) {
+        frame->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
+        if (auto *lay = qobject_cast<QHBoxLayout*>(
+                findChild<QHBoxLayout*>("horizontalLayout_UserHeader"))) {
+            lay->setContentsMargins(12, 4, 8, 4);
+            lay->setSpacing(16);
+        }
+    }
 
 
 
@@ -14350,7 +15390,8 @@ void MainWindow::applyUnifiedTopBarStyle()
 
         if (auto *dashLayout = stockPage->findChild<QHBoxLayout*>("dashboardLayout")) {
 
-            dashLayout->setContentsMargins(25, 18, 25, 25);
+            dashLayout->setContentsMargins(0, 0, 0, 0);
+            dashLayout->setSpacing(0);
 
         }
 
@@ -14469,10 +15510,6 @@ void MainWindow::applyUnifiedTopBarStyle()
 
 
     // Commandes dashboard top bar: put add button before user block.
-
-    moveWidgetBefore(this, "btnAddDashboard", "horizontalLayout_1", "user_1");
-
-    moveWidgetBefore(this, "btnAddProduct_2", "horizontalLayout_9", "user_5");
 
     if (auto *cmdAddDash = findChild<QWidget*>("btnAddDashboard")) {
 
@@ -14652,14 +15689,6 @@ void MainWindow::applyUnifiedTopBarStyle()
 
     if (auto *profil5 = findChild<QPushButton*>("btnprofil_5")) profil5->hide();
 
-
-
-    // Produit top bar: ensure add button remains before user.
-
-    moveWidgetBefore(this, "prod_btnAddProduct", "prod_topBarLayout", "prod_frameUser");
-
-
-
     if (auto *clientPage = findChild<QWidget*>("pageClient")) {
 
         if (auto *tableLayout = clientPage->findChild<QHBoxLayout*>("horizontalLayout_table")) {
@@ -14667,6 +15696,16 @@ void MainWindow::applyUnifiedTopBarStyle()
             tableLayout->setContentsMargins(0, 0, 0, 0);
 
             tableLayout->setSpacing(10);
+
+        }
+
+        // Full-height sidebar: remove top/bottom padding from the wrapper VBoxLayout
+        // so the sidebar and the content column start at the same vertical edge.
+        if (auto *repertLayout = clientPage->findChild<QVBoxLayout*>("verticalLayout_repertoire")) {
+
+            QMargins m = repertLayout->contentsMargins();
+            m.setTop(0); m.setBottom(0);
+            repertLayout->setContentsMargins(m);
 
         }
 
@@ -14743,6 +15782,10 @@ void MainWindow::applyUnifiedTopBarStyle()
         }
 
     }
+
+    // Produit top bar: ensure add button remains before user.
+
+    moveWidgetBefore(this, "prod_btnAddProduct", "prod_topBarLayout", "prod_frameUser");
 
 
 
@@ -14980,7 +16023,12 @@ void MainWindow::applyUnifiedTopBarStyle()
 
         for (QLabel *lbl : labels) {
 
-            lbl->setStyleSheet("background: transparent; color: #0f2b4c; border: none; padding: 2px;");
+            if (!lbl) continue;
+            const QString existing = lbl->styleSheet();
+            if (existing.contains("color:", Qt::CaseInsensitive)) {
+                continue;
+            }
+            lbl->setStyleSheet(existing + " background: transparent; border: none; padding: 2px;");
 
         }
 
@@ -15068,28 +16116,31 @@ void MainWindow::showDashboardHome()
             }
         };
 
+        const QString employeeActionStyle =
+            buildDashboardActionButtonStyle("#1a3a2e", "#2d5a42", "#2d5a42", "#2d5a42", "#3a6f54");
+
         styleAction(this->findChild<QPushButton*>("btnGoMission"),
-                    buildDashboardActionButtonStyle("#0f766e", "#14b8a6", "#0f766e", "#0d9488", "#2dd4bf"),
+                    employeeActionStyle,
                     m_isAdminSession
                         ? "Ouvrir le suivi des missions employes."
                         : "Acceder a vos taches et missions du moment.");
 
         styleAction(this->findChild<QPushButton*>("btnGoPointage"),
-                    buildDashboardActionButtonStyle("#166534", "#22c55e", "#15803d", "#15803d", "#4ade80"),
+                    employeeActionStyle,
                     m_isAdminSession
                         ? "Ouvrir le pointage et le suivi des absences."
                         : "Creer une demande de conge avec assistance IA.");
 
         styleAction(this->findChild<QPushButton*>("btnGoStats"),
-                    buildDashboardActionButtonStyle("#0f2b4c", "#2563eb", "#1d4ed8", "#1e40af", "#3b82f6"),
+                    employeeActionStyle,
                     "Consulter les statistiques du module employe.");
 
         styleAction(this->findChild<QPushButton*>("btnFichePaie"),
-                    buildDashboardActionButtonStyle("#9a3412", "#ea580c", "#c2410c", "#c2410c", "#fb923c"),
+                    employeeActionStyle,
                     "Consulter les fiches de paie et documents RH.");
 
         styleAction(this->findChild<QPushButton*>("btnExport"),
-                    buildDashboardActionButtonStyle("#475569", "#64748b", "#475569", "#334155", "#94a3b8"),
+                    employeeActionStyle,
                     "Exporter les informations ou documents disponibles.");
 
 
@@ -15193,9 +16244,34 @@ void MainWindow::showEmployesPage()
 
             QList<QLabel*> labels = side->findChildren<QLabel*>();
 
+            auto isInEmployeeGreenBlock = [](QLabel *label) {
+                QWidget *w = label;
+                while (w) {
+                    const QString name = w->objectName();
+                    if (name == "empHero" || name == "empQuickActionsLabelWrap") {
+                        return true;
+                    }
+                    w = w->parentWidget();
+                }
+                return false;
+            };
+
             for (QLabel *lbl : labels) {
 
-                lbl->setStyleSheet(lbl->styleSheet() + " background: transparent; color: #0f2b4c; border: none;");
+                if (!lbl) continue;
+                const QString existing = lbl->styleSheet();
+
+                if (isInEmployeeGreenBlock(lbl)) {
+                    lbl->setStyleSheet(existing + " background: transparent; color: #ffffff; border: none;");
+                    continue;
+                }
+
+                if (existing.contains("color:", Qt::CaseInsensitive)) {
+                    lbl->setStyleSheet(existing + " background: transparent; border: none;");
+                    continue;
+                }
+
+                lbl->setStyleSheet(existing + " background: transparent; color: #0f2b4c; border: none;");
 
             }
 
@@ -15211,28 +16287,31 @@ void MainWindow::showEmployesPage()
                 }
             };
 
+            const QString employeeActionStyle =
+                buildDashboardActionButtonStyle("#1a3a2e", "#2d5a42", "#2d5a42", "#2d5a42", "#3a6f54");
+
             styleAction(side->findChild<QPushButton*>("btnGoMission"),
-                        buildDashboardActionButtonStyle("#0f766e", "#14b8a6", "#0f766e", "#0d9488", "#2dd4bf"),
+                        employeeActionStyle,
                         m_isAdminSession
                             ? "Ouvrir le suivi des missions employes."
                             : "Acceder a vos taches et missions du moment.");
 
             styleAction(side->findChild<QPushButton*>("btnGoPointage"),
-                        buildDashboardActionButtonStyle("#166534", "#22c55e", "#15803d", "#15803d", "#4ade80"),
+                        employeeActionStyle,
                         m_isAdminSession
                             ? "Ouvrir le pointage et le suivi des absences."
                             : "Creer une demande de conge avec assistance IA.");
 
             styleAction(side->findChild<QPushButton*>("btnGoStats"),
-                        buildDashboardActionButtonStyle("#0f2b4c", "#2563eb", "#1d4ed8", "#1e40af", "#3b82f6"),
+                        employeeActionStyle,
                         "Consulter les statistiques du module employe.");
 
             styleAction(side->findChild<QPushButton*>("btnFichePaie"),
-                        buildDashboardActionButtonStyle("#9a3412", "#ea580c", "#c2410c", "#c2410c", "#fb923c"),
+                        employeeActionStyle,
                         "Consulter les fiches de paie et documents RH.");
 
             styleAction(side->findChild<QPushButton*>("btnExport"),
-                        buildDashboardActionButtonStyle("#475569", "#64748b", "#475569", "#334155", "#94a3b8"),
+                        employeeActionStyle,
                         "Exporter les informations ou documents disponibles.");
 
         }
@@ -15525,59 +16604,64 @@ void MainWindow::setupProduitModule()
 
 
 
-    if (auto *btnAdd = root->findChild<QPushButton*>("prod_btnAddProduct"))
-
+        if (auto *btnAdd = root->findChild<QPushButton*>("prod_btnAddProduct")) {
+        btnAdd->setText("Ajouter un Produit");
+        btnAdd->setCursor(Qt::PointingHandCursor);
         connect(btnAdd, &QPushButton::clicked, this, &MainWindow::goAjout);
-
-    else if (auto *btnAdd = root->findChild<QPushButton*>("btnAddProduct"))
-
+    }
+    else if (auto *btnAdd = root->findChild<QPushButton*>("btnAddProduct")) {
+        btnAdd->setText("Ajouter un Produit");
         connect(btnAdd, &QPushButton::clicked, this, &MainWindow::goAjout);
+    }
 
-
-
-    if (auto *btnStats = root->findChild<QPushButton*>("prod_btnOpenStats"))
-
+    if (auto *btnStats = root->findChild<QPushButton*>("prod_btnOpenStats")) {
+        btnStats->setText("Statistiques");
         connect(btnStats, &QPushButton::clicked, this, &MainWindow::goStatistiques);
+    }
 
-    else if (auto *btnStats = root->findChild<QPushButton*>("btnOpenStats"))
-
-        connect(btnStats, &QPushButton::clicked, this, &MainWindow::goStatistiques);
-
-
-
-    if (auto *b = root->findChild<QPushButton*>("prod_btnCancel_Add"))
-
+    if (auto *b = root->findChild<QPushButton*>("prod_btnCancel_Add")) {
+        b->setText("Annuler");
         connect(b, &QPushButton::clicked, this, &MainWindow::goAffichage);
+    }
 
-    else if (auto *b = root->findChild<QPushButton*>("btnCancel_Add"))
-
+    if (auto *b = root->findChild<QPushButton*>("prod_btnCancel_Mod")) {
+        b->setText("Annuler");
         connect(b, &QPushButton::clicked, this, &MainWindow::goAffichage);
+    }
 
-    if (auto *b = root->findChild<QPushButton*>("prod_btnCancel_Mod"))
-
+    if (auto *b = root->findChild<QPushButton*>("prod_btnReturnStats")) {
+        b->setText("Retour");
         connect(b, &QPushButton::clicked, this, &MainWindow::goAffichage);
-
-    else if (auto *b = root->findChild<QPushButton*>("btnCancel_Mod"))
-
+    } else if (auto *b = root->findChild<QPushButton*>("prod_btnRetourStats")) {
+        b->setText("Retour");
         connect(b, &QPushButton::clicked, this, &MainWindow::goAffichage);
+    }
 
-    if (auto *b = root->findChild<QPushButton*>("prod_btnRetourStats"))
+    if (auto *b = root->findChild<QPushButton*>("prod_btnPdf")) {
+        b->setText("Exporter PDF");
+    }
 
-        connect(b, &QPushButton::clicked, this, &MainWindow::goAffichage);
+    if (auto *b = root->findChild<QPushButton*>("prod_btnVideo3D")) {
+        b->setText("Generer Video AI");
+    }
 
-    else if (auto *b = root->findChild<QPushButton*>("btnRetourStats"))
-
-        connect(b, &QPushButton::clicked, this, &MainWindow::goAffichage);
-
-    if (auto *b = root->findChild<QPushButton*>("prod_btnReturnStats"))
-
-        connect(b, &QPushButton::clicked, this, &MainWindow::goAffichage);
-
-    else if (auto *b = root->findChild<QPushButton*>("btnReturnStats"))
-
-        connect(b, &QPushButton::clicked, this, &MainWindow::goAffichage);
+    if (auto *b = root->findChild<QPushButton*>("prod_btn3DModel")) {
+        b->setText("Modele 3D");
+    }
 
     if (auto *b = root->findChild<QPushButton*>("prod_btnMap3D")) {
+        b->setText("Carte 3D");
+    }
+
+    if (auto *b = root->findChild<QPushButton*>("prod_btnSave_Add")) {
+        b->setText("Enregistrer");
+    }
+
+    if (auto *b = root->findChild<QPushButton*>("prod_btnSave_Mod")) {
+        b->setText("Enregistrer");
+    }
+    
+if (auto *b = root->findChild<QPushButton*>("prod_btnMap3D")) {
         QObject::disconnect(b, &QPushButton::clicked, this, &MainWindow::on_prod_btnMap3D_clicked);
         connect(b, &QPushButton::clicked, this, &MainWindow::on_prod_btnMap3D_clicked, Qt::UniqueConnection);
     }
@@ -15741,6 +16825,8 @@ void MainWindow::setupProduitModule()
     refreshProduitFeatureLists(QStringList(), ui->prod_sb_qty_add ? ui->prod_sb_qty_add->value() : -1, -1);
 
     if (auto *sbAdd = root->findChild<QSpinBox*>("prod_sb_qty_add")) {
+        sbAdd->setButtonSymbols(QAbstractSpinBox::UpDownArrows);
+        sbAdd->setAccelerated(true);
         if (!sbAdd->property("prodQtyConnected").toBool()) {
             connect(sbAdd, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int v) {
                 refreshProduitFeatureLists(QStringList(), v, -1);
@@ -15749,6 +16835,8 @@ void MainWindow::setupProduitModule()
         }
     }
     if (auto *sbMod = root->findChild<QSpinBox*>("prod_sb_qty_mod")) {
+        sbMod->setButtonSymbols(QAbstractSpinBox::UpDownArrows);
+        sbMod->setAccelerated(true);
         if (!sbMod->property("prodQtyConnected").toBool()) {
             connect(sbMod, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int v) {
                 QStringList selected = selectedFeatureTexts(ui->prod_lstCharacteristics_mod);
@@ -15800,6 +16888,8 @@ void MainWindow::setupProduitModule()
         }
     }
     if (auto *priceAdd = root->findChild<QDoubleSpinBox*>("prod_dsb_price_add")) {
+        priceAdd->setButtonSymbols(QAbstractSpinBox::UpDownArrows);
+        priceAdd->setAccelerated(true);
         if (!priceAdd->property("prodValidationConnected").toBool()) {
             connect(priceAdd, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, [this](double) {
                 refreshProduitRealtimeValidation(this, false);
@@ -15833,6 +16923,8 @@ void MainWindow::setupProduitModule()
         }
     }
     if (auto *priceMod = root->findChild<QDoubleSpinBox*>("prod_dsb_price_mod")) {
+        priceMod->setButtonSymbols(QAbstractSpinBox::UpDownArrows);
+        priceMod->setAccelerated(true);
         if (!priceMod->property("prodValidationConnected").toBool()) {
             connect(priceMod, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, [this](double) {
                 refreshProduitRealtimeValidation(this, true);
@@ -15862,7 +16954,7 @@ void MainWindow::setupProduitModule()
                 "QPushButton:hover { background: #1d4ed8; }"
             );
             // Use the same glyph as the Stock toggle to ensure it renders.
-            btnToggle->setText(QString::fromUtf8("\xE2\x8A\x9E"));
+            btnToggle->setText("Vue");
         }
 
         const QStringList prodHeaders = {
@@ -15877,31 +16969,16 @@ void MainWindow::setupProduitModule()
         t->setColumnCount(prodHeaders.size());
         t->setHorizontalHeaderLabels(prodHeaders);
 
-
-
-        t->verticalHeader()->setDefaultSectionSize(36);
-
+        t->verticalHeader()->setDefaultSectionSize(44);
         t->setWordWrap(false);
 
-
-
-        // Make Actions column wider (180px) and fixed, others stretch
-
+        // Make Actions column wider and fixed, others stretch.
         t->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
-
-        // ACTIONS_COL is defined as 6
-
         t->horizontalHeader()->setSectionResizeMode(6, QHeaderView::Fixed);
+        t->setColumnWidth(6, 220);
 
-        t->setColumnWidth(6, 180);
-
-
-
-        // Ensure headers are styled properly if not already
-
-        t->horizontalHeader()->show(); 
-
-
+        // Ensure headers are styled properly if not already.
+        t->horizontalHeader()->show();
 
         applyProduitFilterAndSort();
         refreshCardView();
@@ -15913,7 +16990,6 @@ void MainWindow::setupProduitModule()
             t->setProperty("prodRowConnected", true);
         }
 
-        // --- INJECT PAGINATION BAR ---
         QTimer::singleShot(200, this, [this, root]() {
             QStackedWidget *stack = root->findChild<QStackedWidget*>("prod_viewStackedWidget");
             if (!stack || root->findChild<QWidget*>("paginationBar")) return;
@@ -15940,7 +17016,7 @@ void MainWindow::setupProduitModule()
             cbSize->setStyleSheet("background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 4px;");
             connect(cbSize, SIGNAL(currentIndexChanged(int)), this, SLOT(on_pagination_cbSize_currentIndexChanged(int)));
 
-            QPushButton *btnPrev = new QPushButton(QString::fromUtf8("\xE2\x97\x80 Pr" "\xC3\xA9" "c" "\xC3\xA9" "dent"));
+            QPushButton *btnPrev = new QPushButton("Precedent");
             btnPrev->setObjectName("pagination_btnPrev");
             btnPrev->setFixedWidth(110);
             btnPrev->setCursor(Qt::PointingHandCursor);
@@ -15951,7 +17027,7 @@ void MainWindow::setupProduitModule()
             lblPage->setObjectName("pagination_lblPage");
             lblPage->setStyleSheet("font-size: 13px; color: #1e293b; font-weight: 700;");
 
-            QPushButton *btnNext = new QPushButton(QString::fromUtf8("Suivant \xE2\x96\xB6"));
+            QPushButton *btnNext = new QPushButton("Suivant");
             btnNext->setObjectName("pagination_btnNext");
             btnNext->setFixedWidth(110);
             btnNext->setCursor(Qt::PointingHandCursor);
@@ -15971,61 +17047,301 @@ void MainWindow::setupProduitModule()
             btnPrev->setEnabled(false);
         });
 
-
-
         QTimer::singleShot(0, this, [this]() {
-
             refreshActionButtons();
-
             applyStyleFix();
-
-            
-
             // --- FIX LABEL BACKGROUNDS (AJOUT & MODIFIER) ---
-
             // Remove gray background from all labels in the add/edit pages
-
             auto fixLabelBg = [this](const QString &pageName) {
-
                 if (QWidget *page = produitPage(qPrintable(pageName))) {
-
                     QList<QLabel*> labels = page->findChildren<QLabel*>();
-
                     for (QLabel *lbl : labels) {
-
-                         // Skip image/icon placeholders if any special ones exists, 
-
-                         // but generally we want text labels transparent.
-
-                         QString current = lbl->styleSheet();
-
-                         if (!current.contains("background: transparent")) {
-
-                             lbl->setStyleSheet(current + " background: transparent;");
-
-                         }
-
+                        // Keep form labels transparent over gradient/card backgrounds.
+                        QString current = lbl->styleSheet();
+                        if (!current.contains("background: transparent")) {
+                            lbl->setStyleSheet(current + " background: transparent;");
+                        }
                     }
-
                 }
-
             };
-
-            
-
             fixLabelBg("prod_ajout");
-
             fixLabelBg("prod_modification");
-
             fixLabelBg("ajout");
-
             fixLabelBg("modification");
-
         });
-
     }
 
 
+
+    // --- PRODUIT DASHBOARD: KPI CARDS + INNOVATIVE SIDEBAR INJECTION ---
+    if (!root->property("prodDashboardInjected").toBool()) {
+        root->setProperty("prodDashboardInjected", true);
+
+        QTimer::singleShot(150, this, [this, root]() {
+            // Fetch meaningful business KPIs
+            int bacTotal = 0, bacRupture = 0, stockTotal = 0;
+            double capaciteTotale = 0.0, valInventaire = 0.0, prixMoyen = 0.0;
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*), NVL(SUM(CAPACITE),0), NVL(SUM(STOCK),0), NVL(SUM(PRIX*STOCK),0), NVL(AVG(PRIX),0) FROM BAC_INTEL") && q.next()) {
+                bacTotal = q.value(0).toInt();
+                capaciteTotale = q.value(1).toDouble();
+                stockTotal = q.value(2).toInt();
+                valInventaire = q.value(3).toDouble();
+                prixMoyen = q.value(4).toDouble();
+            } }
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM BAC_INTEL WHERE NVL(STOCK,0) = 0") && q.next()) bacRupture = q.value(0).toInt(); }
+            int tauxRemplissage = (capaciteTotale > 0) ? qBound(0, int(double(stockTotal) / capaciteTotale * 100.0), 100) : 0;
+
+            // ===== KPI ROW =====
+            auto *tableLayout = root->findChild<QVBoxLayout*>("prod_tableLayout");
+            if (tableLayout && !root->findChild<QFrame*>("prod_kpiRow_container")) {
+                auto *kpiContainer = new QFrame();
+                kpiContainer->setObjectName("prod_kpiRow_container");
+                kpiContainer->setStyleSheet("QFrame#prod_kpiRow_container{background:transparent;border:none;}");
+                auto *kpiRow = new QHBoxLayout(kpiContainer);
+                kpiRow->setContentsMargins(0, 8, 0, 8);
+                kpiRow->setSpacing(14);
+
+                auto makeKpi = [this](const QString &title, const QString &valueStr,
+                                       const QString &subtitle, const QString &iconChar,
+                                       const QString &iconBg, const QString &valueColor) -> QFrame* {
+                    auto *card = new QFrame();
+                    card->setAttribute(Qt::WA_StyledBackground, true);
+                    card->setStyleSheet("QFrame{background:#ffffff;border-radius:12px;border:1px solid #e8ecf0;}");
+                    applySoftCardShadow(card, QColor(0,0,0,22), 18, QPoint(0,5));
+                    auto *h = new QHBoxLayout(card);
+                    h->setContentsMargins(18,16,18,16); h->setSpacing(12);
+                    auto *tv = new QVBoxLayout(); tv->setSpacing(3);
+                    auto *t = new QLabel(title);
+                    t->setStyleSheet("font-size:10px;font-weight:700;color:#6c757d;letter-spacing:1px;background:transparent;border:none;");
+                    auto *v = new QLabel(valueStr);
+                    v->setStyleSheet(QString("font-size:26px;font-weight:800;color:%1;background:transparent;border:none;").arg(valueColor));
+                    auto *s = new QLabel(subtitle);
+                    s->setStyleSheet("font-size:11px;color:#6c757d;background:transparent;border:none;");
+                    tv->addWidget(t); tv->addWidget(v); tv->addWidget(s);
+                    h->addLayout(tv, 1);
+                    auto *ic = new QLabel(iconChar);
+                    ic->setFixedSize(46,46); ic->setAlignment(Qt::AlignCenter);
+                    ic->setStyleSheet(QString("background:%1;border-radius:10px;font-size:20px;border:none;").arg(iconBg));
+                    h->addWidget(ic, 0, Qt::AlignVCenter);
+                    return card;
+                };
+
+                kpiRow->addWidget(makeKpi("CAPACITE PARC",
+                                           QString("%1 L").arg(QString::number(capaciteTotale, 'f', 0)),
+                                           "Volume total",
+                                           "\xF0\x9F\x97\x91", "#e8f5e9", "#27ae60"));
+                kpiRow->addWidget(makeKpi("STOCK TOTAL", QString::number(stockTotal),
+                                           "Unites en stock",
+                                           "\xF0\x9F\x93\xA6", "#e3f2fd", "#27ae60"));
+                kpiRow->addWidget(makeKpi("RUPTURES", QString::number(bacRupture),
+                                           bacRupture > 0 ? "Action requise" : "Tout est OK",
+                                           "\xE2\x9A\xA0\xEF\xB8\x8F", "#fff3e0",
+                                           bacRupture > 0 ? "#e74c3c" : "#27ae60"));
+                kpiRow->addWidget(makeKpi("VALEUR INVENTAIRE",
+                                           QString("%1 TND").arg(QString::number(valInventaire, 'f', 0)),
+                                           QString("Prix moyen: %1 TND").arg(QString::number(prixMoyen, 'f', 1)),
+                                           "\xF0\x9F\x92\xB0", "#fce4ec", "#1a3a2e"));
+
+                tableLayout->insertWidget(0, kpiContainer);
+            }
+
+            // Update title: "Bacs Intelligents" + count badge
+            if (auto *title = root->findChild<QLabel*>("prod_label_Title")) {
+                title->setText(QString::fromUtf8("Bacs Intelligents"));
+                title->setStyleSheet("font-size:20px;font-weight:800;color:#1a1a2e;background:transparent;border:none;");
+                if (auto *parent = title->parentWidget()) {
+                    if (auto *hl = qobject_cast<QHBoxLayout*>(parent->layout())) {
+                        if (!root->findChild<QLabel*>("prod_titleCountBadge")) {
+                            auto *badge = new QLabel(QString("%1 total").arg(bacTotal));
+                            badge->setObjectName("prod_titleCountBadge");
+                            badge->setStyleSheet("background:#e8f5e9;color:#27ae60;font-size:11px;font-weight:800;"
+                                                 "border-radius:10px;padding:4px 12px;border:none;");
+                            int idx = hl->indexOf(title);
+                            if (idx >= 0) hl->insertWidget(idx + 1, badge);
+                        }
+                    }
+                }
+            }
+
+            // ===== INNOVATIVE RIGHT SIDEBAR =====
+            auto *sidebar = root->findChild<QFrame*>("prod_rightSidebar");
+            if (sidebar && !sidebar->property("prodSidebarRebuilt").toBool()) {
+                sidebar->setProperty("prodSidebarRebuilt", true);
+                sidebar->setStyleSheet("QFrame#prod_rightSidebar{background:#ffffff;border-left:1px solid #e8ecf0;}");
+                sidebar->setMinimumWidth(290);
+                sidebar->setMaximumWidth(360);
+
+                auto *oldLayout = sidebar->layout();
+                QList<QPushButton*> keepBtns;
+                for (const char *bn : {"prod_btnOpenStats","prod_btnMap3D","prod_btnVideo3D","prod_btn3DModel","prod_btnPdf"}) {
+                    if (auto *b = sidebar->findChild<QPushButton*>(bn)) { b->setParent(nullptr); keepBtns.append(b); }
+                }
+                QFrame *statsPreview = sidebar->findChild<QFrame*>("prod_statsPreview");
+                if (statsPreview) statsPreview->setParent(nullptr);
+
+                // Wipe old layout contents
+                if (oldLayout) {
+                    QLayoutItem *it;
+                    while ((it = oldLayout->takeAt(0))) {
+                        if (auto *w = it->widget()) w->deleteLater();
+                        delete it;
+                    }
+                    delete oldLayout;
+                }
+
+                auto *sbV = new QVBoxLayout(sidebar);
+                sbV->setContentsMargins(0,0,0,0);
+                sbV->setSpacing(0);
+
+                auto *scrollArea = new QScrollArea();
+                scrollArea->setObjectName("prodSidebarScroll");
+                scrollArea->setFrameShape(QFrame::NoFrame);
+                scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+                scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+                scrollArea->setWidgetResizable(true);
+                scrollArea->setStyleSheet(
+                    "QScrollArea{background:transparent;border:none;}"
+                    "QScrollArea > QWidget > QWidget{background:transparent;}"
+                    "QScrollBar:vertical{background:#f0f2f5;width:6px;border-radius:3px;}"
+                    "QScrollBar::handle:vertical{background:#c8d8ce;border-radius:3px;min-height:20px;}"
+                    "QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical{height:0;}"
+                );
+                auto *scrollContent = new QWidget();
+                scrollContent->setObjectName("prodSidebarContent");
+                scrollContent->setStyleSheet("background:transparent;");
+                auto *scrollV = new QVBoxLayout(scrollContent);
+                scrollV->setContentsMargins(12,12,12,12);
+                scrollV->setSpacing(14);
+
+                // HERO: Taux de Remplissage gauge (innovative centerpiece)
+                auto *hero = new QFrame();
+                hero->setAttribute(Qt::WA_StyledBackground, true);
+                hero->setStyleSheet("QFrame{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #1a3a2e,stop:1 #2d5a42);border-radius:14px;border:none;}");
+                applySoftCardShadow(hero, QColor(26,58,46,100), 20, QPoint(0,6));
+                auto *heroV = new QVBoxLayout(hero);
+                heroV->setContentsMargins(18,16,18,18); heroV->setSpacing(8);
+
+                auto *heroHead = new QHBoxLayout();
+                auto *heroTitle = new QLabel(QString::fromUtf8("\xF0\x9F\xA4\x96  Analyse IA"));
+                heroTitle->setStyleSheet("color:#ffffff;font-size:14px;font-weight:800;background:transparent;border:none;");
+                auto *heroLive = new QLabel(QString::fromUtf8("\xE2\x97\x8F LIVE"));
+                heroLive->setStyleSheet("color:#a8d5b5;font-size:10px;font-weight:800;background:transparent;border:none;letter-spacing:1px;");
+                heroHead->addWidget(heroTitle); heroHead->addStretch(); heroHead->addWidget(heroLive);
+                heroV->addLayout(heroHead);
+
+                auto *gaugeLbl = new QLabel("Taux de Remplissage");
+                gaugeLbl->setStyleSheet("color:#c8e6c9;font-size:11px;font-weight:600;background:transparent;border:none;");
+                heroV->addWidget(gaugeLbl);
+
+                auto *gaugePct = new QLabel(QString("%1%").arg(tauxRemplissage));
+                gaugePct->setStyleSheet("color:#ffffff;font-size:36px;font-weight:800;background:transparent;border:none;");
+                heroV->addWidget(gaugePct);
+
+                auto *gauge = new QProgressBar();
+                gauge->setRange(0, 100);
+                gauge->setValue(tauxRemplissage);
+                gauge->setTextVisible(false);
+                gauge->setFixedHeight(10);
+                gauge->setStyleSheet(
+                    "QProgressBar{background:rgba(255,255,255,0.15);border:none;border-radius:5px;}"
+                    "QProgressBar::chunk{background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #a8d5b5,stop:1 #ffffff);border-radius:5px;}"
+                );
+                heroV->addWidget(gauge);
+
+                auto *gaugeFoot = new QLabel(
+                    QString("%1 / %2 L utilises")
+                        .arg(QString::number(stockTotal))
+                        .arg(QString::number(capaciteTotale, 'f', 0)));
+                gaugeFoot->setStyleSheet("color:#a8d5b5;font-size:10px;background:transparent;border:none;");
+                heroV->addWidget(gaugeFoot);
+
+                scrollV->addWidget(hero);
+
+                // QUICK ACTIONS section
+                auto *actLbl = new QLabel(QString::fromUtf8("\xE2\x9A\xA1 Actions Rapides"));
+                actLbl->setStyleSheet(
+                    "font-size:11px;font-weight:800;color:#ffffff;letter-spacing:1px;"
+                    "background:#1f4d3a;border:1px solid #2a6a51;border-radius:8px;padding:8px 10px;"
+                );
+                scrollV->addWidget(actLbl);
+                scrollV->addSpacing(6);
+
+                QList<QPushButton*> orderedBtns;
+                auto pickBtn = [&](const QString &name) -> QPushButton* {
+                    for (auto *b : keepBtns) if (b && b->objectName() == name) return b;
+                    return nullptr;
+                };
+                QPushButton *bStats = pickBtn("prod_btnOpenStats");
+                QPushButton *bMap   = pickBtn("prod_btnMap3D");
+                QPushButton *bVideo = pickBtn("prod_btnVideo3D");
+                QPushButton *bModel = pickBtn("prod_btn3DModel");
+                QPushButton *bPdf   = pickBtn("prod_btnPdf");
+
+                auto styleActionBtn = [](QPushButton *b) {
+                    if (!b) return;
+                    b->setParent(nullptr);
+                    b->setMinimumHeight(44);
+                    b->setMaximumHeight(44);
+                    b->setCursor(Qt::PointingHandCursor);
+                    b->setStyleSheet(
+                        "QPushButton{background:#f0f7f4;color:#1a3a2e;border:1px solid #d4e8dc;"
+                        "border-radius:10px;padding:8px 10px;font-weight:700;font-size:12px;text-align:center;}"
+                        "QPushButton:hover{background:#27ae60;color:#ffffff;border-color:#27ae60;}"
+                    );
+                };
+                for (auto *b : {bStats, bMap, bVideo, bModel}) styleActionBtn(b);
+
+                auto *grid = new QGridLayout();
+                grid->setSpacing(10);
+                int gi = 0;
+                for (auto *b : {bStats, bMap, bVideo, bModel}) {
+                    if (b) { grid->addWidget(b, gi/2, gi%2); ++gi; }
+                }
+                scrollV->addLayout(grid);
+
+                // PDF EXPORT - full width primary-ish
+                if (bPdf) {
+                    bPdf->setParent(nullptr);
+                    bPdf->setMinimumHeight(44);
+                    bPdf->setCursor(Qt::PointingHandCursor);
+                    bPdf->setStyleSheet(
+                        "QPushButton{background:#ffffff;color:#27ae60;border:2px solid #27ae60;"
+                        "border-radius:10px;padding:10px 14px;font-weight:800;font-size:13px;}"
+                        "QPushButton:hover{background:#27ae60;color:#ffffff;}"
+                    );
+                    scrollV->addWidget(bPdf);
+                }
+
+                // STATS PREVIEW (gradient block with progress bars) - REPLACED BY HERO, SKIP
+                if (statsPreview) {
+                    statsPreview->deleteLater();
+                }
+
+                // ALERTS FEED
+                if (bacRupture > 0) {
+                    auto *alert = new QFrame();
+                    alert->setAttribute(Qt::WA_StyledBackground, true);
+                    alert->setStyleSheet("QFrame{background:#fff5f5;border-radius:10px;border:1px solid #ffd4d4;}");
+                    auto *ah = new QHBoxLayout(alert);
+                    ah->setContentsMargins(12,10,12,10); ah->setSpacing(10);
+                    auto *ic = new QLabel(QString::fromUtf8("\xE2\x9A\xA0\xEF\xB8\x8F"));
+                    ic->setStyleSheet("font-size:18px;background:transparent;border:none;");
+                    auto *tv = new QVBoxLayout(); tv->setSpacing(1);
+                    auto *at = new QLabel(QString("%1 bac(s) vide(s)").arg(bacRupture));
+                    at->setStyleSheet("color:#e74c3c;font-size:12px;font-weight:800;background:transparent;border:none;");
+                    auto *ad = new QLabel("Reapprovisionnement requis");
+                    ad->setStyleSheet("color:#6c757d;font-size:10px;background:transparent;border:none;");
+                    tv->addWidget(at); tv->addWidget(ad);
+                    ah->addWidget(ic, 0, Qt::AlignVCenter); ah->addLayout(tv, 1);
+                    scrollV->addWidget(alert);
+                }
+
+                scrollV->addStretch();
+                scrollArea->setWidget(scrollContent);
+                sbV->addWidget(scrollArea);
+            }
+        });
+    }
 
     buildStatsCharts();
 
@@ -16368,95 +17684,47 @@ void MainWindow::addExampleRow()
 
 
 void MainWindow::installActionButtonsForRow(int row)
-
 {
-
     QTableWidget *t = produitTable();
-
     if (!t) return;
-
     if (row < 0 || row >= t->rowCount()) return;
-
     if (t->columnCount() <= ACTIONS_COL) return;
 
-
-
     if (QWidget *existing = t->cellWidget(row, ACTIONS_COL)) {
-
         const auto buttons = existing->findChildren<QPushButton*>();
-
         for (auto *b : buttons) b->setProperty("row", row);
-
         return;
-
     }
 
-
-
     QWidget *cell = new QWidget(t);
-
     auto *layout = new QHBoxLayout(cell);
-
-    layout->setContentsMargins(6, 0, 6, 0);
-
-    layout->setSpacing(6);
-
+    layout->setContentsMargins(8, 8, 8, 8);
+    layout->setSpacing(8);
     layout->setAlignment(Qt::AlignCenter);
 
-
-
     auto *btnEdit = new QPushButton("Modifier", cell);
-
     auto *btnDel  = new QPushButton("Supprimer", cell);
 
+    btnEdit->setObjectName("btnProductAction");
+    btnDel->setObjectName("btnProductAction");
 
+    btnEdit->setToolTip("Modifier ce produit");
+    btnDel->setToolTip("Supprimer ce produit");
 
-    btnEdit->setStyleSheet("QPushButton { background-color: #3498db; color: white; border-radius: 4px; padding: 4px 8px; font-weight: bold; }");
-
-    btnDel->setStyleSheet("QPushButton { background-color: #e74c3c; color: white; border-radius: 4px; padding: 4px 8px; font-weight: bold; }");
-
-
-
-    btnEdit->setFixedHeight(24);
-
-    btnDel->setFixedHeight(24);
-
-    btnEdit->setFocusPolicy(Qt::NoFocus);
-
-    btnDel->setFocusPolicy(Qt::NoFocus);
-
-    btnEdit->setCursor(Qt::PointingHandCursor);
-
-    btnDel->setCursor(Qt::PointingHandCursor);
-
-
-
-    btnEdit->setToolTip("Modifier");
-
-    btnDel->setToolTip("Supprimer");
-
-
+    styleTableActionButton(btnEdit);
+    styleTableActionButton(btnDel);
 
     btnEdit->setProperty("row", row);
-
     btnDel->setProperty("row", row);
 
-
-
     layout->addWidget(btnEdit);
-
     layout->addWidget(btnDel);
 
-
-
+    t->setRowHeight(row, qMax(t->rowHeight(row), 62));
     t->setCellWidget(row, ACTIONS_COL, cell);
 
-
-
     connect(btnEdit, &QPushButton::clicked, this, &MainWindow::handleEditClicked);
-
     connect(btnDel,  &QPushButton::clicked, this, &MainWindow::handleDeleteClicked);
-
 }
 
 
@@ -16759,6 +18027,324 @@ void MainWindow::populateMaintenanceTechCombo()
 }
 
 void MainWindow::setupMaintenanceModule() {
+    // --- GREEN THEME + INNOVATIVE RIGHT SIDEBAR (Maintenance) ---
+    QWidget *maintPage = findChild<QWidget*>("page_Maintenance_Tab");
+    if (maintPage && !maintPage->property("maintGreenApplied").toBool()) {
+        maintPage->setProperty("maintGreenApplied", true);
+
+        static const char *clearNamesMaint[] = {
+            "topBar", "titleLabel", "btnGotoAjout", "userLabel", "btnNotif", "btnProfil",
+            "lblSort", "cbSort1", "searchInput", "btnGotoModifier",
+            "card", "lblCardTitle", "tableMaintenance",
+            "rightSidebar", "lblFunc", "stat1", "stat2", "stat3",
+            "st_val1", "st_val2", "st_val3", "st_lbl1", "st_lbl2", "st_lbl3",
+            "st_icon1", "st_icon2", "st_icon3"
+        };
+        for (const char *n : clearNamesMaint)
+            if (auto *w = maintPage->findChild<QWidget*>(n)) w->setStyleSheet("");
+
+        maintPage->setStyleSheet(QStringLiteral(R"(
+QWidget#page_Maintenance_Tab, QWidget#page_Maint_Dash, QWidget#scrollContentMaint,
+QWidget#page_Maint_Ajout, QWidget#page_Maint_Modif {
+    background-color: #f0f2f5;
+}
+QScrollArea#scrollAreaMaint, QScrollArea#scrollAreaMaint > QWidget > QWidget {
+    background-color: #f0f2f5; border: none;
+}
+QFrame#topBar {
+    background-color: #ffffff; border: none;
+    border-bottom: 1px solid #e8ecf0; border-radius: 0px;
+}
+QLabel#titleLabel { color:#1a1a2e; font-size:22px; font-weight:800; background:transparent; }
+QLabel#userLabel { color:#6c757d; font-size:12px; background:transparent; }
+QPushButton#btnGotoAjout, QPushButton#btnGotoModifier {
+    background-color:#f0c343; color:#2d2100; border:none;
+    border-radius:10px; padding:9px 18px; font-weight:800; font-size:13px;
+}
+QPushButton#btnGotoAjout:hover, QPushButton#btnGotoModifier:hover { background-color:#e3b232; }
+QPushButton#btnNotif, QPushButton#btnProfil {
+    background:#f0f7f4; color:#1a3a2e; border:1px solid #d4e8dc;
+    border-radius:8px; padding:6px 10px;
+}
+QPushButton#btnNotif:hover, QPushButton#btnProfil:hover { background:#e8f5e9; }
+
+QLabel#lblSort { color:#1a1a2e; font-weight:700; font-size:13px; background:transparent; }
+QComboBox#cbSort1 {
+    background:#ffffff; color:#1a1a2e; border:1px solid #e8ecf0;
+    border-radius:10px; padding:8px 14px; font-size:13px; min-height: 22px;
+}
+QComboBox#cbSort1:hover { border-color:#27ae60; }
+QComboBox#cbSort1::drop-down { border:none; width:24px; }
+QLineEdit#searchInput {
+    background:#ffffff; color:#1a1a2e; border:1px solid #e8ecf0;
+    border-radius:10px; padding:8px 14px; font-size:13px;
+}
+QLineEdit#searchInput:focus { border:2px solid #27ae60; }
+
+QFrame#card {
+    background-color:#ffffff; border-radius:12px; border:1px solid #e8ecf0;
+}
+QLabel#lblCardTitle { color:#1a1a2e; font-size:16px; font-weight:800; background:transparent; padding:4px 4px 6px 4px; }
+
+QTableWidget#tableMaintenance {
+    background-color:#ffffff; color:#1a1a2e; gridline-color:transparent;
+    border:none; font-size:13px; selection-background-color:#e8f5e9;
+    selection-color:#1a3a2e; alternate-background-color:#fafbfc;
+}
+QTableWidget#tableMaintenance::item { padding:10px; border-bottom:1px solid #f0f2f5; }
+QTableWidget#tableMaintenance::item:selected { background:#e8f5e9; color:#1a3a2e; }
+QTableWidget#tableMaintenance::item:hover { background:#f0f7f4; }
+QTableWidget#tableMaintenance QHeaderView::section {
+    background:#f8fafb; color:#6c757d; font-weight:700; padding:12px;
+    border:none; border-bottom:2px solid #27ae60; font-size:11px; letter-spacing:1px;
+}
+
+QFrame#rightSidebar { background: transparent; border: none; }
+)"));
+
+        // ===== KPI ROW — Maintenances =====
+        QTimer::singleShot(100, this, [this, maintPage]() {
+            auto *vl = maintPage->findChild<QVBoxLayout*>("tableLayout");
+            if (!vl || maintPage->findChild<QFrame*>("maint_kpiRow")) return;
+
+            auto *header = maintPage->findChild<QHBoxLayout*>("horizontalLayout_1");
+            if (header && vl->indexOf(header) == -1) {
+                vl->insertLayout(0, header);
+            }
+
+            int totalInter = 0, enCours = 0, enAttente = 0, urgentes = 0;
+            double coutTotal = 0.0;
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*), NVL(SUM(NVL(COUT,0)+NVL(MAIN_OEUVRE,0)),0) FROM INTERVENTION") && q.next()) {
+                totalInter = q.value(0).toInt(); coutTotal = q.value(1).toDouble(); } }
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM INTERVENTION WHERE UPPER(NVL(STATUT,'')) LIKE '%COURS%'") && q.next()) enCours = q.value(0).toInt(); }
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM INTERVENTION WHERE UPPER(NVL(STATUT,'')) LIKE '%ATTENTE%'") && q.next()) enAttente = q.value(0).toInt(); }
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM INTERVENTION WHERE UPPER(NVL(PRIORITE,'')) LIKE '%URGENT%'") && q.next()) urgentes = q.value(0).toInt(); }
+
+            auto makeKpi = [this](const QString &title, const QString &val,
+                                   const QString &sub, const char *icon,
+                                   const QString &iconBg, const QString &col) -> QFrame* {
+                auto *card = new QFrame();
+                card->setAttribute(Qt::WA_StyledBackground, true);
+                card->setStyleSheet("QFrame{background:#ffffff;border-radius:12px;border:1px solid #e8ecf0;}");
+                applySoftCardShadow(card, QColor(0,0,0,22), 18, QPoint(0,5));
+                auto *h = new QHBoxLayout(card); h->setContentsMargins(18,16,18,16); h->setSpacing(12);
+                auto *tv = new QVBoxLayout(); tv->setSpacing(3);
+                auto *t = new QLabel(title); t->setStyleSheet("font-size:10px;font-weight:700;color:#6c757d;letter-spacing:1px;background:transparent;border:none;");
+                auto *v = new QLabel(val);    v->setStyleSheet(QString("font-size:26px;font-weight:800;color:%1;background:transparent;border:none;").arg(col));
+                auto *s = new QLabel(sub);    s->setStyleSheet("font-size:11px;color:#6c757d;background:transparent;border:none;");
+                tv->addWidget(t); tv->addWidget(v); tv->addWidget(s);
+                h->addLayout(tv, 1);
+                auto *ic = new QLabel(QString::fromUtf8(icon)); ic->setFixedSize(46,46); ic->setAlignment(Qt::AlignCenter);
+                ic->setStyleSheet(QString("background:%1;border-radius:10px;font-size:20px;border:none;").arg(iconBg));
+                h->addWidget(ic, 0, Qt::AlignVCenter);
+                return card;
+            };
+
+            auto *kpiContainer = new QFrame(); kpiContainer->setObjectName("maint_kpiRow");
+            kpiContainer->setStyleSheet("QFrame{background:transparent;border:none;}");
+            auto *row = new QHBoxLayout(kpiContainer); row->setContentsMargins(0,8,0,8); row->setSpacing(14);
+            row->addWidget(makeKpi("TOTAL INTERVENTIONS", QString::number(totalInter), "Toutes interventions", "\xF0\x9F\x94\xA7", "#e3f2fd", "#1e40af"));
+            row->addWidget(makeKpi("EN COURS",   QString::number(enCours),  "En traitement",   "\xE2\x9A\x99\xEF\xB8\x8F", "#fff3e0", enCours>0?"#f39c12":"#27ae60"));
+            row->addWidget(makeKpi("EN ATTENTE", QString::number(enAttente),"A planifier",     "\xE2\x8F\xB3",             "#fce4ec", enAttente>0?"#e74c3c":"#27ae60"));
+            row->addWidget(makeKpi("COUT TOTAL", QString("%1 TND").arg(QString::number(coutTotal,'f',0)), "Pieces + main d'oeuvre", "\xF0\x9F\x92\xB0", "#e8f5e9", "#1a3a2e"));
+            vl->insertWidget(0, kpiContainer);
+        });
+
+        QTimer::singleShot(200, this, [this, maintPage]() {
+            QVBoxLayout *rightL = maintPage->findChild<QVBoxLayout*>("rightLayout_1");
+            if (!rightL || maintPage->property("maintSidebarRebuilt").toBool()) return;
+            maintPage->setProperty("maintSidebarRebuilt", true);
+
+            int totalInter = 0, enCours = 0, enAttente = 0, urgentes = 0;
+            double coutPieces = 0.0, coutMO = 0.0;
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*), NVL(SUM(COUT),0), NVL(SUM(MAIN_OEUVRE),0) FROM INTERVENTION") && q.next()) {
+                totalInter = q.value(0).toInt(); coutPieces = q.value(1).toDouble(); coutMO = q.value(2).toDouble(); } }
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM INTERVENTION WHERE UPPER(NVL(STATUT,'')) LIKE '%COURS%'") && q.next()) enCours = q.value(0).toInt(); }
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM INTERVENTION WHERE UPPER(NVL(STATUT,'')) LIKE '%ATTENTE%'") && q.next()) enAttente = q.value(0).toInt(); }
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM INTERVENTION WHERE UPPER(NVL(PRIORITE,'')) LIKE '%URGENT%'") && q.next()) urgentes = q.value(0).toInt(); }
+            Q_UNUSED(coutPieces) Q_UNUSED(coutMO)
+            int workloadPct = totalInter > 0 ? int(double(enCours) / totalInter * 100.0) : 0;
+
+            // Retire existing stat frames
+            for (const char *n : {"stat1","stat2","stat3","lblFunc"}) {
+                if (auto *w = maintPage->findChild<QWidget*>(n)) {
+                    w->setParent(nullptr); w->hide();
+                }
+            }
+
+            QLayoutItem *it;
+            while ((it = rightL->takeAt(0))) { delete it; }
+            rightL->setSpacing(0);
+            rightL->setContentsMargins(0, 0, 0, 0);
+
+            auto *maintScrollArea = new QScrollArea();
+            maintScrollArea->setObjectName("maintSidebarScroll");
+            maintScrollArea->setFrameShape(QFrame::NoFrame);
+            maintScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+            maintScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+            maintScrollArea->setWidgetResizable(true);
+            maintScrollArea->setStyleSheet(
+                "QScrollArea{background:transparent;border:none;}"
+                "QScrollArea > QWidget > QWidget{background:transparent;}"
+                "QScrollBar:vertical{background:#f0f2f5;width:6px;border-radius:3px;}"
+                "QScrollBar::handle:vertical{background:#c8d8ce;border-radius:3px;min-height:20px;}"
+                "QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical{height:0;}"
+            );
+            auto *maintScrollContent = new QWidget();
+            maintScrollContent->setObjectName("maintSidebarContent");
+            maintScrollContent->setStyleSheet("background:transparent;");
+            auto *maintScrollV = new QVBoxLayout(maintScrollContent);
+            maintScrollV->setContentsMargins(12, 12, 12, 12);
+            maintScrollV->setSpacing(10);
+
+            // Hero
+            auto *hero = new QFrame();
+            hero->setObjectName("maintHero");
+            hero->setAttribute(Qt::WA_StyledBackground, true);
+            hero->setStyleSheet(
+                "QFrame#maintHero{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #1a3a2e,stop:1 #2d5a42);border-radius:14px;border:none;}"
+                "QFrame#maintHero QLabel{color:#ffffff;background:transparent;border:none;}"
+            );
+            applySoftCardShadow(hero, QColor(26,58,46,100), 20, QPoint(0,6));
+            auto *hv = new QVBoxLayout(hero);
+            hv->setContentsMargins(16,14,16,14); hv->setSpacing(4);
+            auto *hHead = new QHBoxLayout();
+            auto *ht = new QLabel(QString::fromUtf8("\xF0\x9F\x94\xA7  Atelier Maintenance"));
+            ht->setStyleSheet("color:#ffffff;font-size:13px;font-weight:800;background:transparent;border:none;");
+            auto *hLive = new QLabel(QString::fromUtf8("\xE2\x97\x8F LIVE"));
+            hLive->setStyleSheet("color:#a8d5b5;font-size:10px;font-weight:800;background:transparent;border:none;letter-spacing:1px;");
+            hHead->addWidget(ht); hHead->addStretch(); hHead->addWidget(hLive);
+            hv->addLayout(hHead);
+            auto *hNumRow = new QHBoxLayout(); hNumRow->setSpacing(6);
+            auto *hVal = new QLabel(QString::number(totalInter));
+            hVal->setStyleSheet("color:#ffffff;font-size:28px;font-weight:800;background:transparent;border:none;");
+            auto *hLbl = new QLabel("interventions");
+            hLbl->setStyleSheet("color:#c8e6c9;font-size:11px;background:transparent;border:none;");
+            hNumRow->addWidget(hVal); hNumRow->addWidget(hLbl, 0, Qt::AlignBottom); hNumRow->addStretch();
+            hv->addLayout(hNumRow);
+            auto *wlLbl = new QLabel(QString("Charge atelier  %1%").arg(workloadPct));
+            wlLbl->setStyleSheet("color:#a8d5b5;font-size:10px;font-weight:600;background:transparent;border:none;");
+            hv->addWidget(wlLbl);
+            auto *gauge = new QProgressBar();
+            gauge->setRange(0,100); gauge->setValue(workloadPct); gauge->setTextVisible(false);
+            gauge->setFixedHeight(6);
+            gauge->setStyleSheet(
+                "QProgressBar{background:rgba(255,255,255,0.15);border:none;border-radius:3px;}"
+                "QProgressBar::chunk{background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #a8d5b5,stop:1 #ffffff);border-radius:3px;}"
+            );
+            hv->addWidget(gauge);
+            maintScrollV->addWidget(hero);
+
+            // 3 status mini cards
+            auto makeStatusCard = [this](const QString &label, int count, const QString &color,
+                                          const QString &iconChar) -> QFrame* {
+                auto *f = new QFrame();
+                f->setAttribute(Qt::WA_StyledBackground, true);
+                f->setStyleSheet("QFrame{background:#ffffff;border-radius:10px;border:1px solid #e8ecf0;}");
+                applySoftCardShadow(f, QColor(0,0,0,15), 12, QPoint(0,3));
+                auto *h = new QHBoxLayout(f);
+                h->setContentsMargins(10,8,10,8); h->setSpacing(8);
+                auto *ic = new QLabel(iconChar);
+                ic->setFixedSize(32,32); ic->setAlignment(Qt::AlignCenter);
+                ic->setStyleSheet(QString("background:%1;border-radius:7px;font-size:14px;border:none;color:%2;")
+                    .arg(color + "22", color));
+                auto *tv = new QVBoxLayout(); tv->setSpacing(0);
+                auto *vl = new QLabel(QString::number(count));
+                vl->setStyleSheet(QString("font-size:16px;font-weight:800;color:%1;background:transparent;border:none;").arg(color));
+                auto *ll = new QLabel(label);
+                ll->setStyleSheet("font-size:10px;color:#6c757d;background:transparent;border:none;");
+                tv->addWidget(vl); tv->addWidget(ll);
+                h->addWidget(ic,0,Qt::AlignVCenter); h->addLayout(tv,1);
+                return f;
+            };
+            maintScrollV->addWidget(makeStatusCard("Total", totalInter, "#27ae60", QString::fromUtf8("\xF0\x9F\x94\xA7")));
+            maintScrollV->addWidget(makeStatusCard("En cours", enCours, "#3498db", QString::fromUtf8("\xE2\x9A\x99\xEF\xB8\x8F")));
+            maintScrollV->addWidget(makeStatusCard("Urgentes", urgentes, urgentes>0?"#e74c3c":"#27ae60", QString::fromUtf8("\xF0\x9F\x9A\xA8")));
+
+            // Actions label block
+            auto *actWrap = new QFrame();
+            actWrap->setObjectName("maintQuickActionsLabelWrap");
+            actWrap->setAttribute(Qt::WA_StyledBackground, true);
+            actWrap->setStyleSheet(
+                "QFrame#maintQuickActionsLabelWrap{background-color:#1f4d3a;border:1px solid #2a6a51;border-radius:8px;}"
+                "QFrame#maintQuickActionsLabelWrap QLabel{color:#ffffff;background:transparent;border:none;}"
+            );
+            auto *actLay = new QHBoxLayout(actWrap);
+            actLay->setContentsMargins(10, 6, 10, 6);
+            actLay->setSpacing(0);
+            auto *actLbl = new QLabel(QString::fromUtf8("\xE2\x9A\xA1 Actions Rapides"));
+            actLbl->setStyleSheet("font-size:11px;font-weight:800;color:#ffffff;letter-spacing:1px;background:transparent;border:none;");
+            actLay->addWidget(actLbl, 1, Qt::AlignVCenter | Qt::AlignLeft);
+            maintScrollV->addWidget(actWrap);
+
+            QPushButton *btnMaintPdf = maintPage->findChild<QPushButton*>("btnPdf");
+            if (!btnMaintPdf) {
+                btnMaintPdf = new QPushButton("Rapport PDF", maintPage);
+                btnMaintPdf->setObjectName("btnPdf");
+                btnMaintPdf->setCursor(Qt::PointingHandCursor);
+            }
+            btnMaintPdf->setMinimumHeight(38);
+            btnMaintPdf->setStyleSheet(
+                "QPushButton{background-color:#1f4d3a;color:#ffffff;border:1px solid #2a6a51;"
+                "border-radius:10px;padding:8px 14px;font-weight:700;font-size:12px;text-align:center;}"
+                "QPushButton:hover{background-color:#27ae60;color:#ffffff;border-color:#27ae60;}"
+            );
+            if (btnMaintPdf->parentWidget() != maintPage) btnMaintPdf->setParent(maintPage);
+            maintScrollV->addWidget(btnMaintPdf);
+            QObject::disconnect(btnMaintPdf, &QPushButton::clicked, this, nullptr);
+            connect(btnMaintPdf, &QPushButton::clicked, this, &MainWindow::generateMaintenancePdf);
+
+            QPushButton *btnMaintStats = maintPage->findChild<QPushButton*>("btnGoStats_Maint");
+            if (!btnMaintStats) {
+                btnMaintStats = new QPushButton("Statistiques", maintPage);
+                btnMaintStats->setObjectName("btnGoStats_Maint");
+                btnMaintStats->setCursor(Qt::PointingHandCursor);
+            }
+            btnMaintStats->setMinimumHeight(38);
+            btnMaintStats->setStyleSheet(
+                "QPushButton{background-color:#1f4d3a;color:#ffffff;border:1px solid #2a6a51;"
+                "border-radius:10px;padding:8px 14px;font-weight:700;font-size:12px;text-align:center;}"
+                "QPushButton:hover{background-color:#27ae60;color:#ffffff;border-color:#27ae60;}"
+            );
+            if (btnMaintStats->parentWidget() != maintPage) btnMaintStats->setParent(maintPage);
+            maintScrollV->addWidget(btnMaintStats);
+            QObject::disconnect(btnMaintStats, &QPushButton::clicked, this, nullptr);
+            connect(btnMaintStats, &QPushButton::clicked, this, [this]() {
+                if (auto *sw = mainStacked()) {
+                    if (auto *page = sw->findChild<QWidget*>("statistiques", Qt::FindDirectChildrenOnly)) {
+                        QWidget *current = sw->currentWidget();
+                        if (current && current != page) globalStatsReturnPage = current;
+                        if (auto *sa = page->findChild<QScrollArea*>("stockStatsArea", Qt::FindDirectChildrenOnly)) sa->hide();
+                        buildMaintenanceStats();
+                        sw->setCurrentWidget(page);
+                    }
+                }
+            });
+
+            if (urgentes > 0 || enAttente > 0) {
+                auto *alert = new QFrame();
+                alert->setAttribute(Qt::WA_StyledBackground, true);
+                alert->setStyleSheet("QFrame{background:#fff5f5;border-radius:10px;border:1px solid #ffd4d4;}");
+                auto *ah = new QHBoxLayout(alert);
+                ah->setContentsMargins(12,10,12,10); ah->setSpacing(10);
+                auto *ic = new QLabel(QString::fromUtf8("\xE2\x9A\xA0\xEF\xB8\x8F"));
+                ic->setStyleSheet("font-size:18px;background:transparent;border:none;");
+                auto *tv = new QVBoxLayout(); tv->setSpacing(1);
+                auto *at = new QLabel(QString("%1 intervention(s) a traiter").arg(urgentes + enAttente));
+                at->setStyleSheet("color:#e74c3c;font-size:12px;font-weight:800;background:transparent;border:none;");
+                auto *ad = new QLabel("Priorite haute");
+                ad->setStyleSheet("color:#6c757d;font-size:10px;background:transparent;border:none;");
+                tv->addWidget(at); tv->addWidget(ad);
+                ah->addWidget(ic,0,Qt::AlignVCenter); ah->addLayout(tv,1);
+                maintScrollV->addWidget(alert);
+            }
+
+            maintScrollV->addStretch();
+            maintScrollArea->setWidget(maintScrollContent);
+            rightL->addWidget(maintScrollArea);
+        });
+    }
+
     if (ui->cbSort1) {
         ui->cbSort1->clear();
         ui->cbSort1->addItems({ "Reference", "Date", "Statut", "Cout (Croissant)", "Cout (Decroissant)", "Duree", "Priorite" });
@@ -16805,7 +18391,7 @@ void MainWindow::setupMaintenanceModule() {
             h->setDefaultAlignment(Qt::AlignCenter);
             h->setStretchLastSection(false);
         }
-        table->verticalHeader()->setDefaultSectionSize(98);
+        table->verticalHeader()->setDefaultSectionSize(62);
 
         table->setColumnWidth(0, 44);
         table->setColumnWidth(1, 90);
@@ -16817,7 +18403,7 @@ void MainWindow::setupMaintenanceModule() {
         table->setColumnWidth(7, 140);
         table->setColumnWidth(8, 110);
         table->setColumnWidth(9, 120);
-        table->setColumnWidth(10, 140);
+        table->setColumnWidth(10, 240);
         table->setRowCount(0);
 
         // Hide metadata columns: they exist for DB operations only.
@@ -16949,18 +18535,12 @@ void MainWindow::installMaintActionButtonsForRow(int row) {
     QWidget* pWidget = new QWidget();
 
     QPushButton* btnEdit = new QPushButton("Modifier");
-
-    btnEdit->setCursor(Qt::PointingHandCursor);
-
-    btnEdit->setStyleSheet("QPushButton { background-color: #3498db; color: white; border-radius: 4px; padding: 4px 8px; font-weight: bold; }");
+    styleTableActionButton(btnEdit);
 
 
 
     QPushButton* btnDelete = new QPushButton("Supprimer");
-
-    btnDelete->setCursor(Qt::PointingHandCursor);
-
-    btnDelete->setStyleSheet("QPushButton { background-color: #e74c3c; color: white; border-radius: 4px; padding: 4px 8px; font-weight: bold; }");
+    styleTableActionButton(btnDelete);
 
 
 
@@ -16976,8 +18556,11 @@ void MainWindow::installMaintActionButtonsForRow(int row) {
     QHBoxLayout* pLayout = new QHBoxLayout(pWidget);
     pLayout->addWidget(btnEdit);
     pLayout->addWidget(btnDelete);
-    pLayout->setContentsMargins(0, 0, 0, 0);
+    pLayout->setSpacing(8);
+    pLayout->setContentsMargins(4, 10, 4, 10);
     pWidget->setLayout(pLayout);
+
+    table->setRowHeight(row, qMax(table->rowHeight(row), 62));
 
     table->setCellWidget(row, 10, pWidget);
 }
@@ -17421,11 +19004,11 @@ void MainWindow::buildStatsCharts()
     const double healthRate = total > 0 ? (100.0 * (total - rupture) / total) : 0.0;
 
     if (QLabel *lbl = root->findChild<QLabel*>("prod_st_val1")) lbl->setText(QString::number(prodRate, 'f', 1) + "%");
-    if (QLabel *lbl = root->findChild<QLabel*>("prod_st_lbl1")) lbl->setText("Taux de production");
+    if (QLabel *lbl = root->findChild<QLabel*>("prod_st_lbl1")) lbl->setText(QString::fromUtf8("\xF0\x9F\x93\x88 Taux de production"));
     if (QLabel *lbl = root->findChild<QLabel*>("prod_st_val2")) lbl->setText(QString::number(totalValue, 'f', 0) + " TND");
-    if (QLabel *lbl = root->findChild<QLabel*>("prod_st_lbl2")) lbl->setText("Valeur de production");
+    if (QLabel *lbl = root->findChild<QLabel*>("prod_st_lbl2")) lbl->setText(QString::fromUtf8("\xF0\x9F\x92\xB0 Valeur de production"));
     if (QLabel *lbl = root->findChild<QLabel*>("prod_st_val3")) lbl->setText(QString::number(rupture));
-    if (QLabel *lbl = root->findChild<QLabel*>("prod_st_lbl3")) lbl->setText("Ruptures");
+    if (QLabel *lbl = root->findChild<QLabel*>("prod_st_lbl3")) lbl->setText(QString::fromUtf8("\xE2\x9A\xA0\xEF\xB8\x8F Ruptures"));
 
     if (QProgressBar *pb = root->findChild<QProgressBar*>("prod_pbTrend")) pb->setValue(qRound(prodRate));
     if (QProgressBar *pb = root->findChild<QProgressBar*>("prod_pbStock")) pb->setValue(qRound(healthRate));
@@ -17442,31 +19025,99 @@ void MainWindow::buildStatsCharts()
     }
 
     QWidget *gridWidget = new QWidget();
+    gridWidget->setStyleSheet("background: transparent;");
     QGridLayout *gridLayout = new QGridLayout(gridWidget);
     gridLayout->setContentsMargins(0, 0, 0, 0);
-    gridLayout->setSpacing(20);
+    gridLayout->setSpacing(16);
     mainLayout->addWidget(gridWidget);
 
     auto createChartCard = [](const QString &title, const QString &hint, QChart *chart) -> QWidget* {
         QWidget *card = new QWidget();
-        card->setStyleSheet("QWidget { background-color: white; border-radius: 8px; }");
+        card->setAttribute(Qt::WA_StyledBackground, true);
+        card->setStyleSheet(
+            "QWidget { background-color: #ffffff; border: 1px solid #e8ecf0; border-radius: 15px; }"
+        );
+
         QVBoxLayout *layout = new QVBoxLayout(card);
-        
+        layout->setContentsMargins(16, 14, 16, 14);
+        layout->setSpacing(4);
+
         QLabel *titleLabel = new QLabel(title);
-        titleLabel->setStyleSheet("font-weight: bold; font-size: 14px; color: #2c3e50; border: none;");
+        titleLabel->setStyleSheet("font-weight: 800; font-size: 15px; color: #1a1a2e; border: none; background: transparent;");
         layout->addWidget(titleLabel);
 
-        QLabel *hintLabel = new QLabel(hint);
-        hintLabel->setStyleSheet("font-size: 11px; color: #7f8c8d; border: none;");
+        QLabel *hintLabel = new QLabel(hint.toUpper());
+        hintLabel->setStyleSheet("font-size: 10px; color: #6c757d; border: none; background: transparent; font-weight: 700; letter-spacing: 1px;");
         layout->addWidget(hintLabel);
+
+        // Green accent divider
+        QFrame *divider = new QFrame();
+        divider->setFixedHeight(2);
+        divider->setStyleSheet("background-color: #27ae60; border: none; border-radius: 1px;");
+        layout->addWidget(divider);
 
         QChartView *view = new QChartView(chart);
         view->setRenderHint(QPainter::Antialiasing);
-        view->setStyleSheet("border: none;");
+        view->setStyleSheet("background: transparent; border: none;");
         view->setMinimumHeight(280);
         layout->addWidget(view);
 
         return card;
+    };
+
+    auto attachFixedBarValueLabels = [](QChart *chart, QAbstractBarSeries *series, QBarSet *set, int decimals) {
+        if (!chart || !series || !set) return;
+
+        // Built-in labels use significant digits and can switch to scientific notation.
+        // We draw our own fixed-decimal labels to guarantee a readable numeric format.
+        series->setLabelsVisible(false);
+
+        const bool horizontal = qobject_cast<QHorizontalBarSeries*>(series) != nullptr;
+        const QLocale loc(QLocale::French);
+
+        QVector<QGraphicsSimpleTextItem*> labels;
+        labels.reserve(set->count());
+
+        QFont font("Segoe UI", 9, QFont::Bold);
+        QBrush brush(QColor("#111827"));
+
+        for (int i = 0; i < set->count(); ++i) {
+            const double value = set->at(i);
+            auto *item = new QGraphicsSimpleTextItem(loc.toString(value, 'f', decimals), chart);
+            item->setFont(font);
+            item->setBrush(brush);
+            item->setZValue(50);
+            labels.push_back(item);
+        }
+
+        auto update = [chart, series, set, labels, horizontal, decimals]() {
+            const QLocale loc(QLocale::French);
+            const int count = qMin(set->count(), labels.size());
+            for (int i = 0; i < count; ++i) {
+                auto *item = labels[i];
+                if (!item) continue;
+                const double value = set->at(i);
+                item->setText(loc.toString(value, 'f', decimals));
+
+                const QPointF anchor = horizontal
+                    ? chart->mapToPosition(QPointF(value, i), series)
+                    : chart->mapToPosition(QPointF(i, value), series);
+
+                const QRectF br = item->boundingRect();
+                QPointF pos;
+                if (horizontal) {
+                    pos = QPointF(anchor.x() + 6.0, anchor.y() - br.height() / 2.0);
+                } else {
+                    pos = QPointF(anchor.x() - br.width() / 2.0, anchor.y() - br.height() - 6.0);
+                }
+                item->setPos(pos);
+            }
+        };
+
+        QObject *helper = new QObject(chart);
+        QObject::connect(chart, &QChart::plotAreaChanged, helper, [update](const QRectF &) { update(); });
+        QObject::connect(set, &QBarSet::valueChanged, helper, [update](int) { update(); });
+        update();
     };
 
     auto compactTop = [](QVector<QPair<QString, double>> items, int maxItems, const QString &othersLabel) {
@@ -17493,25 +19144,36 @@ void MainWindow::buildStatsCharts()
     } else {
         prodSeries->append("Aucun produit", 1);
     }
-    if (prodSeries->slices().size() >= 3) {
-        prodSeries->slices().at(0)->setColor(QColor("#16a34a"));
-        prodSeries->slices().at(1)->setColor(QColor("#f59e0b"));
-        prodSeries->slices().at(2)->setColor(QColor("#ef4444"));
-    }
     for (auto *slice : prodSeries->slices()) {
+        if (total > 0) {
+            double pct = slice->percentage() * 100.0;
+            slice->setLabel(QString("%1\n%2%").arg(slice->label()).arg(pct, 0, 'f', 1));
+        }
         slice->setLabelVisible(true);
-        slice->setLabelColor(Qt::white);
-        slice->setLabelPosition(QPieSlice::LabelInsideHorizontal);
-        slice->setBorderWidth(2);
-        slice->setBorderColor(Qt::white);
+        slice->setLabelColor(QColor("#1a1a2e"));
     }
 
     auto *prodChart = new QChart();
     prodChart->addSeries(prodSeries);
-    prodChart->setTheme(QChart::ChartThemeBlueCerulean);
+    prodChart->setTheme(QChart::ChartThemeLight);
+    prodChart->setBackgroundBrush(Qt::transparent);
+    prodChart->setPlotAreaBackgroundVisible(false);
     prodChart->setAnimationOptions(QChart::AllAnimations);
     prodChart->legend()->setAlignment(Qt::AlignRight);
     prodChart->legend()->setFont(QFont("Segoe UI", 9));
+    prodChart->legend()->setLabelColor(QColor("#1a1a2e"));
+
+    if (prodSeries->slices().size() >= 3) {
+        prodSeries->slices().at(0)->setColor(QColor("#27ae60"));
+        prodSeries->slices().at(1)->setColor(QColor("#f59e0b"));
+        prodSeries->slices().at(2)->setColor(QColor("#ef4444"));
+    }
+    for (auto *slice : prodSeries->slices()) {
+        slice->setLabelPosition(QPieSlice::LabelOutside);
+        slice->setBorderColor(QColor("#ffffff"));
+        slice->setBorderWidth(2);
+    }
+
     QWidget *card1 = createChartCard("Taux de production (Disponibilite)", "Part du parc reellement disponible par etat", prodChart);
     gridLayout->addWidget(card1, 0, 0);
 
@@ -17525,6 +19187,8 @@ void MainWindow::buildStatsCharts()
 
     auto *volSet = new QBarSet("Volume (L)");
     volSet->setColor(QColor("#8b5cf6"));
+    volSet->setLabelColor(QColor("#1a1a2e"));
+    volSet->setLabelFont(QFont("Segoe UI", 9, QFont::Bold));
     QStringList volCats;
     double volMax = 0.0;
     for (const auto &it : volumeByModel) {
@@ -17539,20 +19203,31 @@ void MainWindow::buildStatsCharts()
     auto *volChart = new QChart();
     volChart->addSeries(volSeries);
     volChart->setTheme(QChart::ChartThemeLight);
+    volChart->setBackgroundBrush(Qt::transparent);
+    volChart->setPlotAreaBackgroundVisible(false);
     volChart->setAnimationOptions(QChart::SeriesAnimations);
     volChart->legend()->setAlignment(Qt::AlignBottom);
+    volChart->legend()->setLabelColor(QColor("#1a1a2e"));
+
+    for (QBarSet *set : volSeries->barSets()) {
+        set->setColor(QColor("#27ae60"));
+    }
 
     auto *volAxisX = new QBarCategoryAxis();
     volAxisX->append(volCats);
     volAxisX->setLabelsAngle(-30);
+    volAxisX->setLabelsColor(QColor("#1a1a2e"));
     volChart->addAxis(volAxisX, Qt::AlignBottom);
     volSeries->attachAxis(volAxisX);
 
     auto *volAxisY = new QValueAxis();
     volAxisY->setLabelFormat("%.0f");
-    volAxisY->setRange(0, volMax > 0 ? volMax * 1.2 : 100);
+    volAxisY->setRange(0, volMax > 0 ? volMax * 1.35 : 100);
+    volAxisY->setLabelsColor(QColor("#1a1a2e"));
     volChart->addAxis(volAxisY, Qt::AlignLeft);
     volSeries->attachAxis(volAxisY);
+
+    attachFixedBarValueLabels(volChart, volSeries, volSet, 1);
 
     QWidget *card2 = createChartCard("Volume produit par modele", "Capacite cumulee produite (stock x capacite)", volChart);
     gridLayout->addWidget(card2, 0, 1);
@@ -17567,6 +19242,8 @@ void MainWindow::buildStatsCharts()
 
     auto *valSet = new QBarSet("Valeur (TND)");
     valSet->setColor(QColor("#2563eb"));
+    valSet->setLabelColor(QColor("#1a1a2e"));
+    valSet->setLabelFont(QFont("Segoe UI", 9, QFont::Bold));
     QStringList valCats;
     double valMax = 0.0;
     for (const auto &it : valueByModel) {
@@ -17581,20 +19258,31 @@ void MainWindow::buildStatsCharts()
     auto *valChart = new QChart();
     valChart->addSeries(valSeries);
     valChart->setTheme(QChart::ChartThemeLight);
+    valChart->setBackgroundBrush(Qt::transparent);
+    valChart->setPlotAreaBackgroundVisible(false);
     valChart->setAnimationOptions(QChart::SeriesAnimations);
     valChart->legend()->setAlignment(Qt::AlignBottom);
+    valChart->legend()->setLabelColor(QColor("#1a1a2e"));
+
+    for (QBarSet *set : valSeries->barSets()) {
+        set->setColor(QColor("#0ea5e9"));
+    }
 
     auto *valAxisX = new QBarCategoryAxis();
     valAxisX->append(valCats);
     valAxisX->setLabelsAngle(-30);
+    valAxisX->setLabelsColor(QColor("#1a1a2e"));
     valChart->addAxis(valAxisX, Qt::AlignBottom);
     valSeries->attachAxis(valAxisX);
 
     auto *valAxisY = new QValueAxis();
     valAxisY->setLabelFormat("%.0f");
-    valAxisY->setRange(0, valMax > 0 ? valMax * 1.2 : 100);
+    valAxisY->setRange(0, valMax > 0 ? valMax * 1.35 : 100);
+    valAxisY->setLabelsColor(QColor("#1a1a2e"));
     valChart->addAxis(valAxisY, Qt::AlignLeft);
     valSeries->attachAxis(valAxisY);
+
+    attachFixedBarValueLabels(valChart, valSeries, valSet, 1);
 
     QWidget *card3 = createChartCard("Valeur de production", "Valeur economique cumulee par modele", valChart);
     gridLayout->addWidget(card3, 1, 0);
@@ -17618,6 +19306,8 @@ void MainWindow::buildStatsCharts()
 
     auto *effSet = new QBarSet("L / TND");
     effSet->setColor(QColor("#14b8a6"));
+    effSet->setLabelColor(QColor("#1a1a2e"));
+    effSet->setLabelFont(QFont("Segoe UI", 9, QFont::Bold));
     QStringList effCats;
     double effMax = 0.0;
     for (const auto &it : effByModel) {
@@ -17632,19 +19322,30 @@ void MainWindow::buildStatsCharts()
     auto *effChart = new QChart();
     effChart->addSeries(effSeries);
     effChart->setTheme(QChart::ChartThemeLight);
+    effChart->setBackgroundBrush(Qt::transparent);
+    effChart->setPlotAreaBackgroundVisible(false);
     effChart->setAnimationOptions(QChart::SeriesAnimations);
     effChart->legend()->setAlignment(Qt::AlignBottom);
+    effChart->legend()->setLabelColor(QColor("#1a1a2e"));
+
+    for (QBarSet *set : effSeries->barSets()) {
+        set->setColor(QColor("#14b8a6"));
+    }
 
     auto *effAxisY = new QBarCategoryAxis();
     effAxisY->append(effCats);
+    effAxisY->setLabelsColor(QColor("#1a1a2e"));
     effChart->addAxis(effAxisY, Qt::AlignLeft);
     effSeries->attachAxis(effAxisY);
 
     auto *effAxisX = new QValueAxis();
     effAxisX->setLabelFormat("%.2f");
-    effAxisX->setRange(0, effMax > 0 ? effMax * 1.2 : 1);
+    effAxisX->setRange(0, effMax > 0 ? effMax * 1.35 : 1);
+    effAxisX->setLabelsColor(QColor("#1a1a2e"));
     effChart->addAxis(effAxisX, Qt::AlignBottom);
     effSeries->attachAxis(effAxisX);
+
+    attachFixedBarValueLabels(effChart, effSeries, effSet, 1);
 
     QWidget *card4 = createChartCard("Efficience de production", "Volume produit par dinar investi (L/TND)", effChart);
     gridLayout->addWidget(card4, 1, 1);
@@ -17653,627 +19354,394 @@ void MainWindow::buildStatsCharts()
 
 
 QString MainWindow::productStyleSheet() const
-
 {
-
     QString qss = QStringLiteral(R"(
+/* =========================================================================
+   WASTEGUARD LIGHT GREEN THEME - PRODUIT MODULE
+   ========================================================================= */
 
-/* GLOBAL SETTINGS */
+* {
+    font-family: 'Segoe UI', 'SF Pro Display', Roboto, sans-serif;
+}
 
+QWidget#pageProduit, QWidget#prod_affichage, QWidget#prod_ajout,
+QWidget#prod_modification, QWidget#prod_statistiques {
+    background-color: #f0f2f5;
+}
 
+QWidget#produitRoot { background-color: #f0f2f5; }
 
-* { font-family: 'Segoe UI', Arial, sans-serif; }
+/* STATS PAGE */
+QLabel#prod_lblStatsHeader {
+    color: #1a1a2e;
+    font-size: 24px;
+    font-weight: 800;
+    background: transparent;
+}
 
-
-
-QMainWindow, QWidget#centralwidget, QTabWidget::pane { background-color: #eff3f8; border: none; }
-
-
-
-/* SIDEBAR */
-
-
-
-QWidget#leftSidebar QPushButton {
-
-    background-color: transparent;
-
+QPushButton#prod_btnReturnStats {
+    background-color: #27ae60;
+    color: #ffffff;
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 13px;
     border: none;
-
-    color: #bdc3c7;
-
-    text-align: left;
-
-    padding: 12px 20px;
-
-    font-size: 14px;
-
-    border-left: 3px solid transparent;
-
 }
 
-
-
-QWidget#leftSidebar QPushButton:hover, QWidget#leftSidebar QPushButton:checked {
-
-    background-color: #1a4270;
-
-    color: white;
-
-    border-left: 3px solid #3498db;
-
+QPushButton#prod_btnReturnStats:hover {
+    background-color: #219a52;
 }
 
-
+QPushButton#prod_btnReturnStats:pressed {
+    background-color: #1a7a42;
+}
 
 /* TOP BAR */
-
-
-
-QWidget#horizontalLayoutWidget_1, QWidget#horizontalLayoutWidget_2, QWidget#horizontalLayoutWidget_3 { background-color: #3b6998; }
-
-
-
-QLabel#lb_1, QLabel#lb_2, QLabel#lb_3, QLabel#user_1, QLabel#user_2, QLabel#user_3 { color: white; font-weight: bold; font-size: 14px; }
-
-
-
-QPushButton#btnnotif_1, QPushButton#btnprofil_1, QPushButton#btnnotif_2, QPushButton#btnprofil_2, QPushButton#btnnotif_3, QPushButton#btnprofil_3 { background-color: rgba(255, 255, 255, 0.2); border-radius: 4px; padding: 5px 15px; }
-
-
-
-/* DASHBOARD TABLE & CONTROLS */
-
-
-
-QTableWidget { background-color: white; border: 1px solid #dce1e8; border-radius: 8px; gridline-color: #f0f0f0; selection-background-color: #e3f2fd; selection-color: #333; }
-
-
-
-QHeaderView::section { background-color: white; color: #333; font-weight: bold; border: none; border-bottom: 2px solid #3b6998; padding: 8px; }
-
-
-
-QLineEdit#searchInput { background-color: white; border: 1px solid #ccc; padding: 5px; border-radius: 4px; }
-
-
-
-QComboBox#cbSort { background-color: white; border: 1px solid #ccc; padding: 5px; border-radius: 4px; }
-
-
-
-QPushButton#btnAddProduct { background-color: #3b6998; color: white; font-weight: bold; border-radius: 4px; padding: 5px 15px; }
-
-
-
-
-/* CARD VIEW */
-#prod_cardContainer {
-    background-color: transparent;
-}
-
-QFrame#productCard {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 16px;
-}
-
-QFrame#productCard:hover {
-    border: 1px solid #3b82f6;
-    background: #f8fafc;
-}
-
-QPushButton#btnProductAction {
-    border: 1px solid #e2e8f0;
-    background: #f1f5f9;
-}
-
-/* COMMON FORM STYLES */
-
-
-
-QFrame#cardAdd, QFrame#cardMod, QFrame#rightSidebar { background-color: white; border-radius: 15px; border: 1px solid #dce1e8; }
-
-
-
-QLabel { color: #37474f; font-weight: 700; font-size: 13px; margin-bottom: 2px; }
-
-
-
-QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox { background-color: #f7f9fc; border: 1px solid #cfd8dc; border-radius: 6px; padding: 8px; color: #37474f; font-size: 13px; }
-
-
-
-QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus { border: 1px solid #3b6998; background-color: white; }
-
-
-
-/* STAT CARDS (Dashboard) */
-
-
-
-QFrame.statCard { background-color: #e3f2fd; border-radius: 8px; border: 1px solid #bbdefb; }
-
-
-
-QLabel.statValue { font-size: 20px; font-weight: bold; color: #1565c0; }
-
-
-
-QLabel.statLabel { font-size: 12px; color: #546e7a; }
-
-
-
-QFrame.alertCard { background-color: #ffebee; border-radius: 8px; border: 1px solid #ffcdd2; }
-
-
-
-QLabel.alertValue { font-size: 20px; font-weight: bold; color: #c62828; }
-
-
-
-/* SLIDERS */
-
-
-
-QSlider::groove:horizontal { background: #e0e0e0; height: 8px; border-radius: 4px; }
-
-
-
-QSlider::handle:horizontal { background: #3b6998; width: 16px; margin: -5px 0; border-radius: 8px; }
-
-
-
-QSlider::sub-page:horizontal { background: #64b5f6; border-radius: 4px; }
-
-
-
-/* CREATIVE WAREHOUSE MAP */
-
-
-
-QFrame#mapFrame, QFrame#depotMapFrame_mod { background-color: #263238; border-radius: 8px; border: 2px solid #455a64; }
-
-
-
-QLabel.zoneLabel { color: #cfd8dc; font-size: 11px; font-weight: bold; letter-spacing: 1px; margin-top: 10px; }
-
-
-
-QPushButton.slotBtn { background-color: #4caf50; border: 2px solid #388e3c; border-radius: 4px; color: white; font-weight: bold; }
-
-
-
-QPushButton.slotBtn:checked { background-color: #2196f3; border: 2px solid #1976d2; }
-
-
-
-QPushButton.slotBtn:disabled { background-color: #ef5350; border: 2px solid #c62828; color: #ffebee; text-decoration: line-through; }
-
-
-
-/* ACTION BUTTONS */
-
-
-
-QPushButton#btnSave_Add, QPushButton#btnSave_Mod { background-color: #4caf50; color: white; font-weight: bold; border-radius: 6px; }
-
-
-
-QPushButton#btnCancel_Add, QPushButton#btnCancel_Mod { background-color: #b0bec5; color: white; font-weight: bold; border-radius: 6px; }
-
-
-
-QLabel#lblImgPreview_Add, QLabel#imgBin { background-color: #eceff1; border: 2px dashed #cfd8dc; border-radius: 12px; color: #90a4ae; }
-
-
-
-/* --- Fix sidebar/background containers --- */
-
-#leftSidebar{background-color:#0f2c4f;}
-
-#rightSidebar{min-width:0px; max-width:16777215px;}
-
-
-
-/* Stats preview colors */
-
-#statCard QWidget#statMiniFrame QLabel{color:#ffffff;}
-
-QPushButton#btnOpenStats{color:#000000;}
-
-
-
-/* Plain text / no gray backgrounds */
-
-QTableWidget { alternate-background-color: white; }
-
-QTableWidget::item { color: #333; background-color: white; }
-
-QTableWidget::item:selected { background-color: #e3f2fd; color: #333; }
-
-QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox { color: #37474f; }
-
-
-
-/* Force clean text colors in product module */
-
-QWidget#PModule2 QLabel, QWidget#PModule1 QLabel { color: #37474f; background-color: transparent; }
-
-QLabel#prod_lb_1, QLabel#prod_lb_2, QLabel#prod_lb_3, QLabel#prod_user_1, QLabel#prod_user_2, QLabel#prod_user_3 { color: #37474f; background-color: transparent; }
-
-QLabel.statValue { color: #1565c0; }
-
-QLabel.statLabel { color: #546e7a; }
-
-QLabel.alertValue { color: #c62828; }
-
-
-
-/* Product right sidebar visual (match reference) */
-
-QLabel#prod_lblFunc, QLabel#prod_lblExport {
-
-    color: #37474f;
-
-    font-weight: 700;
-
-    font-size: 13px;
-
-}
-
-QFrame#prod_stat1, QFrame#prod_stat2, QFrame#prod_statsPreview {
-
-    background-color: #e3f2fd;
-
-    border-radius: 10px;
-
-    border: 1px solid #bbdefb;
-
-}
-
-QFrame#prod_stat3 {
-
-    background-color: #ffebee;
-
-    border-radius: 10px;
-
-    border: 1px solid #ffcdd2;
-
-}
-
-QLabel#prod_st_val1, QLabel#prod_st_val2 {
-
-    color: #1565c0;
-
-    font-size: 20px;
-
-    font-weight: bold;
-
-}
-
-QLabel#prod_st_val3 { color: #c62828; font-size: 20px; font-weight: bold; }
-
-QLabel#prod_st_lbl1, QLabel#prod_st_lbl2, QLabel#prod_st_lbl3 { color: #546e7a; font-size: 12px; }
-
-QFrame#prod_miniStatsFrame {
-
-    background-color: #2f2f2f;
-
-    border-radius: 8px;
-
-    border: none;
-
-}
-
-QLabel#prod_lblMini1, QLabel#prod_lblMini2 { color: #ffffff; font-weight: 600; }
-
-QProgressBar#prod_pbTrend, QProgressBar#prod_pbStock {
-
-    background-color: #3e3e3e;
-
-    border: none;
-
-    border-radius: 3px;
-
-    height: 6px;
-
-}
-
-QProgressBar#prod_pbTrend::chunk, QProgressBar#prod_pbStock::chunk {
-
-    background-color: #1e88e5;
-
-    border-radius: 3px;
-
-}
-
-
-
-/* Zone labels should be dark (not white) */
-
-QLabel.zoneLabel { color: #37474f; }
-
-
-
-/* Export buttons */
-
-QPushButton#prod_btnPdf {
-
-    background-color: #3a3a3a;
-
-    color: #ffffff;
-
-    border: none;
-
-    border-radius: 6px;
-
-    padding: 6px 10px;
-
-}
-
-QPushButton#prod_btnPdf:hover {
-
-    background-color: #2f2f2f;
-
-}
-
-
-
-/* Employe-style top bar for product */
-
-QLabel#prod_label_Title { color: #0f2b4c; font-size: 18px; font-weight: 600; }
-
- QLabel#prod_lblUserName { font-size: 14px; font-weight: bold; color: #0f2b4c; }
-
- QLabel#prod_lblUserRole { font-size: 12px; font-weight: bold; color: #28a745; margin-top: -2px; }
-
-
-
-/* Match employe add button style in product top bar */
-
-QPushButton#prod_btnAddProduct {
-
-    background-color: #0f2b4c;
-
-    color: white;
-
-    border-radius: 5px;
-
-    padding: 8px 15px;
-
-    font-weight: bold;
-
-    border: none;
-
-}
-
-QPushButton#prod_btnAddProduct:hover {
-
-    background-color: #1a4270;
-
-}
-
-
-
-/* Match employe control sizing on product search/filter/add row */
-
-QLineEdit#prod_searchInput { min-height: 40px; }
-
-QComboBox#prod_cbSort { min-height: 40px; min-width: 180px; }
-
-QPushButton#prod_btnAddProduct { min-height: 40px; }
-
-
-
-/* Match employe search/filter visual style */
-
-QLineEdit#prod_searchInput {
-
+QWidget#prod_topBar, QFrame#prod_topBar {
     background-color: #ffffff;
-
-    color: #000000;
-
-    border: 1px solid #cccccc;
-
-    border-radius: 5px;
-
-    padding: 6px;
-
+    border-bottom: 1px solid #e8ecf0;
 }
 
-QLineEdit#prod_searchInput:focus { border: 1px solid #3498db; }
-
-QComboBox#prod_cbSort {
-
-    background-color: #ffffff;
-
-    color: #333333;
-
-    border: 1px solid #cccccc;
-
-    border-radius: 5px;
-
-    padding: 6px;
-
+QLabel#prod_label_Title {
+    color: #1a1a2e;
+    font-size: 22px;
+    font-weight: 800;
 }
 
-QComboBox#prod_cbSort:focus { border: 1px solid #3498db; }
-
-
-
-/* Force Product + Stock sidebar button text to black */
-
-QPushButton#prod_btnproduit_1, QPushButton#prod_btnstock_1 { color: #000000; }
-
-
-
-/* Ensure product left sidebar buttons have no frames/borders */
-
-QFrame#prod_leftSidebar QPushButton {
-
-    background-color: transparent;
-
-    border: none;
-
-    text-align: left;
-
-    padding: 12px 20px;
-
+QLabel#prod_lblUserName {
     font-size: 14px;
-
-    border-left: 3px solid transparent;
-
+    font-weight: 600;
+    color: #1a1a2e;
 }
 
-QFrame#prod_leftSidebar QPushButton:hover, QFrame#prod_leftSidebar QPushButton:checked {
-
-    background-color: #1a4270;
-
-    color: white;
-
-    border-left: 3px solid #3498db;
-
+QLabel#prod_lblUserRole {
+    font-size: 11px;
+    font-weight: 800;
+    color: #27ae60;
+    letter-spacing: 1px;
 }
 
-QFrame#prod_leftSidebar QPushButton:focus { outline: none; }
-
-
-
-/* Product table styled like employe */
-
+/* PRODUCT TABLE - CLEAN WHITE */
 QTableWidget#prod_tableProduits {
-
-    background-color: #f4f6f9;
-
-    alternate-background-color: #e8ebf0;
-
-    color: #000000;
-
+    background-color: #ffffff;
+    alternate-background-color: #fafbfc;
+    color: #1a1a2e;
     gridline-color: transparent;
-
-    border: 1px solid #dce1e6;
-
-    border-radius: 8px;
-
+    border: 1px solid #e8ecf0;
+    border-radius: 12px;
     font-size: 13px;
-
+    padding: 5px;
+    selection-background-color: #e8f5e9;
+    selection-color: #1a3a2e;
 }
 
 QTableWidget#prod_tableProduits::item {
-
-    color: #000000;
-
-    padding: 5px;
-
-    border-bottom: 1px solid #e0e6ed;
-
+    background-color: transparent;
+    padding: 10px;
+    border-bottom: 1px solid #f0f2f5;
+    color: #1a1a2e;
 }
 
 QTableWidget#prod_tableProduits::item:selected {
-
-    background-color: #e3f2fd;
-
-    color: #0f2b4c;
-
+    background-color: #e8f5e9;
+    color: #1a3a2e;
+    outline: none;
 }
 
-QTableWidget#prod_tableProduits QHeaderView::section {
+QTableWidget#prod_tableProduits::item:hover {
+    background-color: #f0f7f4;
+}
 
-    background-color: #0f2b4c;
-
-    color: white;
-
-    padding: 8px;
-
+QTableWidget#prod_tableProduits QHeaderView::section,
+QHeaderView::section {
+    background-color: #f8fafb;
+    color: #6c757d;
+    font-weight: 700;
+    padding: 12px;
     border: none;
+    border-bottom: 2px solid #27ae60;
+    font-size: 11px;
+    letter-spacing: 1px;
+}
 
-    font-weight: bold;
+/* SEARCH & FILTERS */
+QLineEdit#prod_searchInput {
+    background-color: #ffffff;
+    color: #1a1a2e;
+    border: 1px solid #e8ecf0;
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-size: 14px;
+    selection-background-color: #27ae60;
+}
 
+QLineEdit#prod_searchInput:focus {
+    border: 2px solid #27ae60;
+    background-color: #ffffff;
+}
+
+QComboBox#prod_cbSort {
+    background-color: #ffffff;
+    color: #1a1a2e;
+    border: 1px solid #e8ecf0;
+    border-radius: 10px;
+    padding: 10px 15px;
+    font-size: 14px;
+}
+
+QComboBox#prod_cbSort:hover {
+    border-color: #27ae60;
+}
+
+QComboBox::drop-down {
+    border: none;
+    width: 20px;
+}
+
+/* ADD PRODUCT - GREEN PRIMARY */
+QPushButton#prod_btnAddProduct {
+    background: #f0c343;
+    color: #2d2100;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 24px;
+    font-weight: 800;
+    font-size: 14px;
+}
+
+QPushButton#prod_btnAddProduct:hover {
+    background: #e3b232;
+}
+
+QPushButton#prod_btnAddProduct:pressed {
+    background: #d39c1e;
+}
+
+QPushButton#prod_btnPdf {
+    background-color: #ffffff;
+    color: #27ae60;
+    border: 1px solid #27ae60;
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-weight: 700;
+}
+
+QPushButton#prod_btnPdf:hover {
+    background-color: #27ae60;
+    color: #ffffff;
+}
+
+/* FORMS - ADD / MODIFY */
+QFrame#cardAdd, QFrame#cardMod {
+    background-color: #ffffff;
+    border-radius: 16px;
+    border: 1px solid #e8ecf0;
+}
+
+QFrame#rightSidebar, QFrame#prod_rightSidebar {
+    background-color: #ffffff;
+    border-left: 1px solid #e8ecf0;
+    border-radius: 0px;
+}
+
+QLabel#prod_lblFunc, QLabel#prod_lblExport, QWidget#produitRoot QLabel {
+    color: #1a1a2e;
+    font-weight: 700;
     font-size: 13px;
+    background: transparent;
+}
 
+QWidget#prod_ajout QLineEdit, QWidget#prod_ajout QSpinBox, QWidget#prod_ajout QDoubleSpinBox,
+QWidget#prod_modification QLineEdit, QWidget#prod_modification QSpinBox, QWidget#prod_modification QDoubleSpinBox {
+    background-color: #ffffff;
+    border: 1px solid #e8ecf0;
+    border-radius: 8px;
+    padding: 10px 34px 10px 10px;
+    color: #1a1a2e;
+}
+
+QWidget#prod_ajout QLineEdit:focus, QWidget#prod_ajout QSpinBox:focus, QWidget#prod_ajout QDoubleSpinBox:focus,
+QWidget#prod_modification QLineEdit:focus, QWidget#prod_modification QSpinBox:focus, QWidget#prod_modification QDoubleSpinBox:focus {
+    border: 2px solid #27ae60;
+}
+
+QWidget#prod_ajout QSpinBox::up-button, QWidget#prod_ajout QSpinBox::down-button,
+QWidget#prod_ajout QDoubleSpinBox::up-button, QWidget#prod_ajout QDoubleSpinBox::down-button,
+QWidget#prod_modification QSpinBox::up-button, QWidget#prod_modification QSpinBox::down-button,
+QWidget#prod_modification QDoubleSpinBox::up-button, QWidget#prod_modification QDoubleSpinBox::down-button {
+    subcontrol-origin: border;
+    width: 22px;
+    right: 6px;
+    background: #f8fafc;
+    border-left: 1px solid #dbe4ea;
+    border-radius: 4px;
+}
+
+QWidget#prod_ajout QSpinBox::up-button, QWidget#prod_ajout QDoubleSpinBox::up-button,
+QWidget#prod_modification QSpinBox::up-button, QWidget#prod_modification QDoubleSpinBox::up-button {
+    subcontrol-position: top right;
+    height: 16px;
+    top: 4px;
+}
+
+QWidget#prod_ajout QSpinBox::down-button, QWidget#prod_ajout QDoubleSpinBox::down-button,
+QWidget#prod_modification QSpinBox::down-button, QWidget#prod_modification QDoubleSpinBox::down-button {
+    subcontrol-position: bottom right;
+    height: 16px;
+    bottom: 4px;
+}
+
+QWidget#prod_ajout QSpinBox::up-arrow, QWidget#prod_ajout QDoubleSpinBox::up-arrow,
+QWidget#prod_modification QSpinBox::up-arrow, QWidget#prod_modification QDoubleSpinBox::up-arrow {
+    image: url(:/assets/icons/spin_up.png);
+    width: 12px;
+    height: 12px;
+}
+
+QWidget#prod_ajout QSpinBox::down-arrow, QWidget#prod_ajout QDoubleSpinBox::down-arrow,
+QWidget#prod_modification QSpinBox::down-arrow, QWidget#prod_modification QDoubleSpinBox::down-arrow {
+    image: url(:/assets/icons/spin_down.png);
+    width: 12px;
+    height: 12px;
+}
+
+/* STAT CARDS - RIGHT SIDEBAR */
+QFrame#prod_stat1, QFrame#prod_stat2, QFrame#prod_stat3 {
+    background-color: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #e8ecf0;
+    padding: 12px;
+}
+
+QFrame#prod_statsPreview {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #1a3a2e, stop:1 #2d5a42);
+    border-radius: 14px;
+    border: none;
+    padding: 15px;
+}
+
+QFrame#prod_statsPreview QLabel {
+    color: #ffffff;
+    background: transparent;
+}
+
+QLabel#prod_st_val1, QLabel#prod_st_val2 {
+    color: #27ae60;
+    font-size: 22px;
+    font-weight: 800;
+    background: transparent;
+}
+
+QLabel#prod_st_val3 {
+    color: #e74c3c;
+    font-size: 22px;
+    font-weight: 800;
+    background: transparent;
+}
+
+QLabel#prod_st_lbl1, QLabel#prod_st_lbl2, QLabel#prod_st_lbl3 {
+    color: #6c757d;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    background: transparent;
+}
+
+/* SLIDERS - GREEN */
+QSlider::groove:horizontal {
+    background: #e8ecf0;
+    height: 8px;
+    border-radius: 4px;
+}
+
+QSlider::handle:horizontal {
+    background: #27ae60;
+    width: 18px;
+    height: 18px;
+    margin: -5px 0;
+    border-radius: 9px;
+    border: 2px solid #ffffff;
+}
+
+QSlider::sub-page:horizontal {
+    background: #27ae60;
+    border-radius: 4px;
 }
 
 
 
+/* FORM BUTTONS */
+QPushButton#prod_btnSave_Add, QPushButton#prod_btnSave_Mod {
+    background: #1e40af;
+    color: #ffffff;
+    font-weight: bold;
+    border-radius: 10px;
+    border: none;
+    min-height: 45px;
+}
+
+QPushButton#prod_btnSave_Add:hover, QPushButton#prod_btnSave_Mod:hover {
+    background: #1e3a8a;
+}
+
+QPushButton#prod_btnCancel_Add, QPushButton#prod_btnCancel_Mod {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    min-height: 45px;
+    font-weight: 700;
+}
+
+QPushButton#prod_btnCancel_Add:hover, QPushButton#prod_btnCancel_Mod:hover {
+    background: #e2e8f0;
+    color: #1e293b;
+}
+
+QLabel#lblImgPreview_Add, QLabel#imgBin {
+    background-color: #f8fafb;
+    border: 2px dashed #93c5fd;
+    border-radius: 15px;
+    color: #6c757d;
+}
+
+/* SIDEBAR ACTION BUTTONS */
+QPushButton#prod_btnOpenStats, QPushButton#prod_btnMap3D,
+QPushButton#prod_btnVideo3D, QPushButton#prod_btn3DModel {
+    background-color: #f0f7f4;
+    color: #1a3a2e;
+    border: 1px solid #d4e8dc;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-weight: 700;
+    text-align: left;
+}
+
+QPushButton#prod_btnOpenStats:hover, QPushButton#prod_btnMap3D:hover,
+QPushButton#prod_btnVideo3D:hover, QPushButton#prod_btn3DModel:hover {
+    background-color: #27ae60;
+    color: #ffffff;
+    border-color: #27ae60;
+}
+
+/* PROGRESS BARS */
+QProgressBar#prod_pbTrend, QProgressBar#prod_pbStock {
+    background-color: #e8ecf0;
+    border: none;
+    border-radius: 4px;
+    height: 8px;
+    text-align: center;
+    color: transparent;
+}
+
+QProgressBar#prod_pbTrend::chunk, QProgressBar#prod_pbStock::chunk {
+    background: #27ae60;
+    border-radius: 4px;
+}
 )");
 
-
-
-    qss.replace("QMainWindow, QWidget#centralwidget", "QWidget#PModule2, QWidget#PModule1, QWidget#pageProduit");
-
-    qss.replace("QWidget#leftSidebar", "QWidget#prod_leftSidebar");
-
-    qss.replace("QWidget#rightSidebar", "QWidget#prod_rightSidebar");
-
-    qss.replace("QWidget#horizontalLayoutWidget_1", "QWidget#prod_horizontalLayoutWidget_1");
-
-    qss.replace("QWidget#horizontalLayoutWidget_2", "QWidget#prod_horizontalLayoutWidget_2");
-
-    qss.replace("QWidget#horizontalLayoutWidget_3", "QWidget#prod_horizontalLayoutWidget_3");
-
-    qss.replace("QLabel#lb_1", "QLabel#prod_lb_1");
-
-    qss.replace("QLabel#lb_2", "QLabel#prod_lb_2");
-
-    qss.replace("QLabel#lb_3", "QLabel#prod_lb_3");
-
-    qss.replace("QLabel#user_1", "QLabel#prod_user_1");
-
-    qss.replace("QLabel#user_2", "QLabel#prod_user_2");
-
-    qss.replace("QLabel#user_3", "QLabel#prod_user_3");
-
-    qss.replace("QPushButton#btnnotif_1", "QPushButton#prod_btnnotif_1");
-
-    qss.replace("QPushButton#btnprofil_1", "QPushButton#prod_btnprofil_1");
-
-    qss.replace("QPushButton#btnnotif_2", "QPushButton#prod_btnnotif_2");
-
-    qss.replace("QPushButton#btnprofil_2", "QPushButton#prod_btnprofil_2");
-
-    qss.replace("QPushButton#btnnotif_3", "QPushButton#prod_btnnotif_3");
-
-    qss.replace("QPushButton#btnprofil_3", "QPushButton#prod_btnprofil_3");
-
-    qss.replace("QLineEdit#searchInput", "QLineEdit#prod_searchInput");
-
-    qss.replace("QComboBox#cbSort", "QComboBox#prod_cbSort");
-
-    qss.replace("QPushButton#btnAddProduct", "QPushButton#prod_btnAddProduct");
-
-    qss.replace("QFrame#cardAdd", "QFrame#prod_cardAdd");
-
-    qss.replace("QFrame#cardMod", "QFrame#prod_cardMod");
-
-    qss.replace("QFrame#rightSidebar", "QFrame#prod_rightSidebar");
-
-    qss.replace("QFrame#mapFrame", "QFrame#prod_mapFrame");
-
-    qss.replace("QFrame#depotMapFrame_mod", "QFrame#prod_depotMapFrame_mod");
-
-    qss.replace("QPushButton#btnSave_Add", "QPushButton#prod_btnSave_Add");
-
-    qss.replace("QPushButton#btnSave_Mod", "QPushButton#prod_btnSave_Mod");
-
-    qss.replace("QPushButton#btnCancel_Add", "QPushButton#prod_btnCancel_Add");
-
-    qss.replace("QPushButton#btnCancel_Mod", "QPushButton#prod_btnCancel_Mod");
-
-    qss.replace("QLabel#lblImgPreview_Add", "QLabel#prod_lblImgPreview_Add");
-
-    qss.replace("QLabel#imgBin", "QLabel#prod_imgBin");
-
-    qss.replace("QPushButton#btnOpenStats", "QPushButton#prod_btnOpenStats");
-
-    qss.replace("#leftSidebar", "#prod_leftSidebar");
-
-    qss.replace("#rightSidebar", "#prod_rightSidebar");
-
-
-
     return qss;
-
 }
 
 
@@ -18281,6 +19749,308 @@ QTableWidget#prod_tableProduits QHeaderView::section {
 void MainWindow::setupStockModule()
 
 {
+    // --- GREEN THEME INJECTION + INNOVATIVE RIGHT SIDEBAR ---
+    if (ui->pageStock && !ui->pageStock->property("stockGreenApplied").toBool()) {
+        ui->pageStock->setProperty("stockGreenApplied", true);
+
+        // Clear inline styles on key widgets so unified QSS can win
+        static const char *clearNames[] = {
+            "headerBar", "headerTitle", "btnNew", "user",
+            "tableCard", "lblTableTitle", "statsBox", "lblStatsTitle",
+            "totalStock", "lblCriticalStock", "orderBox", "lblOrderTitle",
+            "lblOrderSummary", "btnOrder", "btnPrediction", "btnAlerts",
+            "btnGoStats_Stock", "btnSmartCart", "addCard", "lblAddTitle"
+        };
+        for (const char *n : clearNames)
+            if (auto *w = ui->pageStock->findChild<QWidget*>(n)) w->setStyleSheet("");
+
+        ui->pageStock->setStyleSheet(QStringLiteral(R"(
+QWidget#pageStock, QWidget#pageInventaire, QWidget#pageAjouter, QWidget#pageModifier {
+    background-color: #f0f2f5;
+}
+QFrame#headerBar {
+    background-color: #ffffff;
+    border: none;
+    border-bottom: 1px solid #e8ecf0;
+}
+QLabel#headerTitle { color:#1a1a2e; font-size:22px; font-weight:800; margin-left:20px; background:transparent; }
+QLabel#user { color:#6c757d; font-size:12px; margin-right:20px; background:transparent; }
+QPushButton#btnNew {
+    background-color:#f0c343; color:#2d2100; border:none;
+    border-radius:10px; padding:10px 22px; font-weight:800; font-size:14px;
+}
+QPushButton#btnNew:hover { background-color:#e3b232; }
+
+QFrame#tableCard {
+    background-color:#ffffff; border-radius:12px; border:1px solid #e8ecf0;
+}
+QLabel#lblTableTitle { color:#1a1a2e; font-size:18px; font-weight:800; background:transparent; }
+
+QTableWidget#tableWidget {
+    background-color:#ffffff; color:#1a1a2e; gridline-color:transparent;
+    border:none; font-size:13px; selection-background-color:#e8f5e9;
+    selection-color:#1a3a2e; alternate-background-color:#fafbfc;
+}
+QTableWidget#tableWidget::item { padding:10px; border-bottom:1px solid #f0f2f5; }
+QTableWidget#tableWidget::item:selected { background:#e8f5e9; color:#1a3a2e; }
+QTableWidget#tableWidget::item:hover { background:#f0f7f4; }
+QTableWidget#tableWidget QHeaderView::section {
+    background:#f8fafb; color:#6c757d; font-weight:700; padding:12px;
+    border:none; border-bottom:2px solid #27ae60; font-size:11px; letter-spacing:1px;
+}
+
+QLineEdit#stock_searchInput {
+    background:#ffffff; color:#1a1a2e; border:1px solid #e8ecf0;
+    border-radius:10px; padding:8px 14px; font-size:14px;
+}
+QLineEdit#stock_searchInput:focus { border:2px solid #27ae60; }
+
+QComboBox#stock_sortCombo {
+    background:#ffffff; color:#1a1a2e; border:1px solid #e8ecf0;
+    border-radius:10px; padding:8px 14px; font-size:14px;
+}
+QComboBox#stock_sortCombo:hover { border-color:#27ae60; }
+QComboBox#stock_sortCombo::drop-down { border:none; width:24px; }
+
+QFrame#statsBox, QFrame#orderBox {
+    background:#ffffff; border-radius:14px; border:1px solid #e8ecf0;
+}
+
+QPushButton#btnOrder, QPushButton#btnPrediction, QPushButton#btnAlerts,
+QPushButton#btnGoStats_Stock, QPushButton#btnSmartCart {
+    background-color:#f0f7f4; color:#1a3a2e; border:1px solid #d4e8dc;
+    border-radius:10px; padding:12px 16px; font-weight:700; font-size:13px; text-align:center;
+}
+QPushButton#btnOrder:hover, QPushButton#btnPrediction:hover, QPushButton#btnAlerts:hover,
+QPushButton#btnGoStats_Stock:hover, QPushButton#btnSmartCart:hover {
+    background-color:#27ae60; color:#ffffff; border-color:#27ae60;
+}
+
+QFrame#addCard, QFrame#modifCard {
+    background:#ffffff; border-radius:16px; border:1px solid #e8ecf0;
+}
+QLabel#lblAddTitle { color:#1a1a2e; font-size:22px; font-weight:800; background:transparent; }
+QWidget#pageAjouter QLineEdit, QWidget#pageModifier QLineEdit {
+    background:#ffffff; color:#1a1a2e; border:1px solid #e8ecf0;
+    border-radius:8px; padding:10px; font-size:14px;
+}
+QWidget#pageAjouter QLineEdit:focus, QWidget#pageModifier QLineEdit:focus { border:2px solid #1e40af; }
+QSlider::groove:horizontal { background:#e2e8f0; height:8px; border-radius:4px; }
+QSlider::handle:horizontal { background:#1e40af; width:18px; margin:-5px 0; border-radius:9px; border:2px solid #ffffff; }
+QSlider::sub-page:horizontal { background:#3b82f6; border-radius:4px; }
+)"));
+
+        // ===== KPI ROW — Stock =====
+        QTimer::singleShot(100, this, [this]() {
+            auto *vl = ui->pageStock->findChild<QVBoxLayout*>("mainVerticalLayout");
+            if (!vl || ui->pageStock->findChild<QFrame*>("stock_kpiRow")) return;
+
+            int totalItems = 0, rupture = 0, alertes = 0;
+            double valTotal = 0.0, prixMoyen = 0.0;
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*), NVL(SUM(QUANTITE*NVL(PRIX,0)),0), NVL(AVG(NVL(PRIX,0)),0) FROM MATIERE_PREMIERE") && q.next()) {
+                totalItems = q.value(0).toInt(); valTotal = q.value(1).toDouble(); prixMoyen = q.value(2).toDouble(); } }
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM MATIERE_PREMIERE WHERE NVL(QUANTITE,0)=0") && q.next()) rupture = q.value(0).toInt(); }
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM MATIERE_PREMIERE WHERE NVL(QUANTITE,0) <= NVL(SEUIL_CRITIQUE,0) AND NVL(QUANTITE,0)>0") && q.next()) alertes = q.value(0).toInt(); }
+
+            auto makeKpi = [this](const QString &title, const QString &val,
+                                   const QString &sub, const char *icon,
+                                   const QString &iconBg, const QString &col) -> QFrame* {
+                auto *card = new QFrame();
+                card->setAttribute(Qt::WA_StyledBackground, true);
+                card->setStyleSheet("QFrame{background:#ffffff;border-radius:12px;border:1px solid #e8ecf0;}");
+                applySoftCardShadow(card, QColor(0,0,0,22), 18, QPoint(0,5));
+                auto *h = new QHBoxLayout(card); h->setContentsMargins(18,16,18,16); h->setSpacing(12);
+                auto *tv = new QVBoxLayout(); tv->setSpacing(3);
+                auto *t = new QLabel(title); t->setStyleSheet("font-size:10px;font-weight:700;color:#6c757d;letter-spacing:1px;background:transparent;border:none;");
+                auto *v = new QLabel(val);    v->setStyleSheet(QString("font-size:26px;font-weight:800;color:%1;background:transparent;border:none;").arg(col));
+                auto *s = new QLabel(sub);    s->setStyleSheet("font-size:11px;color:#6c757d;background:transparent;border:none;");
+                tv->addWidget(t); tv->addWidget(v); tv->addWidget(s);
+                h->addLayout(tv, 1);
+                auto *ic = new QLabel(QString::fromUtf8(icon)); ic->setFixedSize(46,46); ic->setAlignment(Qt::AlignCenter);
+                ic->setStyleSheet(QString("background:%1;border-radius:10px;font-size:20px;border:none;").arg(iconBg));
+                h->addWidget(ic, 0, Qt::AlignVCenter);
+                return card;
+            };
+
+            auto *kpiContainer = new QFrame(); kpiContainer->setObjectName("stock_kpiRow");
+            kpiContainer->setStyleSheet("QFrame{background:transparent;border:none;}");
+            auto *row = new QHBoxLayout(kpiContainer); row->setContentsMargins(16,8,16,8); row->setSpacing(14);
+            row->addWidget(makeKpi("TOTAL ARTICLES",   QString::number(totalItems), "Matieres premieres",  "\xF0\x9F\x93\xA6", "#e3f2fd", "#1e40af"));
+            row->addWidget(makeKpi("VALEUR STOCK",     QString("%1 TND").arg(QString::number(valTotal,'f',0)), "Valeur inventaire", "\xF0\x9F\x92\xB0", "#e8f5e9", "#1a3a2e"));
+            row->addWidget(makeKpi("RUPTURES",         QString::number(rupture),  rupture>0?"Stock epuise":"Tout en stock", "\xE2\x9A\xA0\xEF\xB8\x8F", "#fce4ec", rupture>0?"#e74c3c":"#27ae60"));
+            row->addWidget(makeKpi("SEUIL CRITIQUE",   QString::number(alertes),  alertes>0?"Reappro requis":"Stocks sains",  "\xF0\x9F\x94\x94", "#fff3e0", alertes>0?"#f39c12":"#27ae60"));
+            vl->insertWidget(1, kpiContainer);
+        });
+
+        // Rebuild the right column with innovative green hero
+        QTimer::singleShot(200, this, [this]() {
+            QVBoxLayout *rightCol = ui->pageStock->findChild<QVBoxLayout*>("rightColumn");
+            if (!rightCol || ui->pageStock->property("stockSidebarRebuilt").toBool()) return;
+            ui->pageStock->setProperty("stockSidebarRebuilt", true);
+
+            // KPI fetch
+            int totalItems = 0, rupture = 0, alertes = 0;
+            double valTotal = 0.0;
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*), NVL(SUM(QUANTITE*PRIX),0) FROM MATIERE_PREMIERE") && q.next()) {
+                totalItems = q.value(0).toInt(); valTotal = q.value(1).toDouble(); } }
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM MATIERE_PREMIERE WHERE NVL(QUANTITE,0)=0") && q.next()) rupture = q.value(0).toInt(); }
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM MATIERE_PREMIERE WHERE QUANTITE <= NVL(SEUIL_CRITIQUE,0)") && q.next()) alertes = q.value(0).toInt(); }
+            int workloadPct = totalItems > 0 ? int(double(alertes) / totalItems * 100.0) : 0;
+            Q_UNUSED(valTotal)
+
+            // Collect existing action buttons
+            QList<QPushButton*> actionBtns;
+            for (const char *n : {"btnOrder","btnPrediction","btnAlerts","btnGoStats_Stock","btnSmartCart"}) {
+                if (auto *b = ui->pageStock->findChild<QPushButton*>(n)) {
+                    b->setParent(nullptr); actionBtns.append(b);
+                }
+            }
+            for (const char *n : {"statsBox","orderBox"}) {
+                if (auto *w = ui->pageStock->findChild<QWidget*>(n)) {
+                    w->setParent(nullptr); w->hide();
+                }
+            }
+
+            QLayoutItem *it;
+            while ((it = rightCol->takeAt(0))) { delete it; }
+            rightCol->setSpacing(0);
+            rightCol->setContentsMargins(0, 0, 0, 0);
+
+            auto *stockScrollArea = new QScrollArea();
+            stockScrollArea->setObjectName("stockSidebarScroll");
+            stockScrollArea->setFrameShape(QFrame::NoFrame);
+            stockScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+            stockScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+            stockScrollArea->setWidgetResizable(true);
+            stockScrollArea->setStyleSheet(
+                "QScrollArea{background:transparent;border:none;}"
+                "QScrollArea > QWidget > QWidget{background:transparent;}"
+                "QScrollBar:vertical{background:#f0f2f5;width:6px;border-radius:3px;}"
+                "QScrollBar::handle:vertical{background:#c8d8ce;border-radius:3px;min-height:20px;}"
+                "QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical{height:0;}"
+            );
+            auto *stockScrollContent = new QWidget();
+            stockScrollContent->setObjectName("stockSidebarContent");
+            stockScrollContent->setStyleSheet("background:transparent;");
+            auto *stockScrollV = new QVBoxLayout(stockScrollContent);
+            stockScrollV->setContentsMargins(12, 12, 12, 12);
+            stockScrollV->setSpacing(10);
+
+            // Hero
+            auto *hero = new QFrame();
+            hero->setObjectName("stockHero");
+            hero->setAttribute(Qt::WA_StyledBackground, true);
+            hero->setStyleSheet(
+                "QFrame#stockHero{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #1a3a2e,stop:1 #2d5a42);border-radius:14px;border:none;}"
+                "QFrame#stockHero QLabel{color:#ffffff;background:transparent;border:none;}"
+            );
+            applySoftCardShadow(hero, QColor(26,58,46,100), 20, QPoint(0,6));
+            auto *hv = new QVBoxLayout(hero);
+            hv->setContentsMargins(16,14,16,14); hv->setSpacing(4);
+            auto *hHead = new QHBoxLayout();
+            auto *ht = new QLabel(QString::fromUtf8("\xF0\x9F\x93\x8A  Analyse Stock"));
+            ht->setStyleSheet("color:#ffffff;font-size:13px;font-weight:800;background:transparent;border:none;");
+            auto *hLive = new QLabel(QString::fromUtf8("\xE2\x97\x8F LIVE"));
+            hLive->setStyleSheet("color:#a8d5b5;font-size:10px;font-weight:800;background:transparent;border:none;letter-spacing:1px;");
+            hHead->addWidget(ht); hHead->addStretch(); hHead->addWidget(hLive);
+            hv->addLayout(hHead);
+            auto *hNumRow = new QHBoxLayout(); hNumRow->setSpacing(6);
+            auto *hVal = new QLabel(QString::number(totalItems));
+            hVal->setStyleSheet("color:#ffffff;font-size:28px;font-weight:800;background:transparent;border:none;");
+            auto *hLbl = new QLabel("articles en stock");
+            hLbl->setStyleSheet("color:#c8e6c9;font-size:11px;background:transparent;border:none;");
+            hNumRow->addWidget(hVal); hNumRow->addWidget(hLbl, 0, Qt::AlignBottom); hNumRow->addStretch();
+            hv->addLayout(hNumRow);
+            auto *wlLbl = new QLabel(QString("Taux critique  %1%").arg(workloadPct));
+            wlLbl->setStyleSheet("color:#a8d5b5;font-size:10px;font-weight:600;background:transparent;border:none;");
+            hv->addWidget(wlLbl);
+            auto *gauge = new QProgressBar();
+            gauge->setRange(0,100); gauge->setValue(workloadPct); gauge->setTextVisible(false);
+            gauge->setFixedHeight(6);
+            gauge->setStyleSheet(
+                "QProgressBar{background:rgba(255,255,255,0.15);border:none;border-radius:3px;}"
+                "QProgressBar::chunk{background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #a8d5b5,stop:1 #ffffff);border-radius:3px;}"
+            );
+            hv->addWidget(gauge);
+            stockScrollV->addWidget(hero);
+
+            // 3 status mini cards
+            auto makeStatusCard = [this](const QString &label, int count, const QString &color,
+                                          const QString &iconChar) -> QFrame* {
+                auto *f = new QFrame();
+                f->setAttribute(Qt::WA_StyledBackground, true);
+                f->setStyleSheet("QFrame{background:#ffffff;border-radius:10px;border:1px solid #e8ecf0;}");
+                applySoftCardShadow(f, QColor(0,0,0,15), 12, QPoint(0,3));
+                auto *h = new QHBoxLayout(f);
+                h->setContentsMargins(10,8,10,8); h->setSpacing(8);
+                auto *ic = new QLabel(iconChar);
+                ic->setFixedSize(32,32); ic->setAlignment(Qt::AlignCenter);
+                ic->setStyleSheet(QString("background:%1;border-radius:7px;font-size:14px;border:none;color:%2;")
+                    .arg(color + "22", color));
+                auto *tv = new QVBoxLayout(); tv->setSpacing(0);
+                auto *vl = new QLabel(QString::number(count));
+                vl->setStyleSheet(QString("font-size:16px;font-weight:800;color:%1;background:transparent;border:none;").arg(color));
+                auto *ll = new QLabel(label);
+                ll->setStyleSheet("font-size:10px;color:#6c757d;background:transparent;border:none;");
+                tv->addWidget(vl); tv->addWidget(ll);
+                h->addWidget(ic,0,Qt::AlignVCenter); h->addLayout(tv,1);
+                return f;
+            };
+            stockScrollV->addWidget(makeStatusCard("Total articles", totalItems, "#27ae60", QString::fromUtf8("\xF0\x9F\x93\xA6")));
+            stockScrollV->addWidget(makeStatusCard("Ruptures", rupture, rupture>0?"#e74c3c":"#27ae60", QString::fromUtf8("\xF0\x9F\x9A\xAB")));
+            stockScrollV->addWidget(makeStatusCard("Alertes seuil", alertes, alertes>0?"#f39c12":"#27ae60", QString::fromUtf8("\xE2\x9A\xA0\xEF\xB8\x8F")));
+
+            // Actions label block
+            auto *actWrap = new QFrame();
+            actWrap->setObjectName("stockQuickActionsLabelWrap");
+            actWrap->setAttribute(Qt::WA_StyledBackground, true);
+            actWrap->setStyleSheet(
+                "QFrame#stockQuickActionsLabelWrap{background-color:#1f4d3a;border:1px solid #2a6a51;border-radius:8px;}"
+                "QFrame#stockQuickActionsLabelWrap QLabel{color:#ffffff;background:transparent;border:none;}"
+            );
+            auto *actLay = new QHBoxLayout(actWrap);
+            actLay->setContentsMargins(10, 6, 10, 6);
+            actLay->setSpacing(0);
+            auto *actLbl = new QLabel(QString::fromUtf8("\xE2\x9A\xA1 Actions Rapides"));
+            actLbl->setStyleSheet("font-size:11px;font-weight:800;color:#ffffff;letter-spacing:1px;background:transparent;border:none;");
+            actLay->addWidget(actLbl, 1, Qt::AlignVCenter | Qt::AlignLeft);
+            stockScrollV->addWidget(actWrap);
+
+            for (auto *b : actionBtns) {
+                if (!b) continue;
+                b->setMinimumHeight(38);
+                b->setStyleSheet(
+                    "QPushButton{background-color:#1f4d3a;color:#ffffff;border:1px solid #2a6a51;"
+                    "border-radius:10px;padding:8px 14px;font-weight:700;font-size:12px;text-align:center;}"
+                    "QPushButton:hover{background-color:#27ae60;color:#ffffff;border-color:#27ae60;}"
+                );
+                stockScrollV->addWidget(b);
+            }
+
+            if (alertes > 0 || rupture > 0) {
+                auto *alert = new QFrame();
+                alert->setAttribute(Qt::WA_StyledBackground, true);
+                alert->setStyleSheet("QFrame{background:#fff5f5;border-radius:10px;border:1px solid #ffd4d4;}");
+                auto *ah = new QHBoxLayout(alert);
+                ah->setContentsMargins(12,10,12,10); ah->setSpacing(10);
+                auto *ic = new QLabel(QString::fromUtf8("\xE2\x9A\xA0\xEF\xB8\x8F"));
+                ic->setStyleSheet("font-size:18px;background:transparent;border:none;");
+                auto *tv = new QVBoxLayout(); tv->setSpacing(1);
+                auto *at = new QLabel(QString("%1 article(s) critique(s)").arg(alertes + rupture));
+                at->setStyleSheet("color:#e74c3c;font-size:12px;font-weight:800;background:transparent;border:none;");
+                auto *ad = new QLabel("Commande urgente requise");
+                ad->setStyleSheet("color:#6c757d;font-size:10px;background:transparent;border:none;");
+                tv->addWidget(at); tv->addWidget(ad);
+                ah->addWidget(ic,0,Qt::AlignVCenter); ah->addLayout(tv,1);
+                stockScrollV->addWidget(alert);
+            }
+
+            stockScrollV->addStretch();
+            stockScrollArea->setWidget(stockScrollContent);
+            rightCol->addWidget(stockScrollArea);
+        });
+    }
+
     QComboBox *stockTypeAdd = ensureStockTypeCombo(this, false);
     QComboBox *stockTypeMod = ensureStockTypeCombo(this, true);
 
@@ -18330,7 +20100,7 @@ void MainWindow::setupStockModule()
 
     setupStockTableData();
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Notification system: tray icon Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Notification system: tray icon ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
     const QString trayEnv = qEnvironmentVariable("WG_ENABLE_TRAY_NOTIF").trimmed().toLower();
     const bool trayNotificationsEnabled = (trayEnv == "1" || trayEnv == "true" || trayEnv == "yes");
 
@@ -18349,7 +20119,7 @@ void MainWindow::setupStockModule()
         m_trayIcon->show();
     }
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Notification timer: check immediately (5 s) then every hour Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Notification timer: check immediately (5 s) then every hour ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
     if (!m_stockNotifTimer) {
         m_stockNotifTimer = new QTimer(this);
         connect(m_stockNotifTimer, &QTimer::timeout, this, &MainWindow::checkStockNotifications);
@@ -18357,7 +20127,7 @@ void MainWindow::setupStockModule()
     }
     QTimer::singleShot(5000, this, &MainWindow::checkStockNotifications);
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Connect btnAlerts to summary dialog Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Connect btnAlerts to summary dialog ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
     if (auto *btnAlert = this->findChild<QPushButton*>("btnAlerts")) {
         connect(btnAlert, &QPushButton::clicked, this, &MainWindow::showStockAlertsDialog, Qt::UniqueConnection);
     }
@@ -18506,14 +20276,25 @@ void MainWindow::setupStockModule()
             if (!ui->inputEmailFour_add) return;
             ui->inputEmailFour_add->setProperty("emailVerified", false);
             if (text.trimmed().isEmpty()) {
+                ui->inputEmailFour_add->setProperty("emailVerificationState", "idle");
                 ui->inputEmailFour_add->setStyleSheet("border: 2px solid red; border-radius: 5px;");
                 ui->inputEmailFour_add->setToolTip("L'email est obligatoire.");
             } else if (!isValidEmail(text.trimmed())) {
+                ui->inputEmailFour_add->setProperty("emailVerificationState", "failed");
                 ui->inputEmailFour_add->setStyleSheet("border: 2px solid red; border-radius: 5px;");
                 ui->inputEmailFour_add->setToolTip("Format d'email invalide.");
             } else {
-                ui->inputEmailFour_add->setStyleSheet("border: 2px solid orange; border-radius: 5px;");
-                ui->inputEmailFour_add->setToolTip("Format valide. Quittez le champ pour lancer la verification API.");
+                if (isEmailApiValidationEnabled()) {
+                    ui->inputEmailFour_add->setProperty("emailVerified", false);
+                    ui->inputEmailFour_add->setProperty("emailVerificationState", "pending");
+                    ui->inputEmailFour_add->setStyleSheet("border: 2px solid orange; border-radius: 5px;");
+                    ui->inputEmailFour_add->setToolTip("Format valide. Quittez le champ pour lancer la verification API.");
+                } else {
+                    ui->inputEmailFour_add->setProperty("emailVerified", true);
+                    ui->inputEmailFour_add->setProperty("emailVerificationState", "bypassed");
+                    ui->inputEmailFour_add->setStyleSheet("border: 2px solid #27ae60; border-radius: 5px;");
+                    ui->inputEmailFour_add->setToolTip("Format valide. Verification API desactivee.");
+                }
             }
         });
         ui->inputEmailFour_add->setProperty("stockEmailValidationConnected", true);
@@ -18527,14 +20308,25 @@ void MainWindow::setupStockModule()
             if (!ui->inputEmailFour_mod) return;
             ui->inputEmailFour_mod->setProperty("emailVerified", false);
             if (text.trimmed().isEmpty()) {
+                ui->inputEmailFour_mod->setProperty("emailVerificationState", "idle");
                 ui->inputEmailFour_mod->setStyleSheet("border: 2px solid red; border-radius: 5px;");
                 ui->inputEmailFour_mod->setToolTip("L'email est obligatoire.");
             } else if (!isValidEmail(text.trimmed())) {
+                ui->inputEmailFour_mod->setProperty("emailVerificationState", "failed");
                 ui->inputEmailFour_mod->setStyleSheet("border: 2px solid red; border-radius: 5px;");
                 ui->inputEmailFour_mod->setToolTip("Format d'email invalide.");
             } else {
-                ui->inputEmailFour_mod->setStyleSheet("border: 2px solid orange; border-radius: 5px;");
-                ui->inputEmailFour_mod->setToolTip("Format valide. Quittez le champ pour lancer la verification API.");
+                if (isEmailApiValidationEnabled()) {
+                    ui->inputEmailFour_mod->setProperty("emailVerified", false);
+                    ui->inputEmailFour_mod->setProperty("emailVerificationState", "pending");
+                    ui->inputEmailFour_mod->setStyleSheet("border: 2px solid orange; border-radius: 5px;");
+                    ui->inputEmailFour_mod->setToolTip("Format valide. Quittez le champ pour lancer la verification API.");
+                } else {
+                    ui->inputEmailFour_mod->setProperty("emailVerified", true);
+                    ui->inputEmailFour_mod->setProperty("emailVerificationState", "bypassed");
+                    ui->inputEmailFour_mod->setStyleSheet("border: 2px solid #27ae60; border-radius: 5px;");
+                    ui->inputEmailFour_mod->setToolTip("Format valide. Verification API desactivee.");
+                }
             }
         });
         ui->inputEmailFour_mod->setProperty("stockEmailValidationConnected", true);
@@ -18544,31 +20336,35 @@ void MainWindow::setupStockModule()
 
     // Connexions Sliders -> Inputs (Ajouter)
 
-    if (ui->sliderStock_add && ui->inputStock_add)
-
+    if (ui->sliderStock_add && ui->inputStock_add && !ui->sliderStock_add->property("stockSyncConnected").toBool()) {
         connect(ui->sliderStock_add, &QSlider::valueChanged, this, [=](int val){ ui->inputStock_add->setText(QString::number(val)); });
+        ui->sliderStock_add->setProperty("stockSyncConnected", true);
+    }
 
-    if (ui->sliderPrix_add && ui->inputPrix_add)
-
+    if (ui->sliderPrix_add && ui->inputPrix_add && !ui->sliderPrix_add->property("stockSyncConnected").toBool()) {
         connect(ui->sliderPrix_add, &QSlider::valueChanged, this, [=](int val){ ui->inputPrix_add->setText(QString::number(val)); });
+        ui->sliderPrix_add->setProperty("stockSyncConnected", true);
+    }
 
 
 
     // Connexions Sliders -> Inputs (Modifier)
 
-    if (ui->sliderStock_mod && ui->inputStock_mod)
-
+    if (ui->sliderStock_mod && ui->inputStock_mod && !ui->sliderStock_mod->property("stockSyncConnected").toBool()) {
         connect(ui->sliderStock_mod, &QSlider::valueChanged, this, [=](int val){ ui->inputStock_mod->setText(QString::number(val)); });
+        ui->sliderStock_mod->setProperty("stockSyncConnected", true);
+    }
 
-    if (ui->sliderPrix_mod && ui->inputPrix_mod)
-
+    if (ui->sliderPrix_mod && ui->inputPrix_mod && !ui->sliderPrix_mod->property("stockSyncConnected").toBool()) {
         connect(ui->sliderPrix_mod, &QSlider::valueChanged, this, [=](int val){ ui->inputPrix_mod->setText(QString::number(val)); });
+        ui->sliderPrix_mod->setProperty("stockSyncConnected", true);
+    }
 
 
 
     // Navigation buttons
 
-    if (ui->btnNew) {
+    if (ui->btnNew && !ui->btnNew->property("stockNavConnected").toBool()) {
 
         connect(ui->btnNew, &QPushButton::clicked, this, [this](){
 
@@ -18582,9 +20378,11 @@ void MainWindow::setupStockModule()
 
         });
 
+        ui->btnNew->setProperty("stockNavConnected", true);
+
     }
 
-    if (ui->btnCancel_add) {
+    if (ui->btnCancel_add && !ui->btnCancel_add->property("stockNavConnected").toBool()) {
 
         connect(ui->btnCancel_add, &QPushButton::clicked, this, [this](){
 
@@ -18592,15 +20390,19 @@ void MainWindow::setupStockModule()
 
         });
 
+        ui->btnCancel_add->setProperty("stockNavConnected", true);
+
     }
 
-    if (ui->btnCancel_mod) {
+    if (ui->btnCancel_mod && !ui->btnCancel_mod->property("stockNavConnected").toBool()) {
 
         connect(ui->btnCancel_mod, &QPushButton::clicked, this, [this](){
 
             if (ui->stock_stackedWidget) ui->stock_stackedWidget->setCurrentIndex(0);
 
         });
+
+        ui->btnCancel_mod->setProperty("stockNavConnected", true);
 
     }
 
@@ -18713,6 +20515,10 @@ void MainWindow::setupStockTableData()
 {
     if (!ui->tableWidget) return;
 
+    ui->tableWidget->setUpdatesEnabled(false);
+    const bool sortingWasEnabled = ui->tableWidget->isSortingEnabled();
+    ui->tableWidget->setSortingEnabled(false);
+
     ui->tableWidget->setColumnCount(9);
     ui->tableWidget->setRowCount(0);
     ui->tableWidget->setHorizontalHeaderLabels({"REF", "NOM", "STOCK", "SEUIL", "PRIX", "FOURNISSEUR", "DATE FAB", "DATE ACHAT", "ACTIONS"});
@@ -18778,7 +20584,7 @@ void MainWindow::setupStockTableData()
         "}"
     );
 
-    ui->tableWidget->verticalHeader()->setDefaultSectionSize(50);
+    ui->tableWidget->verticalHeader()->setDefaultSectionSize(62);
     
     ui->tableWidget->setColumnWidth(0, 100); // REF
     ui->tableWidget->setColumnWidth(1, 150); // NOM
@@ -18798,6 +20604,10 @@ void MainWindow::setupStockTableData()
         showFriendlySqlError(this, "charger le stock", model->lastError().text());
         delete model;
         return;
+    }
+
+    while (model->canFetchMore()) {
+        model->fetchMore();
     }
 
     // --- DIAGNOSTIC ---
@@ -18863,8 +20673,8 @@ void MainWindow::setupStockTableData()
         QPushButton* editBtn = new QPushButton("Modifier");
         QPushButton* delBtn = new QPushButton("Supprimer");
 
-        editBtn->setStyleSheet("color: #3182CE; border: none; font-weight: bold;");
-        delBtn->setStyleSheet("color: #E53E3E; border: none; font-weight: bold;");
+        styleTableActionButton(editBtn);
+        styleTableActionButton(delBtn);
 
         // Action: Modifier
         connect(editBtn, &QPushButton::clicked, this, [this, container]() {
@@ -18933,7 +20743,9 @@ void MainWindow::setupStockTableData()
 
         layout->addWidget(editBtn);
         layout->addWidget(delBtn);
-        layout->setContentsMargins(0,0,0,0);
+        layout->setSpacing(8);
+        layout->setContentsMargins(4, 10, 4, 10);
+        ui->tableWidget->setRowHeight(row, qMax(ui->tableWidget->rowHeight(row), 62));
         ui->tableWidget->setCellWidget(row, 8, container);
     };
 
@@ -18954,6 +20766,10 @@ void MainWindow::setupStockTableData()
 
         QString seuilStr = stockSeuilLabel(stockQty, seuilCritique);
         insertStockRow(i, id_mp, ref, nom, stockQty, seuilCritique, seuilStr, prix, fournisseur, emailFour, dateFab, dateAchat);
+
+        if ((i % 25) == 0) {
+            qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
+        }
     }
 
     delete model; // Liberation de la memoire
@@ -18976,6 +20792,10 @@ void MainWindow::setupStockTableData()
     if (m_isStockCardView) {
         refreshStockCardView();
     }
+
+    ui->tableWidget->setSortingEnabled(sortingWasEnabled);
+    ui->tableWidget->setUpdatesEnabled(true);
+    ui->tableWidget->viewport()->update();
 }
 // --- CLIENT MODULE (Integrated from mainwindowcl) ---
 
@@ -19094,19 +20914,19 @@ void MainWindow::on_btnClient_clicked() {
 
             "QPushButton {"
 
-            "   background: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1, stop:0 #0f2b4c, stop:1 #2a5298);"
+            "   background: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1, stop:0 #1a3a2e, stop:1 #2d5a42);"
 
             "   color: white; border-radius: 12px; padding: 12px; font-weight: 700; font-size: 13px;"
 
-            "   border: 1px solid #1e40af;"
+            "   border: 1px solid #2d5a42;"
 
             "}"
 
             "QPushButton:hover {"
 
-            "   background: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1, stop:0 #1e40af, stop:1 #3b82f6);"
+            "   background: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1, stop:0 #2d5a42, stop:1 #3a6f54);"
 
-            "   border-color: #60a5fa;"
+            "   border-color: #3a6f54;"
 
             "}";
 
@@ -19136,11 +20956,11 @@ void MainWindow::on_btnClient_clicked() {
                ui->tableWidget_Client->setColumnWidth(5, 150);
                ui->tableWidget_Client->setColumnWidth(6, 150);
                ui->tableWidget_Client->setColumnWidth(7, 150); 
-               ui->tableWidget_Client->setColumnWidth(8, 220);
+               ui->tableWidget_Client->setColumnWidth(8, 240);
 
              // Taller rows to show "Modifier" better
 
-             ui->tableWidget_Client->verticalHeader()->setDefaultSectionSize(50);
+             ui->tableWidget_Client->verticalHeader()->setDefaultSectionSize(62);
 
         }
 
@@ -19475,7 +21295,7 @@ void MainWindow::addClientActionButtons(int row) {
 
     QHBoxLayout* layout = new QHBoxLayout(actionWidget);
 
-    layout->setContentsMargins(4, 2, 4, 2);
+    layout->setContentsMargins(4, 10, 4, 10);
 
     layout->setSpacing(6);
 
@@ -19484,24 +21304,21 @@ void MainWindow::addClientActionButtons(int row) {
 
 
     QPushButton* btnEdit = new QPushButton("Modifier");
-
-    btnEdit->setCursor(Qt::PointingHandCursor);
-
-    btnEdit->setStyleSheet("QPushButton { background-color: #3498db; color: white; border-radius: 4px; padding: 4px 8px; font-weight: bold; }");
+    styleTableActionButton(btnEdit);
 
     
 
     QPushButton* btnDelete = new QPushButton("Supprimer");
-
-    btnDelete->setCursor(Qt::PointingHandCursor);
-
-    btnDelete->setStyleSheet("QPushButton { background-color: #e74c3c; color: white; border-radius: 4px; padding: 4px 8px; font-weight: bold; }");
+    styleTableActionButton(btnDelete);
 
     
 
     layout->addWidget(btnEdit);
 
     layout->addWidget(btnDelete);
+
+    if (ui->tableWidget_Client)
+        ui->tableWidget_Client->setRowHeight(row, qMax(ui->tableWidget_Client->rowHeight(row), 62));
 
     
 
@@ -19601,7 +21418,7 @@ void MainWindow::forceApplySidebarStyles()
 
         "QPushButton {"
 
-        "  background: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1, stop:0 #0f2b4c, stop:1 #2a5298);"
+        "  background: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1, stop:0 #1a3a2e, stop:1 #2d5a42);"
 
         "  color: #ffffff;"
 
@@ -19613,7 +21430,7 @@ void MainWindow::forceApplySidebarStyles()
 
         "  font-size: 13px;"
 
-        "  border: 1px solid #1e40af;"
+        "  border: 1px solid #2d5a42;"
 
         "  min-height: 40px;"
 
@@ -19621,13 +21438,13 @@ void MainWindow::forceApplySidebarStyles()
 
         "QPushButton:hover {"
 
-        "  background: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1, stop:0 #1e40af, stop:1 #1d4ed8);"
+        "  background: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1, stop:0 #2d5a42, stop:1 #3a6f54);"
 
         "}"
 
         "QPushButton:pressed {"
 
-        "  background: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1, stop:0 #0f2b4c, stop:1 #1d4ed8);"
+        "  background: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1, stop:0 #163225, stop:1 #1f4735);"
 
         "}";
 
@@ -19647,15 +21464,11 @@ void MainWindow::forceApplySidebarStyles()
 
 
 
-    QString labelStyle = 
+    QString labelStyle =
 
         "QLabel {"
 
         "  background: transparent;"
-
-        "  color: #0f2b4c;"
-
-        "  font-weight: 600;"
 
         "  border: none;"
 
@@ -19715,7 +21528,12 @@ void MainWindow::forceApplySidebarStyles()
 
             for (QLabel *lbl : labels) {
 
-                lbl->setStyleSheet(labelStyle);
+                if (!lbl) continue;
+                const QString existing = lbl->styleSheet();
+                if (existing.contains("color:", Qt::CaseInsensitive)) {
+                    continue;
+                }
+                lbl->setStyleSheet(existing + " background: transparent; border: none;");
 
             }
 
@@ -19822,7 +21640,6 @@ void MainWindow::updateSidebarState()
     const QString emoStats = QString::fromUcs4(U"\U0001F4CA") + vs;
     const QString emoMaint = QString::fromUcs4(U"\U0001F527") + vs;
     const QString emoCmd = QString::fromUcs4(U"\U0001F4DD") + vs;
-    const QString emoArduino = QString::fromUcs4(U"\U0001F50C") + vs;
     const QString emoLogout = QString::fromUcs4(U"\U0001F6AA") + vs;
 
     if (ui->btnAccueil && ui->btnAccueil->isVisible()) buttons.append({ui->btnAccueil, emoHome + " Accueil", emoHome});
@@ -19848,11 +21665,6 @@ void MainWindow::updateSidebarState()
             buttons.append({btnCmd, emoCmd + " Commandes", emoCmd});
         }
     }
-    if (QPushButton* btnArd = this->findChild<QPushButton*>("btnArduino")) {
-        if (btnArd->isVisible()) {
-            buttons.append({btnArd, emoArduino + " Arduino", emoArduino});
-        }
-    }
     if (QPushButton *btnLogout = this->findChild<QPushButton*>("btnLogout")) {
         if (btnLogout->isVisible()) {
             buttons.append({btnLogout, emoLogout + " Deconnexion", emoLogout});
@@ -19868,12 +21680,12 @@ void MainWindow::updateSidebarState()
         "   font-family: 'Segoe UI Symbol', 'Segoe UI', sans-serif;"
         "}"
         "QPushButton:hover {"
-        "   background-color: #1a4270;"
-        "   border-left: 3px solid #3498db;"
+        "   background-color: rgba(39,174,96,0.16);"
+        "   border-left: 3px solid #27ae60;"
         "}"
         "QPushButton:checked {"
-        "   background-color: #1a4270;"
-        "   border-left: 3px solid #3498db;"
+        "   background-color: #27ae60;"
+        "   border-left: 3px solid #1f8b4d;"
         "}";
 
     for (const auto& info : buttons) {
@@ -20300,6 +22112,311 @@ void MainWindow::on_pagination_btnNext_clicked()
 
 void MainWindow::setupEmployeModule()
 {
+    // --- GREEN THEME INJECTION + INNOVATIVE RIGHT SIDEBAR ---
+    QWidget *empPage = this->findChild<QWidget*>("affichage");
+    if (empPage && !empPage->property("empGreenApplied").toBool()) {
+        empPage->setProperty("empGreenApplied", true);
+
+        static const char *clearNames[] = {
+            "btnNouveau", "lblUserName", "lblUserRole", "tableEmployes",
+            "txtSearch", "cbSort", "statCard", "statCard_2", "statCard_3",
+            "label_Stat1_Title", "label_Stat2_Title", "label_Stat3_Title",
+            "lblStatNumber", "lblStatWorkload", "lblStatAvailability",
+            "actionCard", "label_Actions",
+            "btnFichePaie", "btnGoMission", "btnGoPointage", "btnGoStats",
+            "sidePanel_Employe"
+        };
+        for (const char *n : clearNames)
+            if (auto *w = empPage->findChild<QWidget*>(n)) w->setStyleSheet("");
+
+        empPage->setStyleSheet(QStringLiteral(R"(
+QWidget#affichage, QWidget#modification, QWidget#ajout, QWidget#statistiques {
+    background-color:#f0f2f5;
+}
+QLabel#lblUserName { color:#1a1a2e; font-size:14px; font-weight:700; background:transparent; }
+QLabel#lblUserRole { color:#27ae60; font-size:11px; font-weight:800; letter-spacing:1px; background:transparent; }
+
+QPushButton#btnNouveau {
+    background-color:#f0c343; color:#2d2100; border:none;
+    border-radius:10px; padding:10px 22px; font-weight:800; font-size:14px;
+}
+QPushButton#btnNouveau:hover { background-color:#e3b232; }
+
+QLineEdit#txtSearch {
+    background:#ffffff; color:#1a1a2e; border:1px solid #e8ecf0;
+    border-radius:10px; padding:8px 14px; font-size:14px;
+}
+QLineEdit#txtSearch:focus { border:2px solid #27ae60; }
+
+QComboBox#cbSort {
+    background:#ffffff; color:#1a1a2e; border:1px solid #e8ecf0;
+    border-radius:10px; padding:8px 14px; font-size:14px;
+}
+QComboBox#cbSort:hover { border-color:#27ae60; }
+QComboBox#cbSort::drop-down { border:none; width:24px; }
+
+QTableWidget#tableEmployes {
+    background:#ffffff; color:#1a1a2e; gridline-color:transparent;
+    border:1px solid #e8ecf0; border-radius:12px;
+    font-size:13px; alternate-background-color:#fafbfc;
+    selection-background-color:#e8f5e9; selection-color:#1a3a2e;
+}
+QTableWidget#tableEmployes::item { padding:10px; border-bottom:1px solid #f0f2f5; }
+QTableWidget#tableEmployes::item:selected { background:#e8f5e9; color:#1a3a2e; }
+QTableWidget#tableEmployes::item:hover { background:#f0f7f4; }
+QTableWidget#tableEmployes QHeaderView::section {
+    background:#f8fafb; color:#6c757d; font-weight:700; padding:12px;
+    border:none; border-bottom:2px solid #27ae60; font-size:11px; letter-spacing:1px;
+}
+
+QFrame#sidePanel_Employe { background:#ffffff; border-left:1px solid #e8ecf0; }
+QFrame#statCard, QFrame#statCard_2, QFrame#statCard_3 {
+    background:#ffffff; border-radius:12px; border:1px solid #e8ecf0;
+}
+QFrame#actionCard { background:transparent; border:none; }
+QLabel#label_Actions {
+    color:#ffffff; font-size:11px; font-weight:800; letter-spacing:1px;
+    background-color:#1f4d3a; border:1px solid #2a6a51; border-radius:8px; padding:8px 10px;
+}
+
+QPushButton#btnFichePaie, QPushButton#btnGoMission,
+QPushButton#btnGoPointage, QPushButton#btnGoStats {
+    background-color:#f0f7f4; color:#1a3a2e; border:1px solid #d4e8dc;
+    border-radius:10px; padding:12px 16px; font-weight:700; font-size:13px; text-align:center;
+}
+QPushButton#btnFichePaie:hover, QPushButton#btnGoMission:hover,
+QPushButton#btnGoPointage:hover, QPushButton#btnGoStats:hover {
+    background-color:#27ae60; color:#ffffff; border-color:#27ae60;
+}
+)"));
+
+        // Full-height sidebar: zero top/bottom margins on the horizontal split and its
+        // left column so sidePanel_Employe and the content start at the same vertical edge.
+        if (auto *split = empPage->findChild<QHBoxLayout*>("horizontalLayout_Split")) {
+            QMargins m = split->contentsMargins();
+            m.setTop(0); m.setBottom(0);
+            split->setContentsMargins(m);
+        }
+        if (auto *leftCol = empPage->findChild<QVBoxLayout*>("verticalLayout_Left")) {
+            QMargins m = leftCol->contentsMargins();
+            m.setTop(0); m.setBottom(0);
+            leftCol->setContentsMargins(m);
+        }
+
+        // ===== KPI ROW — Employés =====
+        QTimer::singleShot(100, this, [this, empPage]() {
+            auto *vl = empPage->findChild<QVBoxLayout*>("verticalLayout_Left");
+            if (!vl || empPage->findChild<QFrame*>("emp_kpiRow")) return;
+
+            int total = 0, dispo = 0, mission = 0;
+            double salTotal = 0.0;
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*), "
+                "NVL(SUM(CASE WHEN UPPER(NVL(DISPONIBILITE,'')) LIKE 'DISPONIBLE%' THEN 1 ELSE 0 END),0), "
+                "NVL(SUM(CASE WHEN UPPER(NVL(DISPONIBILITE,'')) LIKE '%MISSION%' THEN 1 ELSE 0 END),0), "
+                "NVL(SUM(NVL(SALAIRE,0)),0) FROM EMPLOYE") && q.next()) {
+                total = q.value(0).toInt(); dispo = q.value(1).toInt();
+                mission = q.value(2).toInt(); salTotal = q.value(3).toDouble();
+            } }
+
+            auto makeKpi = [this](const QString &title, const QString &val,
+                                   const QString &sub, const char *icon,
+                                   const QString &iconBg, const QString &col) -> QFrame* {
+                auto *card = new QFrame();
+                card->setAttribute(Qt::WA_StyledBackground, true);
+                card->setStyleSheet("QFrame{background:#ffffff;border-radius:12px;border:1px solid #e8ecf0;}");
+                applySoftCardShadow(card, QColor(0,0,0,22), 18, QPoint(0,5));
+                auto *h = new QHBoxLayout(card); h->setContentsMargins(18,16,18,16); h->setSpacing(12);
+                auto *tv = new QVBoxLayout(); tv->setSpacing(3);
+                auto *t = new QLabel(title); t->setStyleSheet("font-size:10px;font-weight:700;color:#6c757d;letter-spacing:1px;background:transparent;border:none;");
+                auto *v = new QLabel(val);    v->setStyleSheet(QString("font-size:26px;font-weight:800;color:%1;background:transparent;border:none;").arg(col));
+                auto *s = new QLabel(sub);    s->setStyleSheet("font-size:11px;color:#6c757d;background:transparent;border:none;");
+                tv->addWidget(t); tv->addWidget(v); tv->addWidget(s);
+                h->addLayout(tv, 1);
+                auto *ic = new QLabel(QString::fromUtf8(icon)); ic->setFixedSize(46,46); ic->setAlignment(Qt::AlignCenter);
+                ic->setStyleSheet(QString("background:%1;border-radius:10px;font-size:20px;border:none;").arg(iconBg));
+                h->addWidget(ic, 0, Qt::AlignVCenter);
+                return card;
+            };
+
+            auto *kpiContainer = new QFrame(); kpiContainer->setObjectName("emp_kpiRow");
+            kpiContainer->setStyleSheet("QFrame{background:transparent;border:none;}");
+            auto *row = new QHBoxLayout(kpiContainer); row->setContentsMargins(0,8,0,8); row->setSpacing(14);
+            row->addWidget(makeKpi("TOTAL EMPLOYES",  QString::number(total),   "Personnel total",   "\xF0\x9F\x91\xA5", "#e3f2fd", "#1e40af"));
+            row->addWidget(makeKpi("DISPONIBLES",     QString::number(dispo),   "Prets a intervenir","\xE2\x9C\x85",     "#e8f5e9", "#27ae60"));
+            row->addWidget(makeKpi("EN MISSION",      QString::number(mission), "Actuellement actifs","\xF0\x9F\x94\xA7","#fff3e0", mission>0?"#f39c12":"#27ae60"));
+            row->addWidget(makeKpi("MASSE SALARIALE", QString("%1 TND").arg(QString::number(salTotal,'f',0)), "Charges totales", "\xF0\x9F\x92\xB0", "#fce4ec", "#1a3a2e"));
+            vl->insertWidget(1, kpiContainer);
+        });
+
+        QTimer::singleShot(200, this, [this, empPage]() {
+            QFrame *sidebar = empPage->findChild<QFrame*>("sidePanel_Employe");
+            if (!sidebar || sidebar->property("empSidebarRebuilt").toBool()) return;
+            sidebar->setProperty("empSidebarRebuilt", true);
+
+            // KPI fetch
+            int total = 0, dispo = 0, mission = 0, conge = 0;
+            { QSqlQuery q; if (q.exec("SELECT "
+                    "COUNT(*),"
+                    "NVL(SUM(CASE WHEN UPPER(NVL(DISPONIBILITE,''))LIKE 'DISPONIBLE%' THEN 1 ELSE 0 END),0),"
+                    "NVL(SUM(CASE WHEN UPPER(NVL(DISPONIBILITE,''))LIKE '%MISSION%' THEN 1 ELSE 0 END),0),"
+                    "NVL(SUM(CASE WHEN UPPER(NVL(DISPONIBILITE,''))LIKE '%CONGE%' OR UPPER(NVL(DISPONIBILITE,''))LIKE '%ABSENT%' THEN 1 ELSE 0 END),0)"
+                    " FROM EMPLOYE") && q.next()) {
+                total = q.value(0).toInt(); dispo = q.value(1).toInt();
+                mission = q.value(2).toInt(); conge = q.value(3).toInt();
+            } }
+            int workloadPct = total > 0 ? int(double(mission) / total * 100.0) : 0;
+
+            // Collect existing action buttons
+            QList<QPushButton*> actionBtns;
+            for (const char *n : {"btnFichePaie","btnGoMission","btnGoPointage","btnGoStats"}) {
+                if (auto *b = empPage->findChild<QPushButton*>(n)) {
+                    b->setParent(nullptr); actionBtns.append(b);
+                }
+            }
+            // Retire old stat cards (hide only: child labels are referenced via ui-> pointers later)
+            for (const char *n : {"statCard","statCard_2","statCard_3","actionCard"}) {
+                if (auto *w = empPage->findChild<QWidget*>(n)) {
+                    w->setParent(nullptr);
+                    w->hide();
+                }
+            }
+
+            QVBoxLayout *rightV = sidebar->findChild<QVBoxLayout*>("verticalLayout_Right");
+            if (!rightV) return;
+            QLayoutItem *it;
+            while ((it = rightV->takeAt(0))) {
+                if (QWidget *w = it->widget()) {
+                    w->setParent(nullptr);
+                    w->deleteLater();
+                }
+                delete it;
+            }
+
+            rightV->setContentsMargins(0,0,0,0);
+            rightV->setSpacing(0);
+
+            // Wrap everything in a QScrollArea so content never gets clipped
+            auto *scrollArea = new QScrollArea();
+            scrollArea->setObjectName("empSidebarScroll");
+            scrollArea->setFrameShape(QFrame::NoFrame);
+            scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+            scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+            scrollArea->setWidgetResizable(true);
+            scrollArea->setStyleSheet(
+                "QScrollArea{background:transparent;border:none;}"
+                "QScrollArea > QWidget > QWidget{background:transparent;}"
+                "QScrollBar:vertical{background:#f0f2f5;width:6px;border-radius:3px;}"
+                "QScrollBar::handle:vertical{background:#c8d8ce;border-radius:3px;min-height:20px;}"
+                "QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical{height:0;}"
+            );
+
+            auto *scrollContent = new QWidget();
+            scrollContent->setObjectName("empSidebarContent");
+            scrollContent->setStyleSheet("background:transparent;");
+            auto *scrollV = new QVBoxLayout(scrollContent);
+            scrollV->setContentsMargins(12, 12, 12, 12);
+            scrollV->setSpacing(10);
+
+            // Hero: Equipe — compact version so it fits without clipping
+            auto *hero = new QFrame();
+            hero->setObjectName("empHero");
+            hero->setAttribute(Qt::WA_StyledBackground, true);
+            hero->setStyleSheet(
+                "QFrame#empHero{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #1a3a2e,stop:1 #2d5a42);border-radius:14px;border:none;}"
+                "QFrame#empHero QLabel{color:#ffffff;background:transparent;border:none;}"
+            );
+            applySoftCardShadow(hero, QColor(26,58,46,100), 20, QPoint(0,6));
+            auto *hv = new QVBoxLayout(hero);
+            hv->setContentsMargins(16,14,16,14); hv->setSpacing(4);
+            auto *hHead = new QHBoxLayout();
+            auto *ht = new QLabel(QString::fromUtf8("\xF0\x9F\x91\xA5  Equipe"));
+            ht->setStyleSheet("color:#ffffff;font-size:13px;font-weight:800;background:transparent;border:none;");
+            auto *hLive = new QLabel(QString::fromUtf8("\xE2\x97\x8F LIVE"));
+            hLive->setStyleSheet("color:#a8d5b5;font-size:10px;font-weight:800;background:transparent;border:none;letter-spacing:1px;");
+            hHead->addWidget(ht); hHead->addStretch(); hHead->addWidget(hLive);
+            hv->addLayout(hHead);
+
+            // Number + label inline to save vertical space
+            auto *hNumRow = new QHBoxLayout(); hNumRow->setSpacing(6);
+            auto *hVal = new QLabel(QString::number(total));
+            hVal->setStyleSheet("color:#ffffff;font-size:28px;font-weight:800;background:transparent;border:none;");
+            auto *hLbl = new QLabel("employes actifs");
+            hLbl->setStyleSheet("color:#c8e6c9;font-size:11px;background:transparent;border:none;");
+            hNumRow->addWidget(hVal); hNumRow->addWidget(hLbl, 0, Qt::AlignBottom); hNumRow->addStretch();
+            hv->addLayout(hNumRow);
+
+            auto *wlLbl = new QLabel(QString("Charge  %1%").arg(workloadPct));
+            wlLbl->setStyleSheet("color:#a8d5b5;font-size:10px;font-weight:600;background:transparent;border:none;");
+            hv->addWidget(wlLbl);
+            auto *gauge = new QProgressBar();
+            gauge->setRange(0,100); gauge->setValue(workloadPct); gauge->setTextVisible(false);
+            gauge->setFixedHeight(6);
+            gauge->setStyleSheet(
+                "QProgressBar{background:rgba(255,255,255,0.15);border:none;border-radius:3px;}"
+                "QProgressBar::chunk{background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #a8d5b5,stop:1 #ffffff);border-radius:3px;}"
+            );
+            hv->addWidget(gauge);
+            scrollV->addWidget(hero);
+
+            // 3 status mini cards — more compact
+            auto makeStatusCard = [this](const QString &label, int count, const QString &color,
+                                          const QString &iconChar) -> QFrame* {
+                auto *f = new QFrame();
+                f->setAttribute(Qt::WA_StyledBackground, true);
+                f->setStyleSheet("QFrame{background:#ffffff;border-radius:10px;border:1px solid #e8ecf0;}");
+                applySoftCardShadow(f, QColor(0,0,0,15), 12, QPoint(0,3));
+                auto *h = new QHBoxLayout(f);
+                h->setContentsMargins(10,8,10,8); h->setSpacing(8);
+                auto *ic = new QLabel(iconChar);
+                ic->setFixedSize(32,32); ic->setAlignment(Qt::AlignCenter);
+                ic->setStyleSheet(QString("background:%1;border-radius:7px;font-size:14px;border:none;color:%2;")
+                    .arg(color + "22", color));
+                auto *tv = new QVBoxLayout(); tv->setSpacing(0);
+                auto *vl = new QLabel(QString::number(count));
+                vl->setStyleSheet(QString("font-size:16px;font-weight:800;color:%1;background:transparent;border:none;").arg(color));
+                auto *ll = new QLabel(label);
+                ll->setStyleSheet("font-size:10px;color:#6c757d;background:transparent;border:none;");
+                tv->addWidget(vl); tv->addWidget(ll);
+                h->addWidget(ic,0,Qt::AlignVCenter); h->addLayout(tv,1);
+                return f;
+            };
+            scrollV->addWidget(makeStatusCard("Disponibles", dispo, "#27ae60", QString::fromUtf8("\xE2\x9C\x85")));
+            scrollV->addWidget(makeStatusCard("En mission", mission, "#f39c12", QString::fromUtf8("\xF0\x9F\x9A\x9A")));
+            scrollV->addWidget(makeStatusCard("Conges", conge, "#e74c3c", QString::fromUtf8("\xF0\x9F\x8F\x96")));
+
+            // Actions label block
+            auto *actWrap = new QFrame();
+            actWrap->setObjectName("empQuickActionsLabelWrap");
+            actWrap->setAttribute(Qt::WA_StyledBackground, true);
+            actWrap->setStyleSheet(
+                "QFrame#empQuickActionsLabelWrap{background-color:#1f4d3a;border:1px solid #2a6a51;border-radius:8px;}"
+                "QFrame#empQuickActionsLabelWrap QLabel{color:#ffffff;background:transparent;border:none;}"
+            );
+            auto *actLay = new QHBoxLayout(actWrap);
+            actLay->setContentsMargins(10, 6, 10, 6);
+            actLay->setSpacing(0);
+            auto *actLbl = new QLabel(QString::fromUtf8("\xE2\x9A\xA1 Actions Rapides"));
+            actLbl->setStyleSheet("font-size:11px;font-weight:800;color:#ffffff;letter-spacing:1px;background:transparent;border:none;");
+            actLay->addWidget(actLbl, 1, Qt::AlignVCenter | Qt::AlignLeft);
+            scrollV->addWidget(actWrap);
+
+            for (auto *b : actionBtns) {
+                if (!b) continue;
+                b->setMinimumHeight(38);
+                b->setStyleSheet(
+                    "QPushButton{background-color:#1f4d3a;color:#ffffff;border:1px solid #2a6a51;"
+                    "border-radius:10px;padding:8px 14px;font-weight:700;font-size:12px;text-align:center;}"
+                    "QPushButton:hover{background-color:#27ae60;color:#ffffff;border-color:#27ae60;}"
+                );
+                scrollV->addWidget(b);
+            }
+
+            scrollV->addStretch();
+            scrollArea->setWidget(scrollContent);
+            rightV->addWidget(scrollArea);
+        });
+    }
+
     QTimer::singleShot(200, this, [this]() {
         if (findChild<QPushButton*>("emp_btnToggleView")) return;
 
@@ -20326,7 +22443,7 @@ void MainWindow::setupEmployeModule()
         if (!searchLayout || !leftLayout) return;
 
         // ?? Toggle button ? add to search row (next to cbSort) ????????????
-        QPushButton *btnToggle = new QPushButton(QString::fromUtf8("\xE2\x8A\x9E"));
+        QPushButton *btnToggle = new QPushButton("Vue");
         btnToggle->setObjectName("emp_btnToggleView");
         btnToggle->setFixedSize(40, 40);
         btnToggle->setCursor(Qt::PointingHandCursor);
@@ -20380,7 +22497,7 @@ void MainWindow::setupEmployeModule()
         cbSize->setStyleSheet("background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 4px;");
         connect(cbSize, SIGNAL(currentIndexChanged(int)), this, SLOT(on_emp_pagination_cbSize_currentIndexChanged(int)));
 
-        QPushButton *btnPrev = new QPushButton(QString::fromUtf8("\xE2\x97\x80 Pr" "\xC3\xA9" "c" "\xC3\xA9" "dent"));
+        QPushButton *btnPrev = new QPushButton("Precedent");
         btnPrev->setObjectName("emp_pagination_btnPrev");
         btnPrev->setFixedWidth(110);
         btnPrev->setCursor(Qt::PointingHandCursor);
@@ -20392,7 +22509,7 @@ void MainWindow::setupEmployeModule()
         lblPage->setObjectName("emp_pagination_lblPage");
         lblPage->setStyleSheet("font-size: 13px; color: #1e293b; font-weight: 700;");
 
-        QPushButton *btnNext = new QPushButton(QString::fromUtf8("Suivant \xE2\x96\xB6"));
+        QPushButton *btnNext = new QPushButton("Suivant");
         btnNext->setObjectName("emp_pagination_btnNext");
         btnNext->setFixedWidth(110);
         btnNext->setCursor(Qt::PointingHandCursor);
@@ -20749,7 +22866,7 @@ void MainWindow::setupStockCardViewContainer()
         if (!searchLayout || !tableLayout) return;
 
         // Toggle button
-        QPushButton *btnToggle = new QPushButton(QString::fromUtf8("\xe2\x8a\x9e"));
+        QPushButton *btnToggle = new QPushButton("Vue");
         btnToggle->setObjectName("stock_btnToggleView");
         btnToggle->setFixedSize(40, 40);
         btnToggle->setCursor(Qt::PointingHandCursor);
@@ -20803,7 +22920,7 @@ void MainWindow::setupStockCardViewContainer()
         cbSize->setStyleSheet("background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 4px;");
         connect(cbSize, SIGNAL(currentIndexChanged(int)), this, SLOT(on_stock_pagination_cbSize_currentIndexChanged(int)));
 
-        QPushButton *btnPrev = new QPushButton(QString::fromUtf8("\xe2\x86\x90") + " Precedent");
+        QPushButton *btnPrev = new QPushButton("Precedent");
         btnPrev->setObjectName("stock_pagination_btnPrev");
         btnPrev->setFixedWidth(120);
         btnPrev->setCursor(Qt::PointingHandCursor);
@@ -20815,7 +22932,7 @@ void MainWindow::setupStockCardViewContainer()
         lblPage->setObjectName("stock_pagination_lblPage");
         lblPage->setStyleSheet("font-size: 13px; color: #1e293b; font-weight: 700;");
 
-        QPushButton *btnNext = new QPushButton("Suivant " + QString::fromUtf8("\xe2\x86\x92"));
+        QPushButton *btnNext = new QPushButton("Suivant");
         btnNext->setObjectName("stock_pagination_btnNext");
         btnNext->setFixedWidth(120);
         btnNext->setCursor(Qt::PointingHandCursor);
@@ -21100,6 +23217,311 @@ void MainWindow::on_stock_pagination_btnNext_clicked()
 
 void MainWindow::setupClientCardViewContainer()
 {
+    // --- GREEN THEME + INNOVATIVE RIGHT SIDEBAR (Client) ---
+    if (ui->pageClient && !ui->pageClient->property("clientGreenApplied").toBool()) {
+        ui->pageClient->setProperty("clientGreenApplied", true);
+
+        static const char *clearNamesCli[] = {
+            "header_Client", "wasteguardhead_Client", "btnNouveau_Client", "responsable_Client",
+            "recherche", "lblTrier", "cbTrier", "tableWidget_Client",
+            "sidepanel", "pilotage", "growthWidget", "label1Success", "label2",
+            "exportclient", "btnGoStats_Client",
+            "formCard_ajouter", "formCard_modifier", "label2Title",
+            "btn_save_ajouter", "btn_annuler_ajouter", "btn_save_modifier", "btn_annuler_modifier"
+        };
+        for (const char *n : clearNamesCli)
+            if (auto *w = ui->pageClient->findChild<QWidget*>(n)) w->setStyleSheet("");
+
+        ui->pageClient->setStyleSheet(QStringLiteral(R"(
+QWidget#pageClient, QWidget#page_repertoire, QWidget#page_ajouter_client_wrapper, QWidget#page_modifier_client_wrapper, QWidget#page_stats_client {
+    background-color: #f0f2f5;
+}
+QWidget#header_Client {
+    background-color: #ffffff; border: none; border-bottom: 1px solid #e8ecf0;
+}
+QLabel#wasteguardhead_Client { color:#1a1a2e; font-size:22px; font-weight:800; margin-left:20px; background:transparent; }
+QLabel#responsable_Client { color:#6c757d; font-size:12px; margin-right:20px; background:transparent; }
+QPushButton#btnNouveau_Client {
+    background-color:#f0c343; color:#2d2100; border:none;
+    border-radius:10px; padding:10px 22px; font-weight:800; font-size:14px;
+}
+QPushButton#btnNouveau_Client:hover { background-color:#e3b232; }
+
+QLineEdit#recherche {
+    background:#ffffff; color:#1a1a2e; border:1px solid #e8ecf0;
+    border-radius:10px; padding:8px 14px; font-size:13px;
+}
+QLineEdit#recherche:focus { border:2px solid #1e40af; }
+QLabel#lblTrier { color:#1a1a2e; font-weight:700; font-size:13px; background:transparent; }
+QComboBox#cbTrier {
+    background:#ffffff; color:#1a1a2e; border:1px solid #e8ecf0;
+    border-radius:10px; padding:8px 14px; font-size:13px;
+}
+QComboBox#cbTrier:hover { border-color:#1e40af; }
+QComboBox#cbTrier::drop-down { border:none; width:24px; }
+
+QTableWidget#tableWidget_Client {
+    background-color:#ffffff; color:#1a1a2e; gridline-color:transparent;
+    border:1px solid #e8ecf0; border-radius:12px; font-size:13px;
+    selection-background-color:#dbeafe; selection-color:#1e3a8a;
+    alternate-background-color:#fafbfc;
+}
+QTableWidget#tableWidget_Client::item { padding:10px; border-bottom:1px solid #f0f2f5; }
+QTableWidget#tableWidget_Client::item:selected { background:#dbeafe; color:#1e3a8a; }
+QTableWidget#tableWidget_Client::item:hover { background:#eff6ff; }
+QTableWidget#tableWidget_Client QHeaderView::section {
+    background:#f8fafb; color:#6c757d; font-weight:700; padding:12px;
+    border:none; border-bottom:2px solid #1e40af; font-size:11px; letter-spacing:1px;
+}
+
+QWidget#sidepanel { background: transparent; border: none; }
+
+QFrame#formCard_ajouter, QFrame#formCard_modifier {
+    background:#ffffff; border-radius:16px; border:1px solid #e8ecf0;
+}
+QLabel#label2Title { color:#1a1a2e; font-size:22px; font-weight:800; background:transparent; }
+QWidget#page_ajouter_client_wrapper QLineEdit, QWidget#page_modifier_client_wrapper QLineEdit,
+QWidget#page_ajouter_client_wrapper QComboBox, QWidget#page_modifier_client_wrapper QComboBox,
+QWidget#page_ajouter_client_wrapper QDateEdit, QWidget#page_modifier_client_wrapper QDateEdit {
+    background:#ffffff; color:#1a1a2e; border:1px solid #e8ecf0;
+    border-radius:8px; padding:10px; font-size:13px;
+}
+QWidget#page_ajouter_client_wrapper QLineEdit:focus, QWidget#page_modifier_client_wrapper QLineEdit:focus { border:2px solid #1e40af; }
+QPushButton#btn_save_ajouter, QPushButton#btn_save_modifier {
+    background-color:#1e40af; color:#ffffff; border:none; border-radius:8px; padding:12px; font-weight:800;
+}
+QPushButton#btn_save_ajouter:hover, QPushButton#btn_save_modifier:hover { background-color:#1e3a8a; }
+QPushButton#btn_annuler_ajouter, QPushButton#btn_annuler_modifier {
+    background-color:#f1f5f9; color:#475569; border:1px solid #cbd5e1; border-radius:8px; padding:12px; font-weight:700;
+}
+QPushButton#btn_annuler_ajouter:hover, QPushButton#btn_annuler_modifier:hover { background-color:#e2e8f0; color:#1e293b; }
+)"));
+
+        // ===== KPI ROW — Clients =====
+        QTimer::singleShot(100, this, [this]() {
+            auto *pageRepertoire = ui->page_repertoire;
+            if (!pageRepertoire || ui->pageClient->findChild<QFrame*>("cli_kpiRow")) return;
+
+            auto *hTable = pageRepertoire->findChild<QHBoxLayout*>("horizontalLayout_table");
+            auto *table = pageRepertoire->findChild<QTableWidget*>("tableWidget_Client");
+            auto *header = pageRepertoire->findChild<QHBoxLayout*>("horizontalLayout_filters");
+
+            QVBoxLayout *vl = pageRepertoire->findChild<QVBoxLayout*>("client_left_layout");
+            if (!vl && hTable && table && header) {
+                vl = new QVBoxLayout();
+                vl->setObjectName("client_left_layout");
+                vl->addLayout(header);
+                vl->addWidget(table);
+                hTable->insertLayout(0, vl);
+            }
+            if (!vl) return;
+
+            int totalClients = 0, mensuel = 0, annuel = 0, expSoon = 0, enRetard = 0;
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM CLIENT") && q.next()) totalClients = q.value(0).toInt(); }
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM CLIENT WHERE UPPER(NVL(TYPE_CONTRAT,''))='MENSUEL'") && q.next()) mensuel = q.value(0).toInt(); }
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM CLIENT WHERE UPPER(NVL(TYPE_CONTRAT,''))='ANNUEL'") && q.next()) annuel = q.value(0).toInt(); }
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM CLIENT WHERE DATE_EXPIRATION IS NOT NULL AND DATE_EXPIRATION <= SYSDATE+30") && q.next()) expSoon = q.value(0).toInt(); }
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM CLIENT WHERE UPPER(NVL(STATUT_PAIEMENT,'')) LIKE '%RETARD%'") && q.next()) enRetard = q.value(0).toInt(); }
+
+            auto makeKpi = [this](const QString &title, const QString &val,
+                                   const QString &sub, const char *icon,
+                                   const QString &iconBg, const QString &col) -> QFrame* {
+                auto *card = new QFrame();
+                card->setAttribute(Qt::WA_StyledBackground, true);
+                card->setStyleSheet("QFrame{background:#ffffff;border-radius:12px;border:1px solid #e8ecf0;}");
+                applySoftCardShadow(card, QColor(0,0,0,22), 18, QPoint(0,5));
+                auto *h = new QHBoxLayout(card); h->setContentsMargins(18,16,18,16); h->setSpacing(12);
+                auto *tv = new QVBoxLayout(); tv->setSpacing(3);
+                auto *t = new QLabel(title); t->setStyleSheet("font-size:10px;font-weight:700;color:#6c757d;letter-spacing:1px;background:transparent;border:none;");
+                auto *v = new QLabel(val);    v->setStyleSheet(QString("font-size:26px;font-weight:800;color:%1;background:transparent;border:none;").arg(col));
+                auto *s = new QLabel(sub);    s->setStyleSheet("font-size:11px;color:#6c757d;background:transparent;border:none;");
+                tv->addWidget(t); tv->addWidget(v); tv->addWidget(s);
+                h->addLayout(tv, 1);
+                auto *ic = new QLabel(QString::fromUtf8(icon)); ic->setFixedSize(46,46); ic->setAlignment(Qt::AlignCenter);
+                ic->setStyleSheet(QString("background:%1;border-radius:10px;font-size:20px;border:none;").arg(iconBg));
+                h->addWidget(ic, 0, Qt::AlignVCenter);
+                return card;
+            };
+
+            auto *kpiContainer = new QFrame(); kpiContainer->setObjectName("cli_kpiRow");
+            kpiContainer->setStyleSheet("QFrame{background:transparent;border:none;}");
+            auto *row = new QHBoxLayout(kpiContainer); row->setContentsMargins(0,8,0,8); row->setSpacing(14);
+            row->addWidget(makeKpi("TOTAL CLIENTS",   QString::number(totalClients), "Base clients",       "\xF0\x9F\x91\xA4", "#e3f2fd", "#1e40af"));
+            row->addWidget(makeKpi("CONTRATS ACTIFS", QString::number(mensuel+annuel),"Mensuel + Annuel",  "\xF0\x9F\x93\x8B", "#e8f5e9", "#27ae60"));
+            row->addWidget(makeKpi("EXPIRENT BIENTOT",QString::number(expSoon),      "Dans 30 jours",      "\xE2\x9A\xA0\xEF\xB8\x8F", "#fff3e0", expSoon>0?"#f39c12":"#27ae60"));
+            row->addWidget(makeKpi("EN RETARD",       QString::number(enRetard),     "Paiements en retard","\xF0\x9F\x92\xB8", "#fce4ec", enRetard>0?"#e74c3c":"#27ae60"));
+            vl->insertWidget(1, kpiContainer);
+        });
+
+        QTimer::singleShot(200, this, [this]() {
+            QVBoxLayout *sideL = ui->pageClient->findChild<QVBoxLayout*>("verticalLayout_sidepanel");
+            if (!sideL || ui->pageClient->property("clientSidebarRebuilt").toBool()) return;
+            ui->pageClient->setProperty("clientSidebarRebuilt", true);
+
+            int totalClients = 0, mensuel = 0, annuel = 0, expSoon = 0, enRetard = 0;
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM CLIENT") && q.next()) totalClients = q.value(0).toInt(); }
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM CLIENT WHERE UPPER(NVL(TYPE_CONTRAT,''))='MENSUEL'") && q.next()) mensuel = q.value(0).toInt(); }
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM CLIENT WHERE UPPER(NVL(TYPE_CONTRAT,''))='ANNUEL'") && q.next()) annuel = q.value(0).toInt(); }
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM CLIENT WHERE DATE_EXPIRATION IS NOT NULL AND DATE_EXPIRATION <= SYSDATE+30") && q.next()) expSoon = q.value(0).toInt(); }
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM CLIENT WHERE UPPER(NVL(STATUT_PAIEMENT,'')) LIKE '%RETARD%'") && q.next()) enRetard = q.value(0).toInt(); }
+            int workloadPct = totalClients > 0 ? int(double(expSoon + enRetard) / totalClients * 100.0) : 0;
+
+            // Collect existing action buttons
+            QList<QPushButton*> actionBtns;
+            for (const char *n : {"exportclient","btnGoStats_Client"}) {
+                if (auto *b = ui->pageClient->findChild<QPushButton*>(n)) {
+                    b->setParent(nullptr); actionBtns.append(b);
+                }
+            }
+            for (const char *n : {"growthWidget","pilotage"}) {
+                if (auto *w = ui->pageClient->findChild<QWidget*>(n)) {
+                    w->setParent(nullptr); w->hide();
+                }
+            }
+
+            QLayoutItem *it;
+            while ((it = sideL->takeAt(0))) {
+                if (QWidget *w = it->widget()) { w->setParent(nullptr); w->deleteLater(); }
+                delete it;
+            }
+            sideL->setSpacing(0);
+            sideL->setContentsMargins(0, 0, 0, 0);
+
+            auto *clientScrollArea = new QScrollArea();
+            clientScrollArea->setObjectName("clientSidebarScroll");
+            clientScrollArea->setFrameShape(QFrame::NoFrame);
+            clientScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+            clientScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+            clientScrollArea->setWidgetResizable(true);
+            clientScrollArea->setStyleSheet(
+                "QScrollArea{background:transparent;border:none;}"
+                "QScrollArea > QWidget > QWidget{background:transparent;}"
+                "QScrollBar:vertical{background:#f0f2f5;width:6px;border-radius:3px;}"
+                "QScrollBar::handle:vertical{background:#c8d8ce;border-radius:3px;min-height:20px;}"
+                "QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical{height:0;}"
+            );
+            auto *clientScrollContent = new QWidget();
+            clientScrollContent->setObjectName("clientSidebarContent");
+            clientScrollContent->setStyleSheet("background:transparent;");
+            auto *clientScrollV = new QVBoxLayout(clientScrollContent);
+            clientScrollV->setContentsMargins(12, 12, 12, 12);
+            clientScrollV->setSpacing(10);
+
+            // Hero
+            auto *hero = new QFrame();
+            hero->setObjectName("clientHero");
+            hero->setAttribute(Qt::WA_StyledBackground, true);
+            hero->setStyleSheet(
+                "QFrame#clientHero{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #1a3a2e,stop:1 #2d5a42);border-radius:14px;border:none;}"
+                "QFrame#clientHero QLabel{color:#ffffff;background:transparent;border:none;}"
+            );
+            applySoftCardShadow(hero, QColor(26,58,46,100), 20, QPoint(0,6));
+            auto *hv = new QVBoxLayout(hero);
+            hv->setContentsMargins(16,14,16,14); hv->setSpacing(4);
+            auto *hHead = new QHBoxLayout();
+            auto *ht = new QLabel(QString::fromUtf8("\xF0\x9F\x91\xA5  Pilotage Clients"));
+            ht->setStyleSheet("color:#ffffff;font-size:13px;font-weight:800;background:transparent;border:none;");
+            auto *hLive = new QLabel(QString::fromUtf8("\xE2\x97\x8F LIVE"));
+            hLive->setStyleSheet("color:#a8d5b5;font-size:10px;font-weight:800;background:transparent;border:none;letter-spacing:1px;");
+            hHead->addWidget(ht); hHead->addStretch(); hHead->addWidget(hLive);
+            hv->addLayout(hHead);
+            auto *hNumRow = new QHBoxLayout(); hNumRow->setSpacing(6);
+            auto *hVal = new QLabel(QString::number(totalClients));
+            hVal->setStyleSheet("color:#ffffff;font-size:28px;font-weight:800;background:transparent;border:none;");
+            auto *hLbl = new QLabel("clients actifs");
+            hLbl->setStyleSheet("color:#c8e6c9;font-size:11px;background:transparent;border:none;");
+            hNumRow->addWidget(hVal); hNumRow->addWidget(hLbl, 0, Qt::AlignBottom); hNumRow->addStretch();
+            hv->addLayout(hNumRow);
+            auto *wlLbl = new QLabel(QString("Risque portefeuille  %1%").arg(workloadPct));
+            wlLbl->setStyleSheet("color:#a8d5b5;font-size:10px;font-weight:600;background:transparent;border:none;");
+            hv->addWidget(wlLbl);
+            auto *gauge = new QProgressBar();
+            gauge->setRange(0,100); gauge->setValue(workloadPct); gauge->setTextVisible(false);
+            gauge->setFixedHeight(6);
+            gauge->setStyleSheet(
+                "QProgressBar{background:rgba(255,255,255,0.15);border:none;border-radius:3px;}"
+                "QProgressBar::chunk{background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #a8d5b5,stop:1 #ffffff);border-radius:3px;}"
+            );
+            hv->addWidget(gauge);
+            clientScrollV->addWidget(hero);
+
+            // 3 status mini cards
+            auto makeStatusCard = [this](const QString &label, int count, const QString &color,
+                                          const QString &iconChar) -> QFrame* {
+                auto *f = new QFrame();
+                f->setAttribute(Qt::WA_StyledBackground, true);
+                f->setStyleSheet("QFrame{background:#ffffff;border-radius:10px;border:1px solid #e8ecf0;}");
+                applySoftCardShadow(f, QColor(0,0,0,15), 12, QPoint(0,3));
+                auto *h = new QHBoxLayout(f);
+                h->setContentsMargins(10,8,10,8); h->setSpacing(8);
+                auto *ic = new QLabel(iconChar);
+                ic->setFixedSize(32,32); ic->setAlignment(Qt::AlignCenter);
+                ic->setStyleSheet(QString("background:%1;border-radius:7px;font-size:14px;border:none;color:%2;")
+                    .arg(color + "22", color));
+                auto *tv = new QVBoxLayout(); tv->setSpacing(0);
+                auto *vl = new QLabel(QString::number(count));
+                vl->setStyleSheet(QString("font-size:16px;font-weight:800;color:%1;background:transparent;border:none;").arg(color));
+                auto *ll = new QLabel(label);
+                ll->setStyleSheet("font-size:10px;color:#6c757d;background:transparent;border:none;");
+                tv->addWidget(vl); tv->addWidget(ll);
+                h->addWidget(ic,0,Qt::AlignVCenter); h->addLayout(tv,1);
+                return f;
+            };
+            clientScrollV->addWidget(makeStatusCard("Mensuel", mensuel, "#3498db", QString::fromUtf8("\xF0\x9F\x93\x8B")));
+            clientScrollV->addWidget(makeStatusCard("Annuel", annuel, "#27ae60", QString::fromUtf8("\xF0\x9F\x93\x85")));
+            clientScrollV->addWidget(makeStatusCard("Impayes", enRetard, enRetard>0?"#e74c3c":"#27ae60", QString::fromUtf8("\xE2\x9A\xA0\xEF\xB8\x8F")));
+
+            // Actions label block
+            auto *actWrap = new QFrame();
+            actWrap->setObjectName("clientQuickActionsLabelWrap");
+            actWrap->setAttribute(Qt::WA_StyledBackground, true);
+            actWrap->setStyleSheet(
+                "QFrame#clientQuickActionsLabelWrap{background-color:#1f4d3a;border:1px solid #2a6a51;border-radius:8px;}"
+                "QFrame#clientQuickActionsLabelWrap QLabel{color:#ffffff;background:transparent;border:none;}"
+            );
+            auto *actLay = new QHBoxLayout(actWrap);
+            actLay->setContentsMargins(10, 6, 10, 6);
+            actLay->setSpacing(0);
+            auto *actLbl = new QLabel(QString::fromUtf8("\xE2\x9A\xA1 Actions Rapides"));
+            actLbl->setStyleSheet("font-size:11px;font-weight:800;color:#ffffff;letter-spacing:1px;background:transparent;border:none;");
+            actLay->addWidget(actLbl, 1, Qt::AlignVCenter | Qt::AlignLeft);
+            clientScrollV->addWidget(actWrap);
+
+            for (auto *b : actionBtns) {
+                if (!b) continue;
+                b->setMinimumHeight(38);
+                b->setStyleSheet(
+                    "QPushButton{background-color:#1f4d3a;color:#ffffff;border:1px solid #2a6a51;"
+                    "border-radius:10px;padding:8px 14px;font-weight:700;font-size:12px;text-align:center;}"
+                    "QPushButton:hover{background-color:#27ae60;color:#ffffff;border-color:#27ae60;}"
+                );
+                clientScrollV->addWidget(b);
+            }
+
+            if (expSoon > 0 || enRetard > 0) {
+                auto *alert = new QFrame();
+                alert->setAttribute(Qt::WA_StyledBackground, true);
+                alert->setStyleSheet("QFrame{background:#fff5f5;border-radius:10px;border:1px solid #ffd4d4;}");
+                auto *ah = new QHBoxLayout(alert);
+                ah->setContentsMargins(12,10,12,10); ah->setSpacing(10);
+                auto *ic = new QLabel(QString::fromUtf8("\xE2\x9A\xA0\xEF\xB8\x8F"));
+                ic->setStyleSheet("font-size:18px;background:transparent;border:none;");
+                auto *tv = new QVBoxLayout(); tv->setSpacing(1);
+                auto *at = new QLabel(QString("%1 contrat(s) a suivre").arg(expSoon + enRetard));
+                at->setStyleSheet("color:#e74c3c;font-size:12px;font-weight:800;background:transparent;border:none;");
+                auto *ad = new QLabel("Renouvellement / relance");
+                ad->setStyleSheet("color:#6c757d;font-size:10px;background:transparent;border:none;");
+                tv->addWidget(at); tv->addWidget(ad);
+                ah->addWidget(ic,0,Qt::AlignVCenter); ah->addLayout(tv,1);
+                clientScrollV->addWidget(alert);
+            }
+
+            clientScrollV->addStretch();
+            clientScrollArea->setWidget(clientScrollContent);
+            sideL->addWidget(clientScrollArea);
+        });
+    }
+
     QTimer::singleShot(200, this, [this]() {
         if (findChild<QPushButton*>("client_btnToggleView")) return;
 
@@ -21122,7 +23544,7 @@ void MainWindow::setupClientCardViewContainer()
         if (!searchLayout || !tableLayout) return;
 
         // Toggle button
-        QPushButton *btnToggle = new QPushButton(QString::fromUtf8("\xe2\x8a\x9e"));
+        QPushButton *btnToggle = new QPushButton("Vue");
         btnToggle->setObjectName("client_btnToggleView");
         btnToggle->setFixedSize(40, 40);
         btnToggle->setCursor(Qt::PointingHandCursor);
@@ -21176,7 +23598,7 @@ void MainWindow::setupClientCardViewContainer()
         cbSize->setStyleSheet("background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 4px;");
         connect(cbSize, SIGNAL(currentIndexChanged(int)), this, SLOT(on_client_pagination_cbSize_currentIndexChanged(int)));
 
-        QPushButton *btnPrev = new QPushButton(QString::fromUtf8("\xe2\x86\x90") + " Precedent");
+        QPushButton *btnPrev = new QPushButton("Precedent");
         btnPrev->setObjectName("client_pagination_btnPrev");
         btnPrev->setFixedWidth(120);
         btnPrev->setCursor(Qt::PointingHandCursor);
@@ -21188,7 +23610,7 @@ void MainWindow::setupClientCardViewContainer()
         lblPage->setObjectName("client_pagination_lblPage");
         lblPage->setStyleSheet("font-size: 13px; color: #1e293b; font-weight: 700;");
 
-        QPushButton *btnNext = new QPushButton("Suivant " + QString::fromUtf8("\xe2\x86\x92"));
+        QPushButton *btnNext = new QPushButton("Suivant");
         btnNext->setObjectName("client_pagination_btnNext");
         btnNext->setFixedWidth(120);
         btnNext->setCursor(Qt::PointingHandCursor);
@@ -21490,7 +23912,7 @@ void MainWindow::setupMaintCardViewContainer()
         if (!searchLayout || !tableLayout) return;
 
         // Toggle button
-        QPushButton *btnToggle = new QPushButton(QString::fromUtf8("\xe2\x8a\x9e"));
+        QPushButton *btnToggle = new QPushButton("Vue");
         btnToggle->setObjectName("maint_btnToggleView");
         btnToggle->setFixedSize(40, 40);
         btnToggle->setCursor(Qt::PointingHandCursor);
@@ -21544,7 +23966,7 @@ void MainWindow::setupMaintCardViewContainer()
         cbSize->setStyleSheet("background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 4px;");
         connect(cbSize, SIGNAL(currentIndexChanged(int)), this, SLOT(on_maint_pagination_cbSize_currentIndexChanged(int)));
 
-        QPushButton *btnPrev = new QPushButton(QString::fromUtf8("\xe2\x86\x90") + " Precedent");
+        QPushButton *btnPrev = new QPushButton("Precedent");
         btnPrev->setObjectName("maint_pagination_btnPrev");
         btnPrev->setFixedWidth(120);
         btnPrev->setCursor(Qt::PointingHandCursor);
@@ -21556,7 +23978,7 @@ void MainWindow::setupMaintCardViewContainer()
         lblPage->setObjectName("maint_pagination_lblPage");
         lblPage->setStyleSheet("font-size: 13px; color: #1e293b; font-weight: 700;");
 
-        QPushButton *btnNext = new QPushButton("Suivant " + QString::fromUtf8("\xe2\x86\x92"));
+        QPushButton *btnNext = new QPushButton("Suivant");
         btnNext->setObjectName("maint_pagination_btnNext");
         btnNext->setFixedWidth(120);
         btnNext->setCursor(Qt::PointingHandCursor);
@@ -21867,7 +24289,7 @@ void MainWindow::setupCmdCardViewContainer()
         QHBoxLayout *searchLayout = cmdPage->findChild<QHBoxLayout*>("searchRow_2");
 
         // Toggle button
-        QPushButton *btnToggle = new QPushButton(QString::fromUtf8("\xe2\x8a\x9e"));
+        QPushButton *btnToggle = new QPushButton("Vue");
         btnToggle->setObjectName("cmd_btnToggleView");
         btnToggle->setFixedSize(40, 40);
         btnToggle->setCursor(Qt::PointingHandCursor);
@@ -21930,7 +24352,7 @@ void MainWindow::setupCmdCardViewContainer()
         cbSize->setStyleSheet("background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 4px;");
         connect(cbSize, SIGNAL(currentIndexChanged(int)), this, SLOT(on_cmd_pagination_cbSize_currentIndexChanged(int)));
 
-        QPushButton *btnPrev = new QPushButton(QString::fromUtf8("\xe2\x86\x90") + " Precedent");
+        QPushButton *btnPrev = new QPushButton("Precedent");
         btnPrev->setObjectName("cmd_pagination_btnPrev");
         btnPrev->setFixedWidth(120);
         btnPrev->setCursor(Qt::PointingHandCursor);
@@ -21942,7 +24364,7 @@ void MainWindow::setupCmdCardViewContainer()
         lblPage->setObjectName("cmd_pagination_lblPage");
         lblPage->setStyleSheet("font-size: 13px; color: #1e293b; font-weight: 700;");
 
-        QPushButton *btnNext = new QPushButton("Suivant " + QString::fromUtf8("\xe2\x86\x92"));
+        QPushButton *btnNext = new QPushButton("Suivant");
         btnNext->setObjectName("cmd_pagination_btnNext");
         btnNext->setFixedWidth(120);
         btnNext->setCursor(Qt::PointingHandCursor);
@@ -22259,6 +24681,270 @@ void MainWindow::on_cmd_pagination_btnNext_clicked()
 
 void MainWindow::setupCommandesModule()
 {
+    // --- GREEN THEME + INNOVATIVE RIGHT SIDEBAR (Commandes) ---
+    QWidget *cmdPage = findChild<QWidget*>("pageCmdDashboard");
+    if (cmdPage && !cmdPage->property("cmdGreenApplied").toBool()) {
+        cmdPage->setProperty("cmdGreenApplied", true);
+
+        static const char *clearNamesCmd[] = {
+            "lb_1", "btnAddDashboard", "user_1", "btnnotif_1", "btnprofil_1",
+            "lblSort_dashboard", "cbSortDashboard", "searchInputDashboard", "btnTempToModifier",
+            "tableDashboard", "lblSort_2", "cbSort_2", "searchInput_2", "btnAddProduct_2", "tableProduits_2",
+            "rightSidebar_Commande", "lblFunc_Cmd",
+            "stat1_Cmd", "stat2_Cmd", "stat3_Cmd",
+            "st_val1_Cmd", "st_val2_Cmd", "st_val3_Cmd",
+            "st_lbl1_Cmd", "st_lbl2_Cmd", "st_lbl3_Cmd",
+            "btnGoStats_Cmd", "btnPdf_Cmd"
+        };
+        for (const char *n : clearNamesCmd)
+            if (auto *w = cmdPage->findChild<QWidget*>(n)) w->setStyleSheet("");
+
+        cmdPage->setStyleSheet(QStringLiteral(R"(
+QWidget#pageCmdDashboard, QWidget#pageHome, QWidget#pageCommandes,
+QWidget#pageCmdAjout, QWidget#pageCmdModifier {
+    background-color: #f0f2f5;
+}
+QLabel#lb_1 { color:#1a1a2e; font-size:22px; font-weight:800; background:transparent; padding:12px 4px; }
+QLabel#user_1 { color:#6c757d; font-size:12px; background:transparent; }
+QPushButton#btnAddDashboard, QPushButton#btnAddProduct_2 {
+    background-color:#f0c343; color:#2d2100; border:none;
+    border-radius:10px; padding:9px 18px; font-weight:800; font-size:13px;
+}
+QPushButton#btnAddDashboard:hover, QPushButton#btnAddProduct_2:hover { background-color:#e3b232; }
+QPushButton#btnTempToModifier {
+    background:#f0f7f4; color:#1a3a2e; border:1px solid #d4e8dc;
+    border-radius:10px; padding:8px 14px; font-weight:700; font-size:12px;
+}
+QPushButton#btnTempToModifier:hover { background:#27ae60; color:#ffffff; border-color:#27ae60; }
+
+QLabel#lblSort_dashboard, QLabel#lblSort_2 { color:#1a1a2e; font-weight:700; font-size:13px; background:transparent; }
+QComboBox#cbSortDashboard, QComboBox#cbSort_2 {
+    background:#ffffff; color:#1a1a2e; border:1px solid #e8ecf0;
+    border-radius:10px; padding:8px 14px; font-size:13px; min-height:22px;
+}
+QComboBox#cbSortDashboard:hover, QComboBox#cbSort_2:hover { border-color:#27ae60; }
+QComboBox#cbSortDashboard::drop-down, QComboBox#cbSort_2::drop-down { border:none; width:24px; }
+QLineEdit#searchInputDashboard, QLineEdit#searchInput_2 {
+    background:#ffffff; color:#1a1a2e; border:1px solid #e8ecf0;
+    border-radius:10px; padding:8px 14px; font-size:13px;
+}
+QLineEdit#searchInputDashboard:focus, QLineEdit#searchInput_2:focus { border:2px solid #27ae60; }
+
+QTableWidget#tableDashboard, QTableWidget#tableProduits_2 {
+    background-color:#ffffff; color:#1a1a2e; gridline-color:transparent;
+    border:1px solid #e8ecf0; border-radius:12px; font-size:13px;
+    selection-background-color:#e8f5e9; selection-color:#1a3a2e;
+    alternate-background-color:#fafbfc;
+}
+QTableWidget#tableDashboard::item, QTableWidget#tableProduits_2::item { padding:10px; border-bottom:1px solid #f0f2f5; }
+QTableWidget#tableDashboard::item:selected, QTableWidget#tableProduits_2::item:selected { background:#e8f5e9; color:#1a3a2e; }
+QTableWidget#tableDashboard::item:hover, QTableWidget#tableProduits_2::item:hover { background:#f0f7f4; }
+QTableWidget#tableDashboard QHeaderView::section, QTableWidget#tableProduits_2 QHeaderView::section {
+    background:#f8fafb; color:#6c757d; font-weight:700; padding:12px;
+    border:none; border-bottom:2px solid #27ae60; font-size:11px; letter-spacing:1px;
+}
+
+QFrame#rightSidebar_Commande { background: transparent; border: none; }
+)"));
+
+        // ===== KPI ROW — Commandes =====
+        QTimer::singleShot(100, this, [this, cmdPage]() {
+            auto *vl = cmdPage->findChild<QVBoxLayout*>("dashboardTableArea");
+            if (!vl || cmdPage->findChild<QFrame*>("cmd_kpiRow")) return;
+
+            auto *header = cmdPage->findChild<QHBoxLayout*>("horizontalLayout_11");
+            if (header && vl->indexOf(header) == -1) {
+                vl->insertLayout(0, header);
+            }
+
+            int totalCmd = 0, enAttente = 0, livrees = 0, urgentes = 0;
+            double caTotal = 0.0;
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*), NVL(SUM(NVL(PRIX_TOTAL,0)),0) FROM COMMANDE") && q.next()) {
+                totalCmd = q.value(0).toInt(); caTotal = q.value(1).toDouble(); } }
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM COMMANDE WHERE UPPER(NVL(STATUS,'')) LIKE '%ATTENTE%' OR UPPER(NVL(STATUS,'')) LIKE '%COURS%'") && q.next()) enAttente = q.value(0).toInt(); }
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM COMMANDE WHERE UPPER(NVL(STATUS,'')) LIKE '%LIVR%'") && q.next()) livrees = q.value(0).toInt(); }
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM COMMANDE WHERE UPPER(NVL(PRIORITE,'')) LIKE '%URGENT%' OR UPPER(NVL(PRIORITE,''))='HAUTE'") && q.next()) urgentes = q.value(0).toInt(); }
+
+            auto makeKpi = [this](const QString &title, const QString &val,
+                                   const QString &sub, const char *icon,
+                                   const QString &iconBg, const QString &col) -> QFrame* {
+                auto *card = new QFrame();
+                card->setAttribute(Qt::WA_StyledBackground, true);
+                card->setStyleSheet("QFrame{background:#ffffff;border-radius:12px;border:1px solid #e8ecf0;}");
+                applySoftCardShadow(card, QColor(0,0,0,22), 18, QPoint(0,5));
+                auto *h = new QHBoxLayout(card); h->setContentsMargins(18,16,18,16); h->setSpacing(12);
+                auto *tv = new QVBoxLayout(); tv->setSpacing(3);
+                auto *t = new QLabel(title); t->setStyleSheet("font-size:10px;font-weight:700;color:#6c757d;letter-spacing:1px;background:transparent;border:none;");
+                auto *v = new QLabel(val);    v->setStyleSheet(QString("font-size:26px;font-weight:800;color:%1;background:transparent;border:none;").arg(col));
+                auto *s = new QLabel(sub);    s->setStyleSheet("font-size:11px;color:#6c757d;background:transparent;border:none;");
+                tv->addWidget(t); tv->addWidget(v); tv->addWidget(s);
+                h->addLayout(tv, 1);
+                auto *ic = new QLabel(QString::fromUtf8(icon)); ic->setFixedSize(46,46); ic->setAlignment(Qt::AlignCenter);
+                ic->setStyleSheet(QString("background:%1;border-radius:10px;font-size:20px;border:none;").arg(iconBg));
+                h->addWidget(ic, 0, Qt::AlignVCenter);
+                return card;
+            };
+
+            auto *kpiContainer = new QFrame(); kpiContainer->setObjectName("cmd_kpiRow");
+            kpiContainer->setStyleSheet("QFrame{background:transparent;border:none;}");
+            auto *row = new QHBoxLayout(kpiContainer); row->setContentsMargins(16,8,10,8); row->setSpacing(14);
+            row->addWidget(makeKpi("TOTAL COMMANDES",   QString::number(totalCmd),  "Toutes commandes",   "\xF0\x9F\x93\xA6", "#e3f2fd", "#1e40af"));
+            row->addWidget(makeKpi("EN COURS",          QString::number(enAttente), "A traiter",          "\xF0\x9F\x94\x84", "#fff3e0", enAttente>0?"#f39c12":"#27ae60"));
+            row->addWidget(makeKpi("LIVREES",           QString::number(livrees),   "Commandes livrees",  "\xE2\x9C\x85",     "#e8f5e9", "#27ae60"));
+            row->addWidget(makeKpi("CHIFFRE D'AFFAIRES",QString("%1 TND").arg(QString::number(caTotal,'f',0)), "Revenu total", "\xF0\x9F\x92\xB0", "#fce4ec", "#1a3a2e"));
+            vl->insertWidget(1, kpiContainer);
+        });
+
+        QTimer::singleShot(200, this, [this, cmdPage]() {
+            QVBoxLayout *rightL = cmdPage->findChild<QVBoxLayout*>("rightLayout_Cmd");
+            if (!rightL || cmdPage->property("cmdSidebarRebuilt").toBool()) return;
+            cmdPage->setProperty("cmdSidebarRebuilt", true);
+
+            int totalCmd = 0, enAttente = 0, livrees = 0, urgentes = 0;
+            double caTotal = 0.0;
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*), NVL(SUM(PRIX_TOTAL),0) FROM COMMANDE") && q.next()) {
+                totalCmd = q.value(0).toInt(); caTotal = q.value(1).toDouble(); } }
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM COMMANDE WHERE UPPER(NVL(STATUS,'')) LIKE '%ATTENTE%' OR UPPER(NVL(STATUS,'')) LIKE '%COURS%'") && q.next()) enAttente = q.value(0).toInt(); }
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM COMMANDE WHERE UPPER(NVL(STATUS,'')) LIKE '%LIVR%'") && q.next()) livrees = q.value(0).toInt(); }
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM COMMANDE WHERE UPPER(NVL(PRIORITE,'')) LIKE '%URGENT%' OR UPPER(NVL(PRIORITE,''))='HAUTE'") && q.next()) urgentes = q.value(0).toInt(); }
+
+            auto *hero = new QFrame();
+            hero->setObjectName("cmdHero");
+            hero->setAttribute(Qt::WA_StyledBackground, true);
+            hero->setStyleSheet("QFrame#cmdHero{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #1a3a2e,stop:1 #2d5a42);border-radius:14px;border:none;}");
+            applySoftCardShadow(hero, QColor(26,58,46,100), 20, QPoint(0,6));
+            auto *hv = new QVBoxLayout(hero);
+            hv->setContentsMargins(18,16,18,18); hv->setSpacing(6);
+            auto *hHead = new QHBoxLayout();
+            auto *ht = new QLabel(QString::fromUtf8("\xF0\x9F\x93\xA6  Flux Commandes"));
+            ht->setStyleSheet("color:#ffffff;font-size:14px;font-weight:800;background:transparent;border:none;");
+            auto *hLive = new QLabel(QString::fromUtf8("\xE2\x97\x8F LIVE"));
+            hLive->setStyleSheet("color:#a8d5b5;font-size:10px;font-weight:800;background:transparent;border:none;letter-spacing:1px;");
+            hHead->addWidget(ht); hHead->addStretch(); hHead->addWidget(hLive);
+            hv->addLayout(hHead);
+            auto *hLbl = new QLabel("Chiffre d'Affaires");
+            hLbl->setStyleSheet("color:#c8e6c9;font-size:11px;font-weight:600;background:transparent;border:none;");
+            hv->addWidget(hLbl);
+            auto *hVal = new QLabel(QString("%1 TND").arg(QString::number(caTotal, 'f', 0)));
+            hVal->setStyleSheet("color:#ffffff;font-size:26px;font-weight:800;background:transparent;border:none;");
+            hv->addWidget(hVal);
+            auto *hFoot = new QLabel(QString("%1 commande(s) au total").arg(totalCmd));
+            hFoot->setStyleSheet("color:#a8d5b5;font-size:11px;background:transparent;border:none;");
+            hv->addWidget(hFoot);
+
+            auto makeMini = [this](const QString &label, const QString &val, const QString &color) -> QFrame* {
+                auto *f = new QFrame();
+                f->setAttribute(Qt::WA_StyledBackground, true);
+                f->setStyleSheet("QFrame{background:#ffffff;border-radius:10px;border:1px solid #e8ecf0;}");
+                applySoftCardShadow(f, QColor(0,0,0,15), 12, QPoint(0,3));
+                auto *h = new QHBoxLayout(f);
+                h->setContentsMargins(12,10,12,10); h->setSpacing(8);
+                auto *d = new QLabel(); d->setFixedSize(10,10);
+                d->setStyleSheet(QString("background:%1;border-radius:5px;border:none;").arg(color));
+                auto *tv = new QVBoxLayout(); tv->setSpacing(1);
+                auto *vl = new QLabel(val);
+                vl->setStyleSheet(QString("font-size:18px;font-weight:800;color:%1;background:transparent;border:none;").arg(color));
+                auto *ll = new QLabel(label);
+                ll->setStyleSheet("font-size:10px;color:#6c757d;background:transparent;border:none;");
+                tv->addWidget(vl); tv->addWidget(ll);
+                h->addWidget(d,0,Qt::AlignVCenter); h->addLayout(tv,1);
+                return f;
+            };
+            auto *miniRow1 = new QHBoxLayout(); miniRow1->setSpacing(10);
+            miniRow1->addWidget(makeMini("Livrees", QString::number(livrees), "#27ae60"));
+            miniRow1->addWidget(makeMini("En cours", QString::number(enAttente), enAttente>0?"#f39c12":"#27ae60"));
+            auto *miniRow2 = new QHBoxLayout(); miniRow2->setSpacing(10);
+            miniRow2->addWidget(makeMini("Urgentes", QString::number(urgentes), urgentes>0?"#e74c3c":"#27ae60"));
+            double panier = totalCmd > 0 ? caTotal / totalCmd : 0.0;
+            miniRow2->addWidget(makeMini("Panier moy.", QString::number(panier,'f',0), "#3498db"));
+
+            auto *actLbl = new QLabel(QString::fromUtf8("\xE2\x9A\xA1 Actions Rapides"));
+            actLbl->setStyleSheet(
+                "font-size:11px;font-weight:800;color:#ffffff;letter-spacing:1px;"
+                "background:#1f4d3a;border:1px solid #2a6a51;border-radius:8px;padding:8px 10px;"
+            );
+
+            QList<QPushButton*> actionBtns;
+            for (const char *n : {"btnPdf_Cmd","btnGoStats_Cmd"}) {
+                if (auto *b = cmdPage->findChild<QPushButton*>(n)) {
+                    b->setParent(nullptr);
+                    b->show();
+                    b->setStyleSheet(
+                        "QPushButton{background-color:#f0f7f4;color:#1a3a2e;border:1px solid #d4e8dc;"
+                        "border-radius:10px;padding:12px 16px;font-weight:700;font-size:13px;text-align:center;}"
+                        "QPushButton:hover{background-color:#27ae60;color:#ffffff;border-color:#27ae60;}");
+                    actionBtns.append(b);
+                }
+            }
+
+            // Retire old stat frames (their labels may be referenced via findChild; detach + hide)
+            for (const char *n : {"stat1_Cmd","stat2_Cmd","stat3_Cmd","lblFunc_Cmd","lblExport_Cmd"}) {
+                if (auto *w = cmdPage->findChild<QWidget*>(n)) {
+                    w->setParent(nullptr); w->hide();
+                }
+            }
+
+            QLayoutItem *it;
+            while ((it = rightL->takeAt(0))) { delete it; }
+
+            rightL->setSpacing(0);
+            rightL->setContentsMargins(0, 0, 0, 0);
+
+            auto *cmdScrollArea = new QScrollArea();
+            cmdScrollArea->setObjectName("cmdSidebarScroll");
+            cmdScrollArea->setFrameShape(QFrame::NoFrame);
+            cmdScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+            cmdScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+            cmdScrollArea->setWidgetResizable(true);
+            cmdScrollArea->setStyleSheet(
+                "QScrollArea{background:transparent;border:none;}"
+                "QScrollArea > QWidget > QWidget{background:transparent;}"
+                "QScrollBar:vertical{background:#f0f2f5;width:6px;border-radius:3px;}"
+                "QScrollBar::handle:vertical{background:#c8d8ce;border-radius:3px;min-height:20px;}"
+                "QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical{height:0;}"
+            );
+            auto *cmdScrollContent = new QWidget();
+            cmdScrollContent->setObjectName("cmdSidebarContent");
+            cmdScrollContent->setStyleSheet("background:transparent;");
+            auto *cmdScrollV = new QVBoxLayout(cmdScrollContent);
+            cmdScrollV->setContentsMargins(8, 8, 8, 8);
+            cmdScrollV->setSpacing(12);
+
+            cmdScrollV->addWidget(hero);
+            cmdScrollV->addLayout(miniRow1);
+            cmdScrollV->addLayout(miniRow2);
+            cmdScrollV->addWidget(actLbl);
+            cmdScrollV->addSpacing(6);
+            for (auto *b : actionBtns) {
+                if (!b) continue;
+                b->setMinimumHeight(42);
+                cmdScrollV->addWidget(b);
+            }
+
+            if (urgentes > 0) {
+                auto *alert = new QFrame();
+                alert->setAttribute(Qt::WA_StyledBackground, true);
+                alert->setStyleSheet("QFrame{background:#fff5f5;border-radius:10px;border:1px solid #ffd4d4;}");
+                auto *ah = new QHBoxLayout(alert);
+                ah->setContentsMargins(12,10,12,10); ah->setSpacing(10);
+                auto *ic = new QLabel(QString::fromUtf8("\xE2\x9A\xA0\xEF\xB8\x8F"));
+                ic->setStyleSheet("font-size:18px;background:transparent;border:none;");
+                auto *tv = new QVBoxLayout(); tv->setSpacing(1);
+                auto *at = new QLabel(QString("%1 commande(s) urgente(s)").arg(urgentes));
+                at->setStyleSheet("color:#e74c3c;font-size:12px;font-weight:800;background:transparent;border:none;");
+                auto *ad = new QLabel("Expedition prioritaire");
+                ad->setStyleSheet("color:#6c757d;font-size:10px;background:transparent;border:none;");
+                tv->addWidget(at); tv->addWidget(ad);
+                ah->addWidget(ic,0,Qt::AlignVCenter); ah->addLayout(tv,1);
+                cmdScrollV->addWidget(alert);
+            }
+
+            cmdScrollV->addStretch();
+            cmdScrollArea->setWidget(cmdScrollContent);
+            rightL->addWidget(cmdScrollArea);
+        });
+    }
+
     // Connect "Statistiques" button
     // Note: btnGoStats_Cmd is already connected in setupStatistics() to the global stats page.
     // If a specific inner page is needed later, we can add it here.
@@ -22497,6 +25183,7 @@ void MainWindow::reindexCmdActions()
             for (QPushButton *b : buttons) b->setProperty("row", r);
         }
     }
+
 }
 
 void MainWindow::installCmdActions(int row)
@@ -22505,19 +25192,18 @@ void MainWindow::installCmdActions(int row)
     if (row < 0 || row >= ui->tableDashboard->rowCount()) return;
     QWidget *cell = new QWidget(ui->tableDashboard);
     auto *layout = new QHBoxLayout(cell);
-    layout->setContentsMargins(4, 0, 4, 0);
-    layout->setSpacing(6);
+    layout->setContentsMargins(8, 8, 8, 8);
+    layout->setSpacing(8);
     layout->setAlignment(Qt::AlignCenter);
     auto *btnEdit = new QPushButton("Modifier", cell);
     auto *btnDelete = new QPushButton("Supprimer", cell);
-    btnEdit->setStyleSheet("QPushButton { background-color: #3498db; color: white; border-radius: 4px; padding: 4px 8px; font-weight: bold; }");
-    btnDelete->setStyleSheet("QPushButton { background-color: #e74c3c; color: white; border-radius: 4px; padding: 4px 8px; font-weight: bold; }");
-    btnEdit->setCursor(Qt::PointingHandCursor);
-    btnDelete->setCursor(Qt::PointingHandCursor);
+    styleTableActionButton(btnEdit);
+    styleTableActionButton(btnDelete);
     btnEdit->setProperty("row", row);
     btnDelete->setProperty("row", row);
     layout->addWidget(btnEdit);
     layout->addWidget(btnDelete);
+    ui->tableDashboard->setRowHeight(row, qMax(ui->tableDashboard->rowHeight(row), 62));
     ui->tableDashboard->setCellWidget(row, 8, cell);
     connect(btnEdit, &QPushButton::clicked, this, [this, btnEdit]() {
         const int currentRow = btnEdit->property("row").toInt();
@@ -22562,24 +25248,22 @@ void MainWindow::installCmdActions2(int row)
     if (row < 0 || row >= ui->tableProduits_2->rowCount()) return;
     QWidget *cell = new QWidget(ui->tableProduits_2);
     auto *layout = new QHBoxLayout(cell);
-    layout->setContentsMargins(4, 0, 4, 0);
-    layout->setSpacing(6);
+    layout->setContentsMargins(8, 8, 8, 8);
+    layout->setSpacing(8);
     layout->setAlignment(Qt::AlignCenter);
     auto *btnPdf = new QPushButton("pdf", cell);
     auto *btnEdit = new QPushButton("Modifier", cell);
     auto *btnDelete = new QPushButton("Supprimer", cell);
-    btnPdf->setStyleSheet("QPushButton { background-color: #27ae60; color: white; border-radius: 4px; padding: 4px 8px; font-weight: bold; }");
-    btnEdit->setStyleSheet("QPushButton { background-color: #3498db; color: white; border-radius: 4px; padding: 4px 8px; font-weight: bold; }");
-    btnDelete->setStyleSheet("QPushButton { background-color: #e74c3c; color: white; border-radius: 4px; padding: 4px 8px; font-weight: bold; }");
-    btnPdf->setCursor(Qt::PointingHandCursor);
-    btnEdit->setCursor(Qt::PointingHandCursor);
-    btnDelete->setCursor(Qt::PointingHandCursor);
+    styleTableActionButton(btnPdf);
+    styleTableActionButton(btnEdit);
+    styleTableActionButton(btnDelete);
     btnPdf->setProperty("row", row);
     btnEdit->setProperty("row", row);
     btnDelete->setProperty("row", row);
     layout->addWidget(btnPdf);
     layout->addWidget(btnEdit);
     layout->addWidget(btnDelete);
+    ui->tableProduits_2->setRowHeight(row, qMax(ui->tableProduits_2->rowHeight(row), 62));
     ui->tableProduits_2->setCellWidget(row, 8, cell);
     
     // PDF Button Connection
@@ -23022,6 +25706,10 @@ void MainWindow::buildMaintenanceStats()
     } else {
         auto *slicePieces = costSeries->append("Cout", totalCout);
         auto *sliceMO = costSeries->append("Main d'oeuvre", totalMO);
+        
+        slicePieces->setLabel(QString("Cout\n%1%").arg(slicePieces->percentage() * 100.0, 0, 'f', 1));
+        sliceMO->setLabel(QString("Main d'oeuvre\n%1%").arg(sliceMO->percentage() * 100.0, 0, 'f', 1));
+        
         slicePieces->setLabelVisible(true);
         sliceMO->setLabelVisible(true);
         slicePieces->setBrush(QColor("#3b82f6"));
@@ -23250,6 +25938,8 @@ void MainWindow::buildCommandeStats()
             // Assign dynamic colors using HSV to handle new bins automatically
             for (int i = 0; i < binSeries->count(); ++i) {
                 QPieSlice *slice = binSeries->slices().at(i);
+                double pct = slice->percentage() * 100.0;
+                slice->setLabel(QString("%1\n%2%").arg(slice->label()).arg(pct, 0, 'f', 1));
                 slice->setLabelVisible(true);
                 slice->setBrush(QColor::fromHsv((i * 137) % 360, 180, 230));
             }
@@ -23257,7 +25947,7 @@ void MainWindow::buildCommandeStats()
 
         QChart *binChart = new QChart();
         binChart->addSeries(binSeries);
-        binChart->setTitle("Revenus par modèle de bac");
+        binChart->setTitle("Revenus par modÃ¨le de bac");
         binChart->setTitleFont(QFont("Segoe UI", 12, QFont::Bold));
         binChart->setAnimationOptions(QChart::SeriesAnimations);
         binChart->legend()->setVisible(true);
@@ -24671,8 +27361,8 @@ void MainWindow::loadProduitToModificationForm(int row)
         if (!loc.isEmpty()) {
             const QString pin = QString::fromUcs4(U"\U0001F4CD");
             lbl->setText(QString("%1 Emplacement selectionne : %2").arg(pin, loc));
-            lbl->setStyleSheet("color: #FFD700; font-size: 13px; font-weight: 700; padding: 10px 16px; "
-                               "background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.3); "
+            lbl->setStyleSheet("color: #fbbf24; font-size: 13px; font-weight: 700; padding: 10px 16px; "
+                               "background: rgba(251, 191, 36, 0.05); border: 1px solid rgba(251, 191, 36, 0.2); "
                                "border-radius: 10px; font-family: 'Segoe UI Emoji','Segoe UI Symbol','Segoe UI';");
         } else {
             lbl->setText("Plan du depot : cliquer ici pour choisir");
@@ -25466,27 +28156,7 @@ void MainWindow::on_prod_btnVideo3D_clicked()
     QString featuresStr = t->item(row, 0)->data(PROD_ROLE_FEATURES).toString();
     QStringList features = featuresStr.split(", ", Qt::SkipEmptyParts);
 
-    QMessageBox providerBox(this);
-    providerBox.setWindowTitle("Generation Video 3D");
-    providerBox.setText("Choisissez le fournisseur de generation video.");
-    providerBox.setInformativeText("Luma Labs est l'option actuelle du projet, Meta AI utilise l'autre bot disponible.");
-    QPushButton *lumaButton = providerBox.addButton("Luma Labs", QMessageBox::AcceptRole);
-    QPushButton *metaButton = providerBox.addButton("Meta AI", QMessageBox::AcceptRole);
-    providerBox.addButton(QMessageBox::Cancel);
-    providerBox.setDefaultButton(lumaButton);
-    providerBox.exec();
-
-    QString provider;
-    if (providerBox.clickedButton() == lumaButton) {
-        provider = "luma";
-    } else if (providerBox.clickedButton() == metaButton) {
-        provider = "meta";
-    } else {
-        releaseGuard();
-        return;
-    }
-
-    VideoGenerationDialog dialog(productName, reference, capacity, battery, features, provider, imagePath, this);
+    VideoGenerationDialog dialog(productName, reference, capacity, battery, features, imagePath, this);
     dialog.exec();
     releaseGuard();
 }
@@ -25514,6 +28184,13 @@ void MainWindow::on_prod_btn3DModel_clicked()
     QString reference = t->item(row, 0) ? t->item(row, 0)->text() : QString();
     QString productName = t->item(row, 1) ? t->item(row, 1)->text() : QString();
     QString imagePath = t->item(row, 0) ? t->item(row, 0)->data(PROD_ROLE_IMAGE).toString() : QString();
+    QStringList featureNames;
+    if (QTableWidgetItem *refItem = t->item(row, 0)) {
+        featureNames = refItem->data(PROD_ROLE_FEATURES).toString().split(",", Qt::SkipEmptyParts);
+        for (QString &feature : featureNames) {
+            feature = feature.trimmed();
+        }
+    }
 
     if (imagePath.isEmpty() || !QFile::exists(imagePath)) {
         QMessageBox::warning(this, "Modele 3D",
@@ -25524,7 +28201,7 @@ void MainWindow::on_prod_btn3DModel_clicked()
         return;
     }
 
-    TripoSR3DDialog dialog(productName, reference, imagePath, this);
+    TripoSR3DDialog dialog(productName, reference, imagePath, featureNames, this);
     dialog.exec();
     releaseGuard();
 }
@@ -25633,6 +28310,18 @@ void MainWindow::onGeminiPdfReply(QNetworkReply *reply)
     midWave.lineTo(pageW, 0);
     painter.fillPath(midWave, primaryGreen);
 
+    // App logo (centered, above the brand text)
+    QPixmap coverLogo(":/wasteguard_logo.png");
+    if (coverLogo.isNull()) coverLogo.load(":/logo1.png");
+    if (coverLogo.isNull()) coverLogo.load(":/login_logo.png");
+    if (!coverLogo.isNull()) {
+        const int logoH = static_cast<int>(pageH * 0.18);
+        QPixmap scaledLogo = coverLogo.scaledToHeight(logoH, Qt::SmoothTransformation);
+        const int logoX = (pageW - scaledLogo.width()) / 2;
+        const int logoY = static_cast<int>(pageH * 0.12);
+        painter.drawPixmap(logoX, logoY, scaledLogo);
+    }
+
     // Branding
     painter.setPen(accentNavy);
     painter.setFont(brandLarge);
@@ -25736,12 +28425,10 @@ void MainWindow::onGeminiPdfReply(QNetworkReply *reply)
         
         currentY += 450;
 
-        // Series/Type
-        painter.setPen(primaryGreen);
-        painter.setFont(sectionFont);
-        painter.drawText(QRect(textStartX, currentY, textMaxWidth, 150), 
-                         Qt::AlignLeft | Qt::AlignTop, "COLLECTION SIGNATURE 2026");
-        currentY += 150;
+        // Barcode EAN-13 (replaces the generic "COLLECTION SIGNATURE" label)
+        const QPixmap barcodePix = renderEan13BarcodePixmap(p.sn, QSize(650, 200));
+        painter.drawPixmap(textStartX, currentY, barcodePix);
+        currentY += 220;
 
         // Description
         painter.setPen(textDark);
@@ -25785,28 +28472,62 @@ void MainWindow::onGeminiPdfReply(QNetworkReply *reply)
         
         painter.setPen(textDark);
         painter.setFont(bodyFont);
-        QStringList bullets = {
-            "- Gestion intelligente par capteur ultrasonique",
-            "- Structure en acier inoxydable 304 anti-corrosion",
-            "- Systeme de compression de dechets integre",
-            "- Alerte de remplissage automatique via Dashboard"
-        };
+        QStringList bullets;
+        const QString caractTrim = p.caract.trimmed();
+        if (!caractTrim.isEmpty()) {
+            const QStringList rawFeatures =
+                caractTrim.split(QRegularExpression("[,;]"), Qt::SkipEmptyParts);
+            for (const QString &feat : rawFeatures) {
+                const QString ft = feat.trimmed();
+                if (!ft.isEmpty()) bullets << "- " + ft;
+            }
+        }
+        if (bullets.isEmpty()) {
+            bullets = {
+                "- Gestion intelligente par capteur ultrasonique",
+                "- Structure en acier inoxydable 304 anti-corrosion",
+                "- Systeme de compression de dechets integre",
+                "- Alerte de remplissage automatique via Dashboard"
+            };
+        }
+        const int maxBullets = 6;
+        const int maxBulletY = pageH - 500;
+        // The circle image is above this region, so the bullets can use the
+        // full width between the sidebar and the right margin.
+        const int bulletX = textStartX + 40;
+        const int bulletW = pageW - bulletX - 150;
+        int drawn = 0;
+        QFontMetricsF bulletFm(bodyFont, painter.device());
+        const int lineHeight = static_cast<int>(std::ceil(bulletFm.lineSpacing()));
         for (const QString &b : bullets) {
-            painter.drawText(textStartX + 40, currentY, b);
-            currentY += 90;
+            if (drawn >= maxBullets || currentY > maxBulletY) break;
+            const QRect measureRect(bulletX, currentY, bulletW, pageH);
+            const QRect textRect = bulletFm.boundingRect(
+                measureRect, Qt::AlignLeft | Qt::TextWordWrap, b).toRect();
+            const int blockH = qMax(lineHeight, textRect.height());
+            if (currentY + blockH > maxBulletY) break;
+            painter.drawText(QRect(bulletX, currentY, bulletW, blockH),
+                             Qt::AlignLeft | Qt::TextWordWrap, b);
+            currentY += blockH + 25;
+            ++drawn;
         }
 
         // --- FOOTER SECTION ---
         int footerY = pageH - 450;
         
         int stockPillX = textStartX;
-        QRect stockRect(stockPillX, footerY, 700, 130);
+        const QString stockText = QString("DISPONIBILITE : %1 EN STOCK").arg(p.stock);
+        QFontMetricsF stockFm(sectionFont, painter.device());
+        const int stockTextW = static_cast<int>(std::ceil(stockFm.horizontalAdvance(stockText)));
+        const int stockPillW = stockTextW + 160; // generous horizontal padding
+        const int stockPillH = 150;
+        QRect stockRect(stockPillX, footerY, stockPillW, stockPillH);
         painter.setBrush(p.stock > 10 ? lightGreen : QColor("#ffebee"));
         painter.setPen(Qt::NoPen);
-        painter.drawRoundedRect(stockRect, 65, 65);
+        painter.drawRoundedRect(stockRect, stockPillH / 2, stockPillH / 2);
         painter.setPen(p.stock > 10 ? darkGreen : QColor("#c62828"));
         painter.setFont(sectionFont);
-        painter.drawText(stockRect, Qt::AlignCenter, QString("DISPONIBILITE : %1 EN STOCK").arg(p.stock));
+        painter.drawText(stockRect, Qt::AlignCenter, stockText);
 
         painter.setPen(accentNavy);
         painter.setFont(priceFont);
@@ -25857,8 +28578,8 @@ void MainWindow::openStockMap3D()
             if (auto *lbl = findChild<QLabel*>(objName)) {
                 lbl->setText(QString("?? Emplacement selectionne : %1").arg(m_selectedEmplacement));
                 lbl->setStyleSheet(
-                    "color: #FFD700; font-size: 13px; font-weight: 700; padding: 10px 16px; "
-                    "background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.3); "
+                    "color: #fbbf24; font-size: 13px; font-weight: 700; padding: 10px 16px; "
+                    "background: rgba(251, 191, 36, 0.05); border: 1px solid rgba(251, 191, 36, 0.2); "
                     "border-radius: 10px;"
                 );
             }
@@ -26085,11 +28806,19 @@ void MainWindow::refreshInterventions(const QString &searchField, const QString 
                 int pct = qRound(100.0 * sorted[i].second / totalCount);
                 if (barLabels[i]) barLabels[i]->setText(sorted[i].first);
                 if (bars[i]) bars[i]->setValue(pct);
-                if (pctLabels[i]) pctLabels[i]->setText(QString::number(pct) + "%");
+                if (pctLabels[i]) {
+                    pctLabels[i]->setText(QString::number(pct) + "%");
+                    pctLabels[i]->setStyleSheet("font-size:11px;font-weight:800;color:#1a3a2e;background:transparent;border:none;");
+                    pctLabels[i]->setVisible(pct > 0);
+                }
             } else {
                 if (barLabels[i]) barLabels[i]->setText("-");
                 if (bars[i]) bars[i]->setValue(0);
-                if (pctLabels[i]) pctLabels[i]->setText("0%");
+                if (pctLabels[i]) {
+                    pctLabels[i]->setText("0%");
+                    pctLabels[i]->setStyleSheet("font-size:11px;font-weight:800;color:#1a3a2e;background:transparent;border:none;");
+                    pctLabels[i]->setVisible(false);
+                }
             }
         }
     }
@@ -26160,24 +28889,25 @@ void MainWindow::showClientStats() {
     
     QPieSlice *sliceA = gradeSeries->append("Grade A (85+): " + QString::number(gradeA), gradeA);
     sliceA->setBrush(gradeColors[0]);
-    sliceA->setLabelVisible(true);
-    sliceA->setLabelFont(QFont("Segoe UI", 9, QFont::Bold));
-    if (gradeA > 0) sliceA->setExploded(true);
     
     QPieSlice *sliceB = gradeSeries->append("Grade B (70-84): " + QString::number(gradeB), gradeB);
     sliceB->setBrush(gradeColors[1]);
-    sliceB->setLabelVisible(true);
-    sliceB->setLabelFont(QFont("Segoe UI", 9, QFont::Bold));
     
     QPieSlice *sliceC = gradeSeries->append("Grade C (50-69): " + QString::number(gradeC), gradeC);
     sliceC->setBrush(gradeColors[2]);
-    sliceC->setLabelVisible(true);
-    sliceC->setLabelFont(QFont("Segoe UI", 9, QFont::Bold));
     
     QPieSlice *sliceD = gradeSeries->append("Grade D (<50): " + QString::number(gradeD), gradeD);
     sliceD->setBrush(gradeColors[3]);
-    sliceD->setLabelVisible(true);
-    sliceD->setLabelFont(QFont("Segoe UI", 9, QFont::Bold));
+
+    for (auto *slice : gradeSeries->slices()) {
+        if (slice->value() > 0) {
+            double pct = slice->percentage() * 100.0;
+            slice->setLabel(QString("%1\n%2%").arg(slice->label()).arg(pct, 0, 'f', 1));
+        }
+        slice->setLabelVisible(true);
+        slice->setLabelFont(QFont("Segoe UI", 9, QFont::Bold));
+    }
+    if (gradeA > 0) sliceA->setExploded(true);
     
     QChart *gradeChart = new QChart();
     gradeChart->addSeries(gradeSeries);
@@ -26225,6 +28955,13 @@ void MainWindow::showClientStats() {
         slice->setBrush(contratColors[ci % contratColors.size()]);
         slice->setLabelFont(QFont("Segoe UI", 8, QFont::Bold));
         ci++;
+    }
+
+    for (auto *slice : contratSeries->slices()) {
+        if (slice->value() > 0) {
+            double pct = slice->percentage() * 100.0;
+            slice->setLabel(QString("%1\n%2%").arg(slice->label()).arg(pct, 0, 'f', 1));
+        }
     }
     
     QChart *contratChart = new QChart();
@@ -26334,8 +29071,9 @@ void MainWindow::on_btnSave_add_clicked()
     if (ui->inputEmailFour_add) {
         const bool verified = ui->inputEmailFour_add->property("emailVerified").toBool();
         if (!verified) {
+            const QString verificationState = ui->inputEmailFour_add->property("emailVerificationState").toString();
             const QString msg =
-                ui->inputEmailFour_add->styleSheet().contains("orange")
+                verificationState == "pending"
                     ? QString::fromUtf8("Verification e-mail en cours.\nAttendez la bordure verte avant d'enregistrer.")
                     : QString::fromUtf8("E-mail non valide par l'API.\nSaisissez un e-mail correct puis quittez le champ.");
             ui->inputEmailFour_add->setStyleSheet("border: 2px solid red; border-radius: 5px; background-color: #fff1f2;");
@@ -26358,10 +29096,21 @@ void MainWindow::on_btnSave_add_clicked()
     
     if (Stmp.ajouter()) {
         QMessageBox::information(this, "Succes", "Matiere premiere ajoutee.");
-        setupStockTableData();
         if (ui->stock_stackedWidget) ui->stock_stackedWidget->setCurrentIndex(0);
         
         // Vider les champs
+        const QSignalBlocker blockRef(ui->inputRef_add);
+        const QSignalBlocker blockNom(ui->inputNom_add);
+        const QSignalBlocker blockStock(ui->inputStock_add);
+        const QSignalBlocker blockPrix(ui->inputPrix_add);
+        const QSignalBlocker blockFourn(ui->inputFournisseur_add);
+        const QSignalBlocker blockEmail(ui->inputEmailFour_add);
+        const QSignalBlocker blockSeuil(ui->inputSeuil_add);
+        const QSignalBlocker blockDateFab(ui->inputDateFab_add);
+        const QSignalBlocker blockDateAchat(ui->inputDateAchat_add);
+        const QSignalBlocker blockSliderStock(ui->sliderStock_add);
+        const QSignalBlocker blockSliderPrix(ui->sliderPrix_add);
+
         if (ui->inputRef_add) ui->inputRef_add->clear();
         if (ui->inputNom_add) ui->inputNom_add->clear();
         if (ui->inputStock_add) ui->inputStock_add->clear();
@@ -26374,8 +29123,20 @@ void MainWindow::on_btnSave_add_clicked()
         if (ui->sliderStock_add) ui->sliderStock_add->setValue(0);
         if (ui->sliderPrix_add) ui->sliderPrix_add->setValue(0);
         if (QComboBox *combo = findChild<QComboBox*>("stockTypeCombo_add")) {
+            const QSignalBlocker blockCombo(combo);
             combo->setCurrentIndex(1);
         }
+
+        if (ui->inputEmailFour_add) {
+            ui->inputEmailFour_add->setProperty("emailVerified", false);
+            ui->inputEmailFour_add->setProperty("emailVerificationState", "idle");
+            ui->inputEmailFour_add->setStyleSheet(QString());
+            ui->inputEmailFour_add->setToolTip(QString());
+        }
+
+        QTimer::singleShot(0, this, [this]() {
+            setupStockTableData();
+        });
     } else {
         QMessageBox::critical(this, "Erreur", "Impossible d'ajouter: " + Stmp.lastError());
     }
@@ -26454,8 +29215,9 @@ void MainWindow::on_btnSave_mod_clicked()
     if (ui->inputEmailFour_mod) {
         const bool verified = ui->inputEmailFour_mod->property("emailVerified").toBool();
         if (!verified) {
+            const QString verificationState = ui->inputEmailFour_mod->property("emailVerificationState").toString();
             const QString msg =
-                ui->inputEmailFour_mod->styleSheet().contains("orange")
+                verificationState == "pending"
                     ? QString::fromUtf8("Verification e-mail en cours.\nAttendez la bordure verte avant d'enregistrer.")
                     : QString::fromUtf8("E-mail non valide par l'API.\nSaisissez un e-mail correct puis quittez le champ.");
             ui->inputEmailFour_mod->setStyleSheet("border: 2px solid red; border-radius: 5px; background-color: #fff1f2;");
@@ -26478,8 +29240,10 @@ void MainWindow::on_btnSave_mod_clicked()
     
     if (Stmp.modifier()) {
         QMessageBox::information(this, "Succes", "Matiere premiere modifiee.");
-        setupStockTableData();
         if (ui->stock_stackedWidget) ui->stock_stackedWidget->setCurrentIndex(0);
+        QTimer::singleShot(0, this, [this]() {
+            setupStockTableData();
+        });
     } else {
         QMessageBox::critical(this, "Erreur", "Impossible de modifier: " + Stmp.lastError());
     }
@@ -26665,19 +29429,19 @@ void MainWindow::buildStockStats()
                 QChartView *cvStatus = new QChartView(content);
                 cvStatus->setObjectName("cvStockStatus");
                 cvStatus->setRenderHint(QPainter::Antialiasing);
-                cvStatus->setMinimumSize(400, 350);
+                cvStatus->setMinimumHeight(260);
                 grid->addWidget(cvStatus, 0, 0);
 
                 QChartView *cvSeuil = new QChartView(content);
                 cvSeuil->setObjectName("cvStockSeuil");
                 cvSeuil->setRenderHint(QPainter::Antialiasing);
-                cvSeuil->setMinimumSize(400, 350);
+                cvSeuil->setMinimumHeight(260);
                 grid->addWidget(cvSeuil, 0, 1);
 
                 QChartView *cvFin = new QChartView(content);
                 cvFin->setObjectName("cvStockFinancial");
                 cvFin->setRenderHint(QPainter::Antialiasing);
-                cvFin->setMinimumSize(800, 400);
+                cvFin->setMinimumHeight(300);
                 grid->addWidget(cvFin, 1, 0, 1, 2);
 
                 sa->setWidget(content);
@@ -26749,6 +29513,13 @@ void MainWindow::buildStockStats()
                     s->setExploded(true);
                 }
             }
+            for (auto *slice : pieSeries->slices()) {
+                if (slice->value() > 0) {
+                    double pct = slice->percentage() * 100.0;
+                    slice->setLabel(QString("%1\n%2%").arg(slice->label()).arg(pct, 0, 'f', 1));
+                    slice->setLabelVisible(true);
+                }
+            }
             QChart *chartStatus = new QChart();
             chartStatus->addSeries(pieSeries);
             chartStatus->setTitle("Sante Globale du Stock");
@@ -26802,9 +29573,9 @@ void MainWindow::buildStockStats()
 #include <QRandomGenerator>
 #include <QDateTimeAxis>
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 // NOTIFICATION SYSTEM - Stock Depletion + Expiry Date Alerts
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 void MainWindow::checkStockNotifications()
 {
     QStringList depletionAlerts;
@@ -26812,7 +29583,7 @@ void MainWindow::checkStockNotifications()
 
     QSqlQuery q;
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Alert 1: Stock depletion - QUANTITE <= SEUIL_CRITIQUE Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Alert 1: Stock depletion - QUANTITE <= SEUIL_CRITIQUE ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
     q.prepare("SELECT NOM, QUANTITE, SEUIL_CRITIQUE, REFERENCE "
               "FROM MATIERE_PREMIERE WHERE QUANTITE <= SEUIL_CRITIQUE");
     if (q.exec()) {
@@ -26826,7 +29597,7 @@ void MainWindow::checkStockNotifications()
         }
     }
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Alert 2: Expiry - DATE_FABRICATION + 24 months <= today + 30 days Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Alert 2: Expiry - DATE_FABRICATION + 24 months <= today + 30 days ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
     // Business rule: shelf life = 24 months from manufacture date
     // Configurable: change SHELF_LIFE_MONTHS to suit different product lines
     const int SHELF_LIFE_MONTHS = 24;
@@ -26860,7 +29631,7 @@ void MainWindow::checkStockNotifications()
         }
     }
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Send individual system tray notifications per item Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Send individual system tray notifications per item ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
     // Collect plain-text payloads for each category
     struct TrayMsg {
         QString title;
@@ -26931,7 +29702,7 @@ void MainWindow::checkStockNotifications()
         }
     }
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Update btnAlerts badge with count Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Update btnAlerts badge with count ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
     int total = depletionAlerts.size() + expiryAlerts.size();
     if (auto *btn = this->findChild<QPushButton*>("btnAlerts")) {
         if (total > 0) {
@@ -26944,9 +29715,9 @@ void MainWindow::checkStockNotifications()
     }
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 // Smart Cart: Supplier Email Chooser
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 void MainWindow::on_btnSmartCart_clicked()
 {
     // Query all critical items and group by supplier
@@ -27074,7 +29845,7 @@ void MainWindow::on_btnSmartCart_clicked()
     dlg->exec();
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 void MainWindow::showStockAlertsDialog()
 {
     QStringList depletionAlerts;
@@ -27135,7 +29906,7 @@ void MainWindow::showStockAlertsDialog()
         }
     }
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Build dialog Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Build dialog ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
     QDialog *dlg = new QDialog(this);
     dlg->setWindowTitle(QString::fromUtf8("WasteGuard - Centre de Notifications"));
     dlg->resize(700, 540);
@@ -27155,7 +29926,7 @@ void MainWindow::showStockAlertsDialog()
     header->setTextFormat(Qt::RichText);
     main->addWidget(header);
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Section: epuisement Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Section: epuisement ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
     QLabel *secDep = new QLabel(QString::fromUtf8(
         "<b style='color:#b45309;font-size:14px;'>Epuisement des Stocks (%1 article(s))</b>")
         .arg(depletionAlerts.size()));
@@ -27174,7 +29945,7 @@ void MainWindow::showStockAlertsDialog()
     }
     main->addWidget(txtDep);
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Section: expiration Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Section: expiration ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
     QLabel *secExp = new QLabel(QString::fromUtf8(
         "<b style='color:#dc2626;font-size:14px;'>Dates d'Echeance (%1 produit(s))</b>")
         .arg(expiryAlerts.size()));
@@ -27194,13 +29965,13 @@ void MainWindow::showStockAlertsDialog()
     }
     main->addWidget(txtExp);
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Note about expiry rule Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Note about expiry rule ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
     QLabel *note = new QLabel(QString::fromUtf8(
         "<i style='color:#64748b;font-size:11px;'>Info: Regle metier : duree de vie estimee a 24 mois a partir de la date de fabrication.</i>"));
     note->setTextFormat(Qt::RichText);
     main->addWidget(note);
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Close button Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Close button ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
     QHBoxLayout *btnRow = new QHBoxLayout();
     
     for (auto it = criticalBySupplier.begin(); it != criticalBySupplier.end(); ++it) {
@@ -27246,7 +30017,7 @@ void MainWindow::showStockAlertsDialog()
 }
 
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ ChartMouseTracker: scroll + regression-snapping dot cursor Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ ChartMouseTracker: scroll + regression-snapping dot cursor ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 class ChartMouseTracker : public QObject
 {
 public:
@@ -27289,7 +30060,7 @@ public:
 
     bool eventFilter(QObject *watched, QEvent *event) override
     {
-        // Ã¢â€â‚¬Ã¢â€â‚¬ Mouse move: update dot + tooltip Ã¢â€â‚¬Ã¢â€â‚¬
+        // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Mouse move: update dot + tooltip ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
         if (event->type() == QEvent::MouseMove) {
             auto *me = static_cast<QMouseEvent *>(event);
             QPoint globalPos = (watched == m_view->viewport())
@@ -27353,7 +30124,7 @@ public:
             }
         }
 
-        // Ã¢â€â‚¬Ã¢â€â‚¬ Mouse wheel: horizontal scroll bounded by historyÃ¢â€ â€depletion Ã¢â€â‚¬Ã¢â€â‚¬
+        // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Mouse wheel: horizontal scroll bounded by historyÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬Âdepletion ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
         if (event->type() == QEvent::Wheel) {
             auto *we = static_cast<QWheelEvent *>(event);
             // Shift = 5% of current range per notch
@@ -27400,7 +30171,7 @@ private:
     QGraphicsLineItem   *m_crossLine;
     QGraphicsEllipseItem *m_dot;
 };
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
 
 void MainWindow::on_btnPrediction_clicked()
 {
@@ -27634,7 +30405,7 @@ void MainWindow::on_btnPrediction_clicked()
     seriesSeuil->attachAxis(axisX);
     seriesSeuil->attachAxis(axisY);
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Today vertical line Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Today vertical line ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
     QLineSeries *seriesToday = new QLineSeries();
     seriesToday->setName(QString::fromUtf8("Aujourd'hui"));
     QPen penToday(QColor("#16a34a"));
@@ -27646,7 +30417,7 @@ void MainWindow::on_btnPrediction_clicked()
     seriesToday->attachAxis(axisX);
     seriesToday->attachAxis(axisY);
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Fetch unit price for refill cost calculation Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Fetch unit price for refill cost calculation ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
     double unitPriceForCalc = 1.0;
     {
         QSqlQuery pq;
@@ -27655,7 +30426,7 @@ void MainWindow::on_btnPrediction_clicked()
         if (pq.exec() && pq.next()) unitPriceForCalc = pq.value(0).toDouble();
     }
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Tooltip label (floating inside dialog, initially hidden) Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Tooltip label (floating inside dialog, initially hidden) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
     QLabel *crossTooltip = new QLabel(aiDialog);
     crossTooltip->setStyleSheet(
         "background: rgba(15,43,76,0.92); color: white; border-radius: 8px;"
@@ -27664,7 +30435,7 @@ void MainWindow::on_btnPrediction_clicked()
     crossTooltip->setVisible(false);
     crossTooltip->raise();
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ ChartView Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ ChartView ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
     QChartView *chartView = new QChartView(chart);
     chartView->setRenderHint(QPainter::Antialiasing);
     layout->addWidget(chartView);
@@ -27674,7 +30445,7 @@ void MainWindow::on_btnPrediction_clicked()
     crossTooltip->setVisible(false);
     crossTooltip->raise();
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Install mouse tracker AFTER chartView is created Ã¢â€â‚¬Ã¢â€â‚¬
+    // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Install mouse tracker AFTER chartView is created ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
     // Scroll range: from first history point to stock-zero depletion (or +60 days buffer)
     qint64 scrollMin = history[0].timestamp;
     qint64 scrollMax = graphMaxX + 86400000LL * 10;  // 10 days past graph end
@@ -27708,51 +30479,67 @@ void MainWindow::on_btnPrediction_clicked()
 // ============ SETUP ACCESSIBILITY ============
 void MainWindow::setupAccessibilityModule()
 {
-    // Initialiser AccessibilityHelper
-    m_accessibilityHelper = new AccessibilityHelper(this);
-    
-    // CHARGER LE ZOOM SAUVEGARDE
-    m_accessibilityHelper->loadZoom();
-    m_accessibilityHelper->applyZoomToWidget(this);
-    
-    // CHARGER LA TAILLE DE LA FENETRE
-    m_accessibilityHelper->loadWindowState(this);
-
-    // Initialiser VoiceAssistant (optionnel)
-    m_voiceAssistant = new VoiceAssistant(this);
-
-    // Verifier si voice_engine.py existe (robuste aux builds externes Qt Creator)
-    const QString pythonScriptPath = resolveVoiceEngineScriptPath();
-    
-    // Essayer d'initialiser la voix au demarrage
-    bool voiceOk = false;
-    if (!pythonScriptPath.isEmpty()) {
-        if (m_voiceAssistant->initialize(pythonScriptPath)) {
-            voiceOk = true;
-        }
+    const bool firstAccessibilityInit = (m_accessibilityHelper == nullptr);
+    if (!m_accessibilityHelper) {
+        m_accessibilityHelper = new AccessibilityHelper(this);
     }
-    
-    if (!voiceOk) {
-        qDebug() << "[VOICE] Voice engine disabled at startup - user can retry from maintenance button";
-    } else {
-        // Voix disponible: connecter les signaux normalement
-        connect(m_voiceAssistant, &VoiceAssistant::listeningStarted,
-            this, &MainWindow::onVoiceListeningStarted, Qt::UniqueConnection);
-        connect(m_voiceAssistant, &VoiceAssistant::listeningFinished,
-            this, &MainWindow::onVoiceListeningFinished, Qt::UniqueConnection);
-        connect(m_voiceAssistant, &VoiceAssistant::recognizedText,
-            this, &MainWindow::onVoiceRecognized, Qt::UniqueConnection);
-        connect(m_voiceAssistant, &VoiceAssistant::commandRecognized,
-            this, &MainWindow::onVoiceCommandRecognized, Qt::UniqueConnection);
-        connect(m_voiceAssistant, &VoiceAssistant::error,
-            this, &MainWindow::onVoiceError, Qt::UniqueConnection);
-        connect(m_voiceAssistant, &VoiceAssistant::speechFinished,
-            this, &MainWindow::onVoiceSpeechFinished, Qt::UniqueConnection);
+
+    // Charger zoom/fenetre uniquement au premier passage pour eviter
+    // des restaurations multiples de geometrie pendant l'initialisation.
+    if (firstAccessibilityInit) {
+        m_accessibilityHelper->loadZoom();
+        m_accessibilityHelper->applyZoomToWidget(this);
+        m_accessibilityHelper->loadWindowState(this);
+    }
+
+    if (!m_voiceAssistant) {
+        m_voiceAssistant = new VoiceAssistant(this);
+
+        // Verifier si voice_engine.py existe (robuste aux builds externes Qt Creator)
+        const QString pythonScriptPath = resolveVoiceEngineScriptPath();
+
+        // Essayer d'initialiser la voix au demarrage
+        bool voiceOk = false;
+        if (!pythonScriptPath.isEmpty()) {
+            if (m_voiceAssistant->initialize(pythonScriptPath)) {
+                voiceOk = true;
+            }
+        }
+
+        if (!voiceOk) {
+            qDebug() << "[VOICE] Voice engine disabled at startup - user can retry from maintenance button";
+        } else {
+            // Voix disponible: connecter les signaux normalement
+            connect(m_voiceAssistant, &VoiceAssistant::listeningStarted,
+                this, &MainWindow::onVoiceListeningStarted, Qt::UniqueConnection);
+            connect(m_voiceAssistant, &VoiceAssistant::listeningFinished,
+                this, &MainWindow::onVoiceListeningFinished, Qt::UniqueConnection);
+            connect(m_voiceAssistant, &VoiceAssistant::recognizedText,
+                this, &MainWindow::onVoiceRecognized, Qt::UniqueConnection);
+            connect(m_voiceAssistant, &VoiceAssistant::commandRecognized,
+                this, &MainWindow::onVoiceCommandRecognized, Qt::UniqueConnection);
+            connect(m_voiceAssistant, &VoiceAssistant::error,
+                this, &MainWindow::onVoiceError, Qt::UniqueConnection);
+            connect(m_voiceAssistant, &VoiceAssistant::speechFinished,
+                this, &MainWindow::onVoiceSpeechFinished, Qt::UniqueConnection);
+        }
     }
 
     // Ajouter les boutons d'accessibilite au module maintenance
     setupMaintenanceAccessibility();
-    
+
+    // Restaurer l'état contraste sauvegardé — doit être fait APRÈS la création
+    // des boutons pour pouvoir synchroniser le visuel du bouton Contraste.
+    m_accessibilityHelper->loadContrastState(this);
+    if (m_btnHighContrast) {
+        const bool on = m_accessibilityHelper->isHighContrastEnabled();
+        m_btnHighContrast->setChecked(on);
+        if (on) {
+            m_btnHighContrast->setText(QString::fromUtf8("\u2600 Normal"));
+            m_btnHighContrast->setToolTip(QString::fromUtf8("D\u00e9sactiver le mode contraste \u00e9lev\u00e9"));
+        }
+    }
+
     // CONFIGURER LES SCROLLBARS - Visible a droite pour toutes les tables
     ensureScrollbarsVisible();
 
@@ -27762,10 +30549,11 @@ void MainWindow::setupAccessibilityModule()
 // ============ CLOSE EVENT - SAVE WINDOW STATE ============
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    // Sauvegarder la taille et position de la fenetre
+    // Sauvegarder la taille, position et état accessibilité
     if (m_accessibilityHelper) {
         m_accessibilityHelper->saveWindowState(this);
         m_accessibilityHelper->saveZoom();
+        m_accessibilityHelper->saveContrastState();
     }
     
     qDebug() << "Application closing - window state saved";
@@ -28513,7 +31301,7 @@ void MainWindow::sendContractExpirationEmail(const QString &clientEmail, const Q
         "<div class='content'>"
         "<p>Chere <strong>%1</strong>,</p>"
         "<div class='alert-box'>"
-        "<div class='alert-title'>Ã¯Â¸Â ACTION REQUISE</div>"
+        "<div class='alert-title'>ÃƒÂ¯Ã‚Â¸Ã‚Â ACTION REQUISE</div>"
         "<div class='alert-text'>Votre contrat arrivera bientot a expiration. Nous vous recommandons de renouveler votre contrat des que possible.</div>"
         "</div>"
         "<div class='info-section'>"
@@ -28729,6 +31517,14 @@ void MainWindow::openEcoScoreInterface() {
         pieSeries->append("Grade B (Bien)", gB)->setBrush(QColor("#2563eb"));
         pieSeries->append("Grade C (Passable)", gC)->setBrush(QColor("#d97706"));
         pieSeries->append("Grade D (A revoir)", gD)->setBrush(QColor("#dc2626"));
+
+        for (auto *slice : pieSeries->slices()) {
+            if (slice->value() > 0) {
+                double pct = slice->percentage() * 100.0;
+                slice->setLabel(QString("%1\n%2%").arg(slice->label()).arg(pct, 0, 'f', 1));
+                slice->setLabelVisible(true);
+            }
+        }
         
         QChart *pieChart = new QChart();
         pieChart->addSeries(pieSeries);
@@ -28744,6 +31540,13 @@ void MainWindow::openEcoScoreInterface() {
         while(q.next()){
             contratPie->append(q.value(0).toString(), q.value(1).toInt());
         }
+        for (auto *slice : contratPie->slices()) {
+            if (slice->value() > 0) {
+                double pct = slice->percentage() * 100.0;
+                slice->setLabel(QString("%1\n%2%").arg(slice->label()).arg(pct, 0, 'f', 1));
+                slice->setLabelVisible(true);
+            }
+        }
         QChart *distChart = new QChart();
         distChart->addSeries(contratPie);
         distChart->setTitle("Distribution des Types de Contrat");
@@ -28751,5 +31554,3 @@ void MainWindow::openEcoScoreInterface() {
         ui->chartContratDist->setRenderHint(QPainter::Antialiasing);
     }
 }
-
-

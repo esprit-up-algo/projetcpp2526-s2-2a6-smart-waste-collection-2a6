@@ -1,4 +1,4 @@
-QT += core gui widgets sql charts multimedia multimediawidgets printsupport network quickwidgets qml quick location positioning opengl openglwidgets serialport
+QT += core gui widgets sql charts multimedia multimediawidgets printsupport network quickwidgets qml quick location positioning opengl openglwidgets
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++17
@@ -29,9 +29,7 @@ SOURCES += \
     accessibilityhelper.cpp \
     voiceassistant.cpp \
     labibassistant.cpp \
-    emailnotificationmanager.cpp \
-    arduino.cpp \
-    arduinowidget.cpp
+    emailnotificationmanager.cpp
 
 HEADERS += \
     client.h \
@@ -51,9 +49,7 @@ HEADERS += \
     accessibilityhelper.h \
     voiceassistant.h \
     labibassistant.h \
-    emailnotificationmanager.h \
-    arduino.h \
-    arduinowidget.h
+    emailnotificationmanager.h
 
 FORMS += \
     mainwindow.ui

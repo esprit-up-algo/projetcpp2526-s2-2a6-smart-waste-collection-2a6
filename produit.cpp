@@ -139,12 +139,44 @@ bool Produit::modifier()
 
 bool Produit::supprimer(int id_mp)
 {
-    QSqlQuery query;
-    query.prepare("DELETE FROM BAC_INTEL WHERE id_bac = :id_bac");
-    query.bindValue(":id_bac", id_mp);
-    const bool ok = query.exec();
-    m_lastError = ok ? QString() : query.lastError().text();
-    return ok;
+    if (id_mp <= 0) {
+        m_lastError = "ID produit invalide.";
+        return false;
+    }
+
+    QSqlDatabase db = QSqlDatabase::database();
+    const bool useTx = db.isValid() && db.isOpen();
+    if (useTx && !db.transaction()) {
+        m_lastError = "Impossible de demarrer la transaction.";
+        return false;
+    }
+
+    // Delete dependent fabrication rows first (prevents ORA-02292 on BAC_INTEL)
+    QSqlQuery delFab(db);
+    delFab.prepare("DELETE FROM FABRICATION WHERE ID_BAC = :id_bac");
+    delFab.bindValue(":id_bac", id_mp);
+    if (!delFab.exec()) {
+        if (useTx) db.rollback();
+        m_lastError = delFab.lastError().text();
+        return false;
+    }
+
+    QSqlQuery delBac(db);
+    delBac.prepare("DELETE FROM BAC_INTEL WHERE ID_BAC = :id_bac");
+    delBac.bindValue(":id_bac", id_mp);
+    if (!delBac.exec()) {
+        if (useTx) db.rollback();
+        m_lastError = delBac.lastError().text();
+        return false;
+    }
+
+    if (useTx && !db.commit()) {
+        m_lastError = "Impossible de valider la transaction.";
+        return false;
+    }
+
+    m_lastError.clear();
+    return true;
 }
 
 QSqlQueryModel *Produit::afficher(const QString &searchModel, const QString &sortCriteria)

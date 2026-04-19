@@ -10,6 +10,8 @@
 #include <QSurfaceFormat>
 #include <QCoreApplication>
 #include <cstdio>
+#include <cmath>
+#include <algorithm>
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Shader sources
@@ -92,6 +94,17 @@ ModelViewerWidget::ModelViewerWidget(QWidget *parent)
     setMinimumSize(400, 300);
     setMouseTracking(true);
     setFocusPolicy(Qt::StrongFocus);
+
+    m_autoSpinTimer.setInterval(16);
+    connect(&m_autoSpinTimer, &QTimer::timeout, this, [this]() {
+        if (!m_autoSpinEnabled || !m_modelLoaded) return;
+        m_autoSpinAngle += 0.7f;
+        if (m_autoSpinAngle >= 360.0f) {
+            m_autoSpinAngle -= 360.0f;
+        }
+        update();
+    });
+    m_autoSpinTimer.start();
 }
 
 ModelViewerWidget::~ModelViewerWidget()
@@ -494,6 +507,30 @@ void ModelViewerWidget::loadTextureIfAvailable()
     qDebug() << "[ModelViewerWidget] Texture loaded successfully";
 }
 
+QPointF ModelViewerWidget::projectToScreen(const QVector3D &point,
+                                           const QMatrix4x4 &model,
+                                           const QMatrix4x4 &view,
+                                           const QMatrix4x4 &projection,
+                                           bool *ok) const
+{
+    const QVector4D clip = projection * view * model * QVector4D(point, 1.0f);
+    if (qFuzzyIsNull(clip.w())) {
+        if (ok) *ok = false;
+        return QPointF();
+    }
+
+    const QVector3D ndc = clip.toVector3DAffine();
+    if (ok) {
+        *ok = clip.w() > 0.0f
+            && ndc.x() >= -1.5f && ndc.x() <= 1.5f
+            && ndc.y() >= -1.5f && ndc.y() <= 1.5f;
+    }
+
+    const qreal sx = (ndc.x() * 0.5f + 0.5f) * width();
+    const qreal sy = (1.0f - (ndc.y() * 0.5f + 0.5f)) * height();
+    return QPointF(sx, sy);
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // OpenGL lifecycle
 // ═══════════════════════════════════════════════════════════════════════════
@@ -572,6 +609,11 @@ void ModelViewerWidget::paintGL()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    QMatrix4x4 projection;
+    QMatrix4x4 view;
+    QMatrix4x4 model;
+    QVector3D eye;
+
     // Check if we can render: need model + shader + VBO (VAO optional)
     if (!m_modelLoaded || !m_shaderProgram || !m_vbo.isCreated()) {
         goto draw_overlay;
@@ -596,8 +638,6 @@ void ModelViewerWidget::paintGL()
 
         // ── Matrices ──
         float aspect = float(width()) / float(qMax(1, height()));
-
-        QMatrix4x4 projection;
         // Tight near/far ratio maximises depth buffer precision.
         // TripoSR meshes have overlapping faces that need precise z-sorting.
         const float nearPlane = qMax(0.1f, m_bbRadius * 0.1f);
@@ -605,16 +645,44 @@ void ModelViewerWidget::paintGL()
         projection.perspective(45.0f, aspect, nearPlane, farPlane);
 
         float camDist = m_bbRadius * 2.8f / m_zoom;
-        QVector3D eye(0, 0, camDist);
+        eye = QVector3D(0, 0, camDist);
 
-        QMatrix4x4 view;
         view.lookAt(eye, QVector3D(0, 0, 0), QVector3D(0, 1, 0));
 
-        QMatrix4x4 model;
         model.translate(m_panX * m_bbRadius * 0.01f, m_panY * m_bbRadius * 0.01f, 0);
+        model.rotate(m_rotationY + m_autoSpinAngle, 0, 1, 0);
         model.rotate(m_rotationX, 1, 0, 0);
-        model.rotate(m_rotationY, 0, 1, 0);
+        model.rotate(m_baseRotationX, 1, 0, 0);
+        model.rotate(m_baseRotationZ, 0, 0, 1);
         model.translate(-m_bbCenter);
+
+        const int nFeatures = m_featureCallouts.size();
+        QVector<QPointF> newAnchors(nFeatures);
+        QVector<bool> newVisible(nFeatures);
+        if (nFeatures > 0) {
+            const float ringR = m_bbRadius * 0.62f;
+            for (int i = 0; i < nFeatures; ++i) {
+                const float t = (nFeatures == 1) ? 0.25f : float(i) / float(nFeatures);
+                const float theta = t * 6.2831853f - 1.5707963f;
+                const float heightOffset = 0.22f * std::sin(theta * 2.0f);
+                const QVector3D p(
+                    m_bbCenter.x() + ringR * std::cos(theta),
+                    m_bbCenter.y() + ringR * heightOffset,
+                    m_bbCenter.z() + ringR * std::sin(theta)
+                );
+                bool vis = false;
+                newAnchors[i] = projectToScreen(p, model, view, projection, &vis);
+                newVisible[i] = vis;
+            }
+        }
+        if (newAnchors != m_featureAnchorsCache
+            || newVisible != m_featureAnchorsVisibleCache) {
+            m_featureAnchorsCache = newAnchors;
+            m_featureAnchorsVisibleCache = newVisible;
+            // Defer the signal to avoid reentrant paint: emit after current paintGL returns.
+            QMetaObject::invokeMethod(this, "featureAnchorsChanged",
+                                      Qt::QueuedConnection);
+        }
 
         QMatrix3x3 normalMatrix = model.normalMatrix();
 
@@ -746,6 +814,29 @@ draw_overlay:
         painter.drawRoundedRect(badge, 8, 8);
         painter.setPen(modeColor);
         painter.drawText(badge, Qt::AlignCenter, modeText);
+    }
+
+    // Feature callouts (pill + circle + leader) are drawn on a separate transparent
+    // overlay widget (FeatureCalloutOverlay in viewer3ddialog.cpp). QPainter shape
+    // rendering directly over a QOpenGLWidget is unreliable on some drivers — only
+    // text was making it through the OpenGL→QPainter transition.
+
+    {
+        QString orbitText = m_autoSpinEnabled
+            ? QString::fromUtf8("\xE2\x9C\xA8 Orbit auto")
+            : QString::fromUtf8("\xF0\x9F\x8E\xA5 Controle camera");
+        QFont orbitFont("Segoe UI", 10);
+        orbitFont.setBold(true);
+        painter.setFont(orbitFont);
+        QFontMetrics orbitMetrics(orbitFont);
+        const int orbitWidth = orbitMetrics.horizontalAdvance(orbitText) + 22;
+        QRect orbitBadge(width() - orbitWidth - 14, height() - 40, orbitWidth, 30);
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(m_autoSpinEnabled ? QColor(5, 150, 105, 180)
+                                           : QColor(37, 99, 235, 185));
+        painter.drawRoundedRect(orbitBadge, 8, 8);
+        painter.setPen(QColor(255, 255, 255));
+        painter.drawText(orbitBadge, Qt::AlignCenter, orbitText);
     }
 
     painter.end();
@@ -898,6 +989,7 @@ void ModelViewerWidget::resetView()
 {
     m_rotationX = 20.0f;
     m_rotationY = 0.0f;
+    m_autoSpinAngle = 0.0f;
     m_panX = 0.0f;
     m_panY = 0.0f;
     m_zoom = 1.0f;
@@ -914,8 +1006,10 @@ void ModelViewerWidget::applyGestureRotation(float dx, float dy)
 
 void ModelViewerWidget::applyGesturePan(float dx, float dy)
 {
-    m_panX += dx;
-    m_panY += dy;
+    m_panX += dx * 0.16f;
+    m_panY -= dy * 0.16f;
+    m_panX = qBound(-220.0f, m_panX, 220.0f);
+    m_panY = qBound(-220.0f, m_panY, 220.0f);
     update();
 }
 
@@ -982,5 +1076,30 @@ void ModelViewerWidget::setWebcamFrame(const QImage &frame)
 void ModelViewerWidget::setShowWebcam(bool show)
 {
     m_showWebcam = show;
+    update();
+}
+
+void ModelViewerWidget::setAutoSpinEnabled(bool enabled)
+{
+    if (m_autoSpinEnabled == enabled) return;
+    m_autoSpinEnabled = enabled;
+    update();
+}
+
+void ModelViewerWidget::setFeatureCallouts(const QStringList &featureNames)
+{
+    QStringList cleaned;
+    cleaned.reserve(featureNames.size());
+    for (const QString &n : featureNames) {
+        const QString t = n.trimmed();
+        if (t.isEmpty()) continue;
+        bool dup = false;
+        for (const QString &existing : cleaned) {
+            if (existing.compare(t, Qt::CaseInsensitive) == 0) { dup = true; break; }
+        }
+        if (!dup) cleaned << t;
+    }
+    if (m_featureCallouts == cleaned) return;
+    m_featureCallouts = cleaned;
     update();
 }

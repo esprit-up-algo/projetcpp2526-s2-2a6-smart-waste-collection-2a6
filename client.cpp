@@ -1,4 +1,4 @@
-#include "client.h"
+﻿#include "client.h"
 #include <QSqlError>
 #include <QVariant>
 
@@ -9,7 +9,7 @@ bool hasModernClientSchema()
     return probe.exec("SELECT TELEPHONE, DATE_CREATION_CONTRAT FROM CLIENT WHERE 1=0");
 }
 
-void ensureClientSchemaUpgrade()
+[[maybe_unused]] void ensureClientSchemaUpgrade()
 {
     if (hasModernClientSchema()) {
         return;
