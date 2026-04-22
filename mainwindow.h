@@ -1,4 +1,4 @@
-#ifndef MAINWINDOW_H
+﻿#ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
 #include <QMainWindow>
@@ -62,6 +62,9 @@ class QStackedWidget;
 class QTableWidget;
 class QWidget;
 class QPushButton;
+class QDockWidget;
+class QResizeEvent;
+class QMoveEvent;
 
 class MainWindow : public QMainWindow
 {
@@ -179,7 +182,7 @@ private slots:
     void on_btnCancel_Mod_3_clicked(); 
     void on_btnCancel_CmdMod_clicked(); 
 
-    // ============ ACCESSIBILITÉ ET VOIX (SLOTS) ============
+    // ============ ACCESSIBILITÃ‰ ET VOIX (SLOTS) ============
     void on_btnMicrophone_clicked();
     void handleHighContrastToggle();
     void handleZoomInClicked();
@@ -230,6 +233,7 @@ private:
     void refreshProduitTable();
     void addExampleRow();
     void verifyFournisseurEmail(QLineEdit *emailField);
+    void verifyClientEmail(QLineEdit *emailField);
     void loadProduitToModificationForm(int row);
     void installActionButtonsForRow(int row);
     void ensureProduitModuleVisible();
@@ -371,7 +375,7 @@ private:
     int getRowForClientWidget(QWidget *widget);
     void refreshClients();
     void checkAndNotifyExpiringContracts();
-    void sendContractExpirationEmail(const QString &clientEmail, const QString &clientName, const QString &expirationDate);
+    bool sendContractExpirationEmail(const QString &clientEmail, const QString &clientName, const QString &expirationDate, const QString &contractType = QString());
     void exportClientPdf();
     void showClientStats();
     void openEcoScoreInterface();
@@ -425,6 +429,7 @@ private:
 
     // Notification system
     QTimer *m_stockNotifTimer = nullptr;
+    QTimer *m_clientContractNotifTimer = nullptr;
     QSystemTrayIcon *m_trayIcon = nullptr;
 
     // Produit photo paths
@@ -439,7 +444,7 @@ private:
     QString m_geminiApiKey;
     QString m_geminiPrompt;
 
-    // ============ ACCESSIBILITÉ ET VOIX ============
+    // ============ ACCESSIBILITÃ‰ ET VOIX ============
     // Accessibility
     AccessibilityHelper *m_accessibilityHelper;
     QPushButton *m_btnMicrophone;
@@ -453,6 +458,7 @@ private:
 
     // Labib AI Assistant
     LabibAssistant *m_labibAssistant = nullptr;
+    QDockWidget *m_labibDock = nullptr;
     void openLabibAssistant();
 
     QQuickWidget *m_mapAddOrder = nullptr;
@@ -472,8 +478,14 @@ private:
     void addAccessibilityButtonsToMaintenance();
     void ensureScrollbarsVisible();
 
+public slots:
+    Q_INVOKABLE void fetchDeviceLocation(QObject* mapObject);
+    Q_INVOKABLE void fetchMyPosition();
+
 protected:
     void closeEvent(QCloseEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
+    void moveEvent(QMoveEvent *event) override;
 
 private slots:
     void on_btnToggleSidebar_clicked();

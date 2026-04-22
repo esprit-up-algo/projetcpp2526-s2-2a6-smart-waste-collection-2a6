@@ -434,8 +434,15 @@ public:
         setStyleSheet("QDialog { background-color: #1F110B; }");
 
         setFixedSize(450, 600);
-        setWindowFlags(Qt::FramelessWindowHint);
-        setAttribute(Qt::WA_TranslucentBackground);
+        const QString safeLoginEnv = qEnvironmentVariable("WG_SAFE_LOGIN_WINDOW").trimmed().toLower();
+        const bool useSafeLoginWindow = safeLoginEnv.isEmpty() || safeLoginEnv == "1" || safeLoginEnv == "true" || safeLoginEnv == "yes";
+        if (useSafeLoginWindow) {
+            setWindowFlags(Qt::Dialog | Qt::WindowTitleHint | Qt::WindowCloseButtonHint);
+            setAttribute(Qt::WA_TranslucentBackground, false);
+        } else {
+            setWindowFlags(Qt::FramelessWindowHint);
+            setAttribute(Qt::WA_TranslucentBackground);
+        }
 
         const QString blueBase = "#0F1A2B";
         const QString accentBlue = "#3498DB";

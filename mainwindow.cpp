@@ -78,6 +78,7 @@
 #include <QLinearGradient>
 
 #include <QPen>
+#include <QDockWidget>
 
 #include <QPixmap>
 #include <QImage>
@@ -112,6 +113,8 @@
 #include <QVideoSink>
 #include <QVideoFrame>
 #include <QScreen>
+#include <QResizeEvent>
+#include <QMoveEvent>
 
 
 
@@ -198,6 +201,7 @@ QString resolveVoiceEngineScriptPath()
     QStringList candidates;
     auto addCandidate = [&candidates](const QString &path) {
         if (!path.trimmed().isEmpty()) {
+            qDebug() << "Probing voice engine at:" << path;
             candidates << QDir::fromNativeSeparators(path.trimmed());
         }
     };
@@ -2237,17 +2241,12 @@ bool ensureMainWindowDbSessionAlive(QString &errorText)
         return false;
     }
 
-    connection->closeConnection();
-    if (!connection->createConnect()) {
-        errorText = connection->lastError();
-        return false;
-    }
-
-    if (!pingCurrentDbSession(pingError)) {
-        errorText = pingError;
-        return false;
-    }
-    return true;
+    // Do not force-close shared Oracle connection here: active queries/models may still own cursors.
+    // Returning a clean error is safer than triggering driver-level SIGSEGV.
+    errorText = pingError.isEmpty()
+                    ? "Session Oracle invalide. Reessayez l'operation ou redemarrez l'application."
+                    : pingError;
+    return false;
 }
 
 bool isColumnAlreadyExistsError(const QString &errorText)
@@ -3607,20 +3606,85 @@ bool verifyEmailWithApiIfConfigured(const QString &email, QString &errorText)
     const QJsonObject deliverability = root.value("email_deliverability").toObject();
     const QJsonObject quality = root.value("email_quality").toObject();
 
-    const QString status = deliverability.value("status").toString().trimmed().toLower();
-    const QString statusDetail = deliverability.value("status_detail").toString().trimmed();
-    const bool formatValid = deliverability.value("is_format_valid").toBool();
-    const bool smtpValid = deliverability.value("is_smtp_valid").toBool();
-    const bool mxValid = deliverability.value("is_mx_valid").toBool();
-    const bool disposable = quality.value("is_disposable").toVariant().toBool();
+    auto parseBoolWithPresence = [](const QJsonObject &obj, const QString &key, bool &present, bool &value) {
+        if (!obj.contains(key)) return;
+        present = true;
+        const QJsonValue v = obj.value(key);
+        if (v.isBool()) {
+            value = v.toBool();
+            return;
+        }
+        if (v.isObject()) {
+            const QJsonObject o = v.toObject();
+            if (o.contains("value")) {
+                const QJsonValue vv = o.value("value");
+                if (vv.isBool()) {
+                    value = vv.toBool();
+                    return;
+                }
+                if (vv.isString()) {
+                    const QString s = vv.toString().trimmed().toLower();
+                    value = (s == "true" || s == "1" || s == "yes");
+                    return;
+                }
+            }
+        }
+        if (v.isString()) {
+            const QString s = v.toString().trimmed().toLower();
+            value = (s == "true" || s == "1" || s == "yes" || s == "valid");
+        }
+    };
+
+    auto parseStatus = [](const QJsonObject &obj, const QString &key) {
+        if (!obj.contains(key)) return QString();
+        const QJsonValue v = obj.value(key);
+        if (v.isString()) return v.toString().trimmed().toLower();
+        if (v.isObject()) {
+            const QString txt = v.toObject().value("text").toString().trimmed().toLower();
+            if (!txt.isEmpty()) return txt;
+            const QString val = v.toObject().value("value").toString().trimmed().toLower();
+            return val;
+        }
+        return QString();
+    };
+
+    const QString status = !deliverability.isEmpty()
+                               ? parseStatus(deliverability, "status")
+                               : parseStatus(root, "deliverability");
+    const QString statusDetail = !deliverability.isEmpty()
+                                     ? deliverability.value("status_detail").toString().trimmed()
+                                     : root.value("did_you_mean").toString().trimmed();
+
+    bool formatPresent = false;
+    bool formatValid = true;
+    bool smtpPresent = false;
+    bool smtpValid = true;
+    bool mxPresent = false;
+    bool mxValid = true;
+    bool disposablePresent = false;
+    bool disposable = false;
+
+    if (!deliverability.isEmpty()) {
+        parseBoolWithPresence(deliverability, "is_format_valid", formatPresent, formatValid);
+        parseBoolWithPresence(deliverability, "is_smtp_valid", smtpPresent, smtpValid);
+        parseBoolWithPresence(deliverability, "is_mx_valid", mxPresent, mxValid);
+    }
+    if (!quality.isEmpty()) {
+        parseBoolWithPresence(quality, "is_disposable", disposablePresent, disposable);
+    }
+
+    // Abstract API schema fallback
+    if (!formatPresent) parseBoolWithPresence(root, "is_valid_format", formatPresent, formatValid);
+    if (!smtpPresent) parseBoolWithPresence(root, "is_smtp_valid", smtpPresent, smtpValid);
+    if (!mxPresent) parseBoolWithPresence(root, "is_mx_found", mxPresent, mxValid);
+    if (!disposablePresent) parseBoolWithPresence(root, "is_disposable_email", disposablePresent, disposable);
 
     QStringList reasons;
-    if (!formatValid) reasons << "format invalide";
+    if (formatPresent && !formatValid) reasons << "format invalide";
     if (status == "undeliverable") reasons << "adresse non delivrable";
-    if (status == "unknown") reasons << "verification API incertaine";
-    if (!smtpValid) reasons << "SMTP invalide";
-    if (!mxValid) reasons << "domaine sans MX valide";
-    if (disposable) reasons << "email jetable";
+    if (smtpPresent && !smtpValid) reasons << "SMTP invalide";
+    if (mxPresent && !mxValid) reasons << "domaine sans MX valide";
+    if (disposablePresent && disposable) reasons << "email jetable";
 
     reply->deleteLater();
 
@@ -8086,6 +8150,43 @@ void MainWindow::verifyFournisseurEmail(QLineEdit *emailField)
     emailField->setToolTip(apiError.isEmpty() ? "E-mail non valide." : apiError);
 }
 
+void MainWindow::verifyClientEmail(QLineEdit *emailField)
+{
+    if (!emailField) return;
+
+    emailField->setProperty("emailVerified", false);
+
+    const QString email = emailField->text().trimmed();
+    if (email.isEmpty()) {
+        emailField->setStyleSheet("border: 2px solid red; border-radius: 5px;");
+        emailField->setToolTip("L'email est obligatoire.");
+        return;
+    }
+
+    if (!isValidEmail(email)) {
+        emailField->setStyleSheet("border: 2px solid red; border-radius: 5px;");
+        emailField->setToolTip("Format d'email invalide.");
+        return;
+    }
+
+    emailField->setStyleSheet("border: 2px solid orange; border-radius: 5px;");
+    emailField->setToolTip("Verification en cours via l'API...");
+    qApp->processEvents(QEventLoop::ExcludeUserInputEvents);
+
+    QString apiError;
+    const bool ok = verifyEmailWithApiIfConfigured(email, apiError);
+    if (ok) {
+        emailField->setProperty("emailVerified", true);
+        emailField->setStyleSheet("border: 2px solid #27ae60; border-radius: 5px;");
+        emailField->setToolTip("E-mail client valide avec succes.");
+        return;
+    }
+
+    emailField->setProperty("emailVerified", false);
+    emailField->setStyleSheet("border: 2px solid red; border-radius: 5px;");
+    emailField->setToolTip(apiError.isEmpty() ? "E-mail client non valide." : apiError);
+}
+
 void MainWindow::refreshProduitFeatureLists(const QStringList &selectedMod, int minQtyAdd, int minQtyMod, int idBacMod)
 {
     if (!ui) return;
@@ -8577,6 +8678,7 @@ MainWindow::MainWindow(QWidget *parent)
     , m_floatingAIButton(nullptr)
 
     , m_emailManager(nullptr)
+    , m_clientContractNotifTimer(nullptr)
 
     , m_sidebarExpanded(true)
 
@@ -8593,8 +8695,14 @@ MainWindow::MainWindow(QWidget *parent)
     if (ui->page_ajouter_client_wrapper) ui->page_ajouter_client_wrapper->setStyleSheet(clientFormStyle);
     if (ui->page_modifier_client_wrapper) ui->page_modifier_client_wrapper->setStyleSheet(clientFormStyle);
 
-    // createFloatingAIButton(); // Disabled as requested
+    createFloatingAIButton();
     m_emailManager = new EmailNotificationManager();
+
+    // Automatic scan for expiring client contracts (startup + periodic)
+    m_clientContractNotifTimer = new QTimer(this);
+    connect(m_clientContractNotifTimer, &QTimer::timeout, this, &MainWindow::checkAndNotifyExpiringContracts);
+    m_clientContractNotifTimer->start(6 * 60 * 60 * 1000); // every 6 hours
+    QTimer::singleShot(15000, this, &MainWindow::checkAndNotifyExpiringContracts);
 
     // Connect Retour button in Client Stats and fix Calendar Visibility
     if (ui->btnRetour_stats_client) {
@@ -10150,29 +10258,105 @@ MainWindow::MainWindow(QWidget *parent)
     }
 
     if (ui->input_matricule_ajouter) {
+        ui->input_matricule_ajouter->setPlaceholderText("Ex: CL-2026-001");
         ui->input_matricule_ajouter->setValidator(
             new QRegularExpressionValidator(QRegularExpression("^[A-Za-z0-9_-]{3,20}$"), ui->input_matricule_ajouter));
     }
     if (ui->input_matricule_modifier) {
+        ui->input_matricule_modifier->setPlaceholderText("Ex: CL-2026-001");
         ui->input_matricule_modifier->setValidator(
             new QRegularExpressionValidator(QRegularExpression("^[A-Za-z0-9_-]{3,20}$"), ui->input_matricule_modifier));
     }
     if (ui->input_nom_ajouter) {
+        ui->input_nom_ajouter->setPlaceholderText("Ex: Societe EcoPro");
         ui->input_nom_ajouter->setValidator(
             new QRegularExpressionValidator(QRegularExpression("^[\\p{L}' -]{2,60}$"), ui->input_nom_ajouter));
     }
     if (ui->input_nom_modifier) {
+        ui->input_nom_modifier->setPlaceholderText("Ex: Societe EcoPro");
         ui->input_nom_modifier->setValidator(
             new QRegularExpressionValidator(QRegularExpression("^[\\p{L}' -]{2,60}$"), ui->input_nom_modifier));
     }
     if (ui->input_email_ajouter) {
+        ui->input_email_ajouter->setPlaceholderText("Ex: client@entreprise.com");
+        ui->input_email_ajouter->setProperty("emailVerified", false);
         ui->input_email_ajouter->setValidator(
             new QRegularExpressionValidator(QRegularExpression("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"), ui->input_email_ajouter));
+        if (!ui->input_email_ajouter->property("clientEmailValidationConnected").toBool()) {
+            connect(ui->input_email_ajouter, &QLineEdit::editingFinished, this, [this]() {
+                verifyClientEmail(ui->input_email_ajouter);
+            });
+            connect(ui->input_email_ajouter, &QLineEdit::textChanged, this, [this](const QString &text) {
+                if (!ui->input_email_ajouter) return;
+                ui->input_email_ajouter->setProperty("emailVerified", false);
+                if (text.trimmed().isEmpty()) {
+                    ui->input_email_ajouter->setStyleSheet("border: 2px solid red; border-radius: 5px;");
+                    ui->input_email_ajouter->setToolTip("L'email est obligatoire.");
+                } else if (!isValidEmail(text.trimmed())) {
+                    ui->input_email_ajouter->setStyleSheet("border: 2px solid red; border-radius: 5px;");
+                    ui->input_email_ajouter->setToolTip("Format d'email invalide.");
+                } else {
+                    ui->input_email_ajouter->setStyleSheet("border: 2px solid orange; border-radius: 5px;");
+                    ui->input_email_ajouter->setToolTip("Format valide. Quittez le champ pour lancer la verification API.");
+                }
+            });
+            ui->input_email_ajouter->setProperty("clientEmailValidationConnected", true);
+        }
     }
     if (ui->input_email_modifier) {
+        ui->input_email_modifier->setPlaceholderText("Ex: client@entreprise.com");
+        ui->input_email_modifier->setProperty("emailVerified", false);
         ui->input_email_modifier->setValidator(
             new QRegularExpressionValidator(QRegularExpression("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"), ui->input_email_modifier));
+        if (!ui->input_email_modifier->property("clientEmailValidationConnected").toBool()) {
+            connect(ui->input_email_modifier, &QLineEdit::editingFinished, this, [this]() {
+                verifyClientEmail(ui->input_email_modifier);
+            });
+            connect(ui->input_email_modifier, &QLineEdit::textChanged, this, [this](const QString &text) {
+                if (!ui->input_email_modifier) return;
+                ui->input_email_modifier->setProperty("emailVerified", false);
+                if (text.trimmed().isEmpty()) {
+                    ui->input_email_modifier->setStyleSheet("border: 2px solid red; border-radius: 5px;");
+                    ui->input_email_modifier->setToolTip("L'email est obligatoire.");
+                } else if (!isValidEmail(text.trimmed())) {
+                    ui->input_email_modifier->setStyleSheet("border: 2px solid red; border-radius: 5px;");
+                    ui->input_email_modifier->setToolTip("Format d'email invalide.");
+                } else {
+                    ui->input_email_modifier->setStyleSheet("border: 2px solid orange; border-radius: 5px;");
+                    ui->input_email_modifier->setToolTip("Format valide. Quittez le champ pour lancer la verification API.");
+                }
+            });
+            ui->input_email_modifier->setProperty("clientEmailValidationConnected", true);
+        }
     }
+
+    const QString clientComboStyle =
+        "QComboBox {"
+        " background-color: #ffffff;"
+        " color: #111827;"
+        " border: 1px solid #94a3b8;"
+        " border-radius: 6px;"
+        " padding: 6px 30px 6px 10px;"
+        "}"
+        "QComboBox:focus {"
+        " border: 2px solid #2563eb;"
+        "}"
+        "QComboBox::drop-down {"
+        " border: none;"
+        " width: 26px;"
+        "}"
+        "QComboBox QAbstractItemView {"
+        " background-color: #ffffff;"
+        " color: #111827;"
+        " border: 1px solid #94a3b8;"
+        " selection-background-color: #0f2b4c;"
+        " selection-color: #ffffff;"
+        " outline: 0;"
+        "}";
+    if (ui->input_contrat_ajouter) ui->input_contrat_ajouter->setStyleSheet(clientComboStyle);
+    if (ui->input_contrat_modifier) ui->input_contrat_modifier->setStyleSheet(clientComboStyle);
+    if (ui->input_paiement_ajouter) ui->input_paiement_ajouter->setStyleSheet(clientComboStyle);
+    if (ui->input_paiement_modifier) ui->input_paiement_modifier->setStyleSheet(clientComboStyle);
 
     if (ui->input_matricule_ajouter) connect(ui->input_matricule_ajouter, &QLineEdit::textChanged, this, &MainWindow::updateClientFormValidationState);
     if (ui->input_nom_ajouter) connect(ui->input_nom_ajouter, &QLineEdit::textChanged, this, &MainWindow::updateClientFormValidationState);
@@ -10705,12 +10889,72 @@ void MainWindow::openEmployeeLeaveDialog()
 
 void MainWindow::openLabibAssistant()
 {
-    if (!m_labibAssistant) {
-        m_labibAssistant = new LabibAssistant(this);
+    const auto applyLabibDockGeometry = [this]() {
+        if (!m_labibDock) return;
+
+        const int windowW = qMax(900, this->width());
+        const int minDockW = 400;
+        const int maxDockW = qMax(minDockW, windowW - 180);
+        const int preferredDockW = qBound(minDockW, static_cast<int>(windowW * 0.32), maxDockW);
+
+        m_labibDock->setMinimumWidth(minDockW);
+        m_labibDock->setMaximumWidth(maxDockW);
+        if (m_labibAssistant) {
+            m_labibAssistant->setMinimumWidth(380);
+            m_labibAssistant->updateGeometry();
+        }
+        resizeDocks({m_labibDock}, {preferredDockW}, Qt::Horizontal);
+    };
+
+    if (!m_labibDock) {
+        m_labibDock = new QDockWidget("Labib AI Assistant", this);
+        m_labibDock->setObjectName("LabibAssistantDock");
+        m_labibDock->setAllowedAreas(Qt::RightDockWidgetArea);
+        m_labibDock->setFeatures(QDockWidget::DockWidgetClosable);
+
+        if (!m_labibAssistant) {
+            m_labibAssistant = new LabibAssistant(m_labibDock);
+        }
+
+        m_labibDock->setWidget(m_labibAssistant);
+        addDockWidget(Qt::RightDockWidgetArea, m_labibDock);
+        applyLabibDockGeometry();
+
+        connect(m_labibAssistant, &LabibAssistant::requestAddClient, this, [this]() {
+            if (ui && ui->btnClient) {
+                ui->btnClient->click();
+            }
+            on_btnNouveau_client_clicked();
+        });
+        connect(m_labibAssistant, &LabibAssistant::requestViewStock, this, [this]() {
+            if (ui && ui->btnStock) {
+                ui->btnStock->click();
+            }
+        });
+        connect(m_labibAssistant, &LabibAssistant::requestCheckOrders, this, [this]() {
+            if (QPushButton *btnCmd = this->findChild<QPushButton*>("btnCommandes")) {
+                btnCmd->click();
+            }
+        });
+
+        connect(m_labibDock, &QDockWidget::visibilityChanged, this, [this](bool) {
+            onFloatingAIButtonPositionUpdate();
+        });
     }
-    m_labibAssistant->show();
-    m_labibAssistant->raise();
-    m_labibAssistant->activateWindow();
+
+    const bool shouldShow = m_labibDock->isHidden();
+    m_labibDock->setVisible(shouldShow);
+    m_labibDock->setFloating(false);
+    if (shouldShow) {
+        applyLabibDockGeometry();
+        QTimer::singleShot(0, this, [this, applyLabibDockGeometry]() {
+            if (m_labibDock && m_labibDock->isVisible()) {
+                applyLabibDockGeometry();
+            }
+        });
+        m_labibDock->raise();
+        m_labibDock->activateWindow();
+    }
 }
 
 void MainWindow::createFloatingAIButton()
@@ -10721,25 +10965,35 @@ void MainWindow::createFloatingAIButton()
     m_floatingAIButton = new QPushButton(this);
     m_floatingAIButton->setFixedSize(60, 60);
     m_floatingAIButton->setText("");
+    m_floatingAIButton->setObjectName("floatingLabibButton");
     m_floatingAIButton->setStyleSheet(
         "QPushButton {"
-        "    background: qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 #2563eb, stop:1 #1d4ed8);"
-        "    border: none;"
+        "    background: qradialgradient(cx:0.35, cy:0.3, radius:1.1, fx:0.35, fy:0.3, stop:0 #1a8cff, stop:1 #0c3469);"
+        "    border: 2px solid #47b4ff;"
         "    border-radius: 30px;"
-        "    color: white;"
-        "    font-weight: bold;"
-        "    font-size: 24px;"
         "    padding: 0px;"
         "}"
         "QPushButton:hover {"
-        "    background: qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 #1d4ed8, stop:1 #1e40af);"
+        "    background: qradialgradient(cx:0.35, cy:0.3, radius:1.1, fx:0.35, fy:0.3, stop:0 #41b0ff, stop:1 #11407a);"
+        "    border: 2px solid #8ed5ff;"
         "}"
         "QPushButton:pressed {"
-        "    background: qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 #1e40af, stop:1 #1e3a8a);"
+        "    background: #0b2b57;"
         "}"
     );
     m_floatingAIButton->setCursor(Qt::PointingHandCursor);
-    m_floatingAIButton->setWindowFlags(Qt::Window | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+    m_floatingAIButton->setToolTip("Labib Assistant");
+
+    const QPixmap logoPixmap(":/login_logo.png");
+    if (!logoPixmap.isNull()) {
+        m_floatingAIButton->setIcon(QIcon(logoPixmap));
+        m_floatingAIButton->setIconSize(QSize(42, 42));
+    } else {
+        m_floatingAIButton->setText("L");
+        m_floatingAIButton->setStyleSheet(
+            m_floatingAIButton->styleSheet() +
+            "QPushButton{color:white;font-weight:900;font-size:22px;}");
+    }
     
     // Connect button to open Labib Assistant
     connect(m_floatingAIButton, &QPushButton::clicked, this, &MainWindow::openLabibAssistant);
@@ -10751,17 +11005,42 @@ void MainWindow::createFloatingAIButton()
 void MainWindow::onFloatingAIButtonPositionUpdate()
 {
     if (!m_floatingAIButton) return;
-    
-    QScreen *screen = QGuiApplication::primaryScreen();
-    if (!screen) return;
-    
-    QRect screenGeometry = screen->geometry();
-    int x = screenGeometry.right() - 80;      // 20px from right edge
-    int y = screenGeometry.bottom() - 100;    // 40px from bottom edge
-    
+
+    // Avoid any overlap with Labib action buttons when the assistant panel is open.
+    if (m_labibDock && m_labibDock->isVisible()) {
+        m_floatingAIButton->hide();
+        return;
+    }
+
+    const int margin = 22;
+    const int x = qMax(margin, width() - m_floatingAIButton->width() - margin);
+    const int y = qMax(margin, height() - m_floatingAIButton->height() - margin);
+
     m_floatingAIButton->move(x, y);
     m_floatingAIButton->show();
     m_floatingAIButton->raise();
+}
+
+void MainWindow::resizeEvent(QResizeEvent *event)
+{
+    QMainWindow::resizeEvent(event);
+    onFloatingAIButtonPositionUpdate();
+
+    if (m_labibDock && m_labibDock->isVisible()) {
+        const int windowW = qMax(900, this->width());
+        const int minDockW = 400;
+        const int maxDockW = qMax(minDockW, windowW - 180);
+        const int preferredDockW = qBound(minDockW, static_cast<int>(windowW * 0.32), maxDockW);
+        m_labibDock->setMinimumWidth(minDockW);
+        m_labibDock->setMaximumWidth(maxDockW);
+        resizeDocks({m_labibDock}, {preferredDockW}, Qt::Horizontal);
+    }
+}
+
+void MainWindow::moveEvent(QMoveEvent *event)
+{
+    QMainWindow::moveEvent(event);
+    onFloatingAIButtonPositionUpdate();
 }
 
 
@@ -17143,6 +17422,7 @@ void MainWindow::on_btnSave_Mod_clicked() {
                     if (!qIns.exec()) {
                         effOk = false;
                         effErr = qIns.lastError().text();
+                        qDebug() << "CRITICAL: Failed to update technician link" << idEmp << ":" << effErr;
                         break;
                     }
                 }
@@ -19149,9 +19429,24 @@ void MainWindow::on_btn_annuler_client_clicked() {
 
 void MainWindow::on_btn_ajouter_client_clicked() {
 
+    updateClientFormValidationState();
+
     if (!validateClientForm(false)) {
-        QMessageBox::warning(this, "Saisie invalide", "Verifiez Matricule, Nom, Email et Numero Telephone.");
+        QMessageBox::warning(this, "Saisie invalide", "Corrigez les champs en rouge avant d'enregistrer.");
         return;
+    }
+
+    if (ui->input_email_ajouter) {
+        const bool verified = ui->input_email_ajouter->property("emailVerified").toBool();
+        if (!verified) {
+            verifyClientEmail(ui->input_email_ajouter);
+            const QString msg =
+                ui->input_email_ajouter->styleSheet().contains("orange")
+                    ? QString::fromUtf8("Verification e-mail en cours.\nAttendez la bordure verte avant d'enregistrer.")
+                    : QString::fromUtf8("E-mail client non valide par l'API.\nSaisissez un e-mail correct puis quittez le champ.");
+            QMessageBox::warning(this, "Validation email", msg);
+            return;
+        }
     }
 
     const QString dateCreation = QDate::currentDate().toString("yyyy-MM-dd");
@@ -19194,6 +19489,32 @@ void MainWindow::on_btn_ajouter_client_clicked() {
 
                   ui->input_paiement_ajouter->currentText().trimmed());
 
+    // Real-time warning email: send immediately if contract expires within 1 month.
+    const QDate expirationDate = ui->input_date_expiration_ajouter->date();
+    const int daysLeft = QDate::currentDate().daysTo(expirationDate);
+    if (daysLeft >= 0 && daysLeft <= 30) {
+        const bool sent = sendContractExpirationEmail(
+            ui->input_email_ajouter->text().trimmed(),
+            ui->input_nom_ajouter->text().trimmed(),
+            expirationDate.toString("yyyy-MM-dd"),
+            ui->input_contrat_ajouter->currentText().trimmed());
+
+        if (!sent) {
+            QMessageBox::warning(
+                this,
+                "Notification email",
+                "Client ajoute, mais l'email d'alerte contrat (moins de 30 jours) n'a pas pu etre envoye.\n"
+                "Verifiez la configuration SMTP (WASTEGUARD_SMTP_EMAIL / WASTEGUARD_SMTP_APP_PASSWORD)."
+            );
+        } else {
+            QSettings settings("WasteGuard", "WasteGuard");
+            const QString notifKey = QString("contractExpiryNotice/sent/%1/%2")
+                                         .arg(ui->input_email_ajouter->text().trimmed().toLower(),
+                                              expirationDate.toString("yyyy-MM-dd"));
+            settings.setValue(notifKey, true);
+        }
+    }
+
     QMessageBox::information(this, "Succes", "Client ajoute avec succes.");
 
     if (ui->stackedWidget_Client) ui->stackedWidget_Client->setCurrentIndex(0);
@@ -19204,9 +19525,24 @@ void MainWindow::on_btn_ajouter_client_clicked() {
 
 void MainWindow::on_btn_modifier_client_clicked() {
 
+    updateClientFormValidationState();
+
     if (!validateClientForm(true)) {
-        QMessageBox::warning(this, "Saisie invalide", "Verifiez Matricule, Nom, Email et Numero Telephone.");
+        QMessageBox::warning(this, "Saisie invalide", "Corrigez les champs en rouge avant d'enregistrer.");
         return;
+    }
+
+    if (ui->input_email_modifier) {
+        const bool verified = ui->input_email_modifier->property("emailVerified").toBool();
+        if (!verified) {
+            verifyClientEmail(ui->input_email_modifier);
+            const QString msg =
+                ui->input_email_modifier->styleSheet().contains("orange")
+                    ? QString::fromUtf8("Verification e-mail en cours.\nAttendez la bordure verte avant d'enregistrer.")
+                    : QString::fromUtf8("E-mail client non valide par l'API.\nSaisissez un e-mail correct puis quittez le champ.");
+            QMessageBox::warning(this, "Validation email", msg);
+            return;
+        }
     }
 
     // Use ID stored in the current row's UserRole for modification
@@ -19315,6 +19651,137 @@ void MainWindow::onClientModified(int row, QString matricule, QString nom, QStri
 
 }
 
+namespace {
+
+QLabel *ensureClientFieldErrorLabel(QWidget *parent, const QString &name)
+{
+    if (!parent) return nullptr;
+    if (QLabel *existing = parent->findChild<QLabel*>(name, Qt::FindChildrenRecursively)) {
+        return existing;
+    }
+
+    QLabel *label = new QLabel(parent);
+    label->setObjectName(name);
+    label->setStyleSheet("color: #dc2626; font-size: 11px; font-weight: 600; background: transparent;");
+    label->setWordWrap(true);
+    label->setVisible(false);
+    return label;
+}
+
+void placeClientFieldErrorLabel(QWidget *field, QLabel *label, QWidget *parent)
+{
+    if (!field || !label || !parent) return;
+    const QPoint topLeft = field->mapTo(parent, QPoint(0, 0));
+    const int x = topLeft.x() + 2;
+    const int y = topLeft.y() + field->height() + 2;
+    const int w = qMax(120, field->width() - 4);
+    label->setGeometry(x, y, w, 18);
+}
+
+int currentClientEditIdFromTable(const Ui::MainWindow *ui, int row)
+{
+    if (!ui || !ui->tableWidget_Client) return -1;
+    if (row < 0 || row >= ui->tableWidget_Client->rowCount()) return -1;
+    QTableWidgetItem *matItem = ui->tableWidget_Client->item(row, 1);
+    if (!matItem) return -1;
+    return matItem->data(Qt::UserRole).toInt();
+}
+
+bool tryFindClientIdByMatricule(const QString &matricule, int &idClient, QString &dbError)
+{
+    idClient = -1;
+    dbError.clear();
+
+    QSqlQuery query;
+    query.prepare("SELECT ID_CLIENT FROM CLIENT WHERE UPPER(MATRICULE) = UPPER(:matricule)");
+    query.bindValue(":matricule", matricule.trimmed());
+
+    if (!query.exec()) {
+        dbError = query.lastError().text().trimmed();
+        return false;
+    }
+
+    if (query.next()) {
+        idClient = query.value(0).toInt();
+    }
+    return true;
+}
+
+QString clientMatriculeErrorText(const QString &matricule, bool isModificationForm, int currentEditId)
+{
+    const QString value = matricule.trimmed();
+    const QRegularExpression rx("^[A-Za-z0-9_-]{3,20}$");
+
+    if (value.isEmpty()) {
+        return "Matricule obligatoire.";
+    }
+    if (!rx.match(value).hasMatch()) {
+        return "3-20 caracteres: lettres/chiffres/_/-.";
+    }
+
+    int foundId = -1;
+    QString dbError;
+    if (tryFindClientIdByMatricule(value, foundId, dbError)) {
+        const bool duplicate = (foundId > 0) && ((!isModificationForm) || (foundId != currentEditId));
+        if (duplicate) {
+            return "Ce matricule existe deja.";
+        }
+    } else {
+        // Do not block typing with technical DB text; keep UX clean.
+        qWarning() << "[CLIENT] Matricule uniqueness check failed:" << dbError;
+    }
+
+    return QString();
+}
+
+QString clientNomErrorText(const QString &nom)
+{
+    const QString value = nom.trimmed();
+    const QRegularExpression rx("^[\\p{L}' -]{2,60}$");
+    if (value.isEmpty()) return "Nom obligatoire.";
+    if (!rx.match(value).hasMatch()) return "Nom invalide (2-60 caracteres).";
+    return QString();
+}
+
+QString clientEmailErrorText(const QString &email, bool emailVerified)
+{
+    const QString value = email.trimmed();
+    const QRegularExpression rx("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
+    if (value.isEmpty()) return "Email obligatoire.";
+    if (!rx.match(value).hasMatch()) return "Format d'email invalide.";
+    if (!emailVerified) return "Email non verifie par l'API.";
+    return QString();
+}
+
+QString clientPhoneErrorText(const QString &phone)
+{
+    const QString value = phone.trimmed();
+    const QRegularExpression rx("^\\+?[0-9]{8,15}$");
+    if (value.isEmpty()) return "Telephone obligatoire.";
+    if (!rx.match(value).hasMatch()) return "Numero invalide (8-15 chiffres).";
+    return QString();
+}
+
+void setClientFieldError(QLineEdit *field, QLabel *label, QWidget *parent, const QString &errorText)
+{
+    if (!field || !label || !parent) return;
+
+    placeClientFieldErrorLabel(field, label, parent);
+    label->setText(errorText);
+    label->setVisible(!errorText.isEmpty());
+
+    if (!errorText.isEmpty()) {
+        field->setStyleSheet("QLineEdit { border: 2px solid #dc2626; border-left: 4px solid #dc2626; background: #fff5f5; border-radius: 6px; }");
+        field->setToolTip(errorText);
+        return;
+    }
+
+    field->setStyleSheet("");
+    field->setToolTip("");
+}
+
+}
+
 bool MainWindow::validateClientForm(bool isModificationForm) const
 {
     const QLineEdit *matField = isModificationForm ? ui->input_matricule_modifier : ui->input_matricule_ajouter;
@@ -19331,66 +19798,68 @@ bool MainWindow::validateClientForm(bool isModificationForm) const
     const QString email = emailField->text().trimmed();
     const QString telephone = phoneCombo->currentText().trimmed();
 
-    const QRegularExpression matriculeRx("^[A-Za-z0-9_-]{3,20}$");
-    const QRegularExpression nomRx("^[\\p{L}' -]{2,60}$");
-    const QRegularExpression emailRx("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
-    const QRegularExpression phoneRx("^\\+?[0-9]{8,15}$");
+    const int currentId = isModificationForm ? currentClientEditIdFromTable(ui, currentClientRow) : -1;
+    const bool emailVerified = emailField->property("emailVerified").toBool();
 
-    return matriculeRx.match(matricule).hasMatch()
-        && nomRx.match(nom).hasMatch()
-        && emailRx.match(email).hasMatch()
-        && phoneRx.match(telephone).hasMatch();
+    const QString matErr = clientMatriculeErrorText(matricule, isModificationForm, currentId);
+    const QString nomErr = clientNomErrorText(nom);
+    const QString emailErr = clientEmailErrorText(email, emailVerified);
+    const QString phoneErr = clientPhoneErrorText(telephone);
+
+    return matErr.isEmpty() && nomErr.isEmpty() && emailErr.isEmpty() && phoneErr.isEmpty();
 }
 
 void MainWindow::updateClientFormValidationState()
 {
-    auto applyInputStyle = [](QLineEdit *field, const QRegularExpression &rx) {
-        if (!field) return;
-        const QString value = field->text().trimmed();
-        const bool invalid = !value.isEmpty() && !rx.match(value).hasMatch();
-        if (invalid) {
-            field->setStyleSheet(
-                "QLineEdit { border: 2px solid #dc2626; border-left: 4px solid #dc2626; "
-                "background: #fff5f5; border-radius: 6px; }"
-            );
-            field->setToolTip("Saisie invalide");
-        } else {
-            field->setStyleSheet("");
-            field->setToolTip("");
+    auto updateOneForm = [this](bool isModificationForm) {
+        QLineEdit *matField = isModificationForm ? ui->input_matricule_modifier : ui->input_matricule_ajouter;
+        QLineEdit *nomField = isModificationForm ? ui->input_nom_modifier : ui->input_nom_ajouter;
+        QLineEdit *emailField = isModificationForm ? ui->input_email_modifier : ui->input_email_ajouter;
+        QComboBox *phoneCombo = isModificationForm ? ui->input_paiement_modifier : ui->input_paiement_ajouter;
+        QLineEdit *phoneField = (phoneCombo ? phoneCombo->lineEdit() : nullptr);
+        QWidget *formParent = isModificationForm ? static_cast<QWidget*>(ui->page_modifier_client_wrapper)
+                                                 : static_cast<QWidget*>(ui->page_ajouter_client_wrapper);
+
+        if (!matField || !nomField || !emailField || !phoneField || !formParent) {
+            return;
+        }
+
+        const int currentId = isModificationForm ? currentClientEditIdFromTable(ui, currentClientRow) : -1;
+
+        const QString matErr = clientMatriculeErrorText(matField->text(), isModificationForm, currentId);
+        const QString nomErr = clientNomErrorText(nomField->text());
+        const QString emailErr = clientEmailErrorText(emailField->text(), emailField->property("emailVerified").toBool());
+        const QString phoneErr = clientPhoneErrorText(phoneField->text());
+
+        QLabel *matErrLabel = ensureClientFieldErrorLabel(formParent, isModificationForm ? "err_input_matricule_modifier" : "err_input_matricule_ajouter");
+        QLabel *nomErrLabel = ensureClientFieldErrorLabel(formParent, isModificationForm ? "err_input_nom_modifier" : "err_input_nom_ajouter");
+        QLabel *emailErrLabel = ensureClientFieldErrorLabel(formParent, isModificationForm ? "err_input_email_modifier" : "err_input_email_ajouter");
+        QLabel *phoneErrLabel = ensureClientFieldErrorLabel(formParent, isModificationForm ? "err_input_paiement_modifier" : "err_input_paiement_ajouter");
+
+        if (!formParent->isVisible()) {
+            matErrLabel->setVisible(false);
+            nomErrLabel->setVisible(false);
+            emailErrLabel->setVisible(false);
+            phoneErrLabel->setVisible(false);
+            return;
+        }
+
+        setClientFieldError(matField, matErrLabel, formParent, matErr);
+        setClientFieldError(nomField, nomErrLabel, formParent, nomErr);
+        setClientFieldError(emailField, emailErrLabel, formParent, emailErr);
+        setClientFieldError(phoneField, phoneErrLabel, formParent, phoneErr);
+
+        if (emailErr.isEmpty() && emailField->property("emailVerified").toBool()) {
+            emailField->setStyleSheet("border: 2px solid #27ae60; border-radius: 5px;");
+            emailField->setToolTip("E-mail valide avec succes.");
+        } else if (emailErr.isEmpty()) {
+            emailField->setStyleSheet("border: 2px solid orange; border-radius: 5px;");
+            emailField->setToolTip("Format valide. Quittez le champ pour lancer la verification API.");
         }
     };
 
-    auto applyComboLineStyle = [](QComboBox *combo, const QRegularExpression &rx) {
-        if (!combo || !combo->lineEdit()) return;
-        QLineEdit *field = combo->lineEdit();
-        const QString value = field->text().trimmed();
-        const bool invalid = !value.isEmpty() && !rx.match(value).hasMatch();
-        if (invalid) {
-            combo->setStyleSheet(
-                "QComboBox { border: 2px solid #dc2626; border-left: 4px solid #dc2626; border-radius: 6px; background: #fff5f5; }"
-                "QComboBox::drop-down { border: none; }"
-            );
-            field->setToolTip("Numero invalide (8 a 15 chiffres, + autorise)");
-        } else {
-            combo->setStyleSheet("");
-            field->setToolTip("");
-        }
-    };
-
-    const QRegularExpression matriculeRx("^[A-Za-z0-9_-]{3,20}$");
-    const QRegularExpression nomRx("^[\\p{L}' -]{2,60}$");
-    const QRegularExpression emailRx("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
-    const QRegularExpression phoneRx("^\\+?[0-9]{8,15}$");
-
-    applyInputStyle(ui->input_matricule_ajouter, matriculeRx);
-    applyInputStyle(ui->input_nom_ajouter, nomRx);
-    applyInputStyle(ui->input_email_ajouter, emailRx);
-    applyComboLineStyle(ui->input_paiement_ajouter, phoneRx);
-
-    applyInputStyle(ui->input_matricule_modifier, matriculeRx);
-    applyInputStyle(ui->input_nom_modifier, nomRx);
-    applyInputStyle(ui->input_email_modifier, emailRx);
-    applyComboLineStyle(ui->input_paiement_modifier, phoneRx);
+    updateOneForm(false);
+    updateOneForm(true);
 
     const bool addValid = validateClientForm(false);
     const bool modValid = validateClientForm(true);
@@ -22309,9 +22778,23 @@ void MainWindow::setupCommandesModule()
 
     QHBoxLayout *hl1 = findChild<QHBoxLayout*>("horizontalLayout");
     if (ui->textEdit && hl1) {
+        // Remove any existing QQuickWidget to ensure only one map is present
+        for (int i = 0; i < hl1->count(); ++i) {
+            if (auto *w = hl1->itemAt(i)->widget()) {
+                if (w->inherits("QQuickWidget")) {
+                    w->deleteLater();
+                    hl1->removeWidget(w);
+                    i--;
+                }
+            }
+        }
         ui->textEdit->hide();
         m_mapAddOrder = new QQuickWidget(ui->textEdit->parentWidget());
+        m_mapAddOrder->rootContext()->setContextProperty("mainWindow", this);
         m_mapAddOrder->setSource(QUrl(QStringLiteral("qrc:/assets/MapWidget.qml")));
+        if (m_mapAddOrder->rootObject()) {
+            m_mapAddOrder->rootObject()->setProperty("gpsEnabled", true);
+        }
         if (m_mapAddOrder->status() == QQuickWidget::Error) {
             QString errStr;
             for (const auto &err : m_mapAddOrder->errors()) errStr += err.toString() + "\n";
@@ -22325,9 +22808,23 @@ void MainWindow::setupCommandesModule()
     
     QHBoxLayout *hl12 = findChild<QHBoxLayout*>("horizontalLayout_12");
     if (ui->textEdit_2 && hl12) {
+        // Remove any existing QQuickWidget to ensure only one map is present
+        for (int i = 0; i < hl12->count(); ++i) {
+            if (auto *w = hl12->itemAt(i)->widget()) {
+                if (w->inherits("QQuickWidget")) {
+                    w->deleteLater();
+                    hl12->removeWidget(w);
+                    i--;
+                }
+            }
+        }
         ui->textEdit_2->hide();
         m_mapModOrder = new QQuickWidget(ui->textEdit_2->parentWidget());
+        m_mapModOrder->rootContext()->setContextProperty("mainWindow", this);
         m_mapModOrder->setSource(QUrl(QStringLiteral("qrc:/assets/MapWidget.qml")));
+        if (m_mapModOrder->rootObject()) {
+            m_mapModOrder->rootObject()->setProperty("gpsEnabled", true);
+        }
         if (m_mapModOrder->status() == QQuickWidget::Error) {
             QString errStr;
             for (const auto &err : m_mapModOrder->errors()) errStr += err.toString() + "\n";
@@ -22393,8 +22890,22 @@ void MainWindow::loadCmdFromTableToForm(QTableWidget* t, int row)
     if (ui->dsb_price_add_2) ui->dsb_price_add_2->setValue(prix);
     if (ui->textEdit_2) ui->textEdit_2->setPlainText(adr == "---" ? "" : adr);
     if (m_mapModOrder && m_mapModOrder->rootObject()) {
+        QString startAddr = t->item(row, 0)->data(Qt::UserRole + 2).toString();
+        double sLat = 0.0;
+        double sLon = 0.0;
+        if (!startAddr.isEmpty() && startAddr != "---") {
+            QStringList parts = startAddr.split(",");
+            if (parts.size() == 2) {
+                sLat = parts[0].trimmed().toDouble();
+                sLon = parts[1].trimmed().toDouble();
+            }
+        }
+        
+        m_mapModOrder->rootObject()->setProperty("isInitialSet", true);
         QMetaObject::invokeMethod(m_mapModOrder->rootObject(), "setInitialLocation",
-            Q_ARG(QVariant, 36.8065), Q_ARG(QVariant, 10.1815), Q_ARG(QVariant, adr == "---" ? "" : adr));
+            Q_ARG(QVariant, sLat), Q_ARG(QVariant, sLon), Q_ARG(QVariant, adr == "---" ? "" : adr));
+        QMetaObject::invokeMethod(m_mapModOrder->rootObject(), "setPathHistory",
+            Q_ARG(QVariant, t->item(row, 0)->data(Qt::UserRole + 3).toString()));
     }
 
     populateCommandeBacListMod(idCmd);
@@ -22436,12 +22947,22 @@ void MainWindow::installCmdActions(int row)
     layout->setAlignment(Qt::AlignCenter);
     auto *btnEdit = new QPushButton("Modifier", cell);
     auto *btnDelete = new QPushButton("Supprimer", cell);
+    
+    QString stat = ui->tableDashboard->item(row, 3)->text().toLower();
+    QPushButton *btnTrack = new QPushButton(stat.contains("livr") ? "Trajet" : "Suivre", cell);
+    btnTrack->setObjectName("btnTrack");
+    btnTrack->setStyleSheet("QPushButton { background-color: #f39c12; color: white; border-radius: 4px; padding: 4px 8px; font-weight: bold; }");
+    btnTrack->setCursor(Qt::PointingHandCursor);
+    btnTrack->setProperty("row", row);
+
     btnEdit->setStyleSheet("QPushButton { background-color: #3498db; color: white; border-radius: 4px; padding: 4px 8px; font-weight: bold; }");
     btnDelete->setStyleSheet("QPushButton { background-color: #e74c3c; color: white; border-radius: 4px; padding: 4px 8px; font-weight: bold; }");
     btnEdit->setCursor(Qt::PointingHandCursor);
     btnDelete->setCursor(Qt::PointingHandCursor);
     btnEdit->setProperty("row", row);
     btnDelete->setProperty("row", row);
+    
+    layout->addWidget(btnTrack);
     layout->addWidget(btnEdit);
     layout->addWidget(btnDelete);
     ui->tableDashboard->setCellWidget(row, 8, cell);
@@ -22469,6 +22990,64 @@ void MainWindow::installCmdActions(int row)
         ui->tableDashboard->removeRow(currentRow);
         reindexCmdActions();
     });
+
+    if (btnTrack) {
+        connect(btnTrack, &QPushButton::clicked, this, [this, btnTrack]() {
+            const int currentRow = btnTrack->property("row").toInt();
+            if (!ui->tableDashboard || currentRow < 0 || currentRow >= ui->tableDashboard->rowCount()) return;
+            
+            QString startAddr = ui->tableDashboard->item(currentRow, 0)->data(Qt::UserRole + 2).toString();
+            QString pathHist  = ui->tableDashboard->item(currentRow, 0)->data(Qt::UserRole + 3).toString();
+            QString adr       = ui->tableDashboard->item(currentRow, 4)->text();
+            QString stat      = ui->tableDashboard->item(currentRow, 3)->text().toLower();
+            
+            QWidget* page = new QWidget();
+            QVBoxLayout* l = new QVBoxLayout(page);
+            l->setContentsMargins(20, 20, 20, 20);
+            
+            QPushButton* btnBack = new QPushButton("← Retour au Dashboard", page);
+            btnBack->setStyleSheet("QPushButton { background: #34495e; color: white; font-size: 16px; padding: 12px; border-radius: 8px; font-weight: bold; border: none; } QPushButton:hover { background: #2c3e50; }");
+            btnBack->setCursor(Qt::PointingHandCursor);
+            l->addWidget(btnBack);
+            
+            QQuickWidget* mapWidget = new QQuickWidget(QUrl("qrc:/assets/MapWidget.qml"), page);
+            mapWidget->rootContext()->setContextProperty("mainWindow", this);
+            mapWidget->setResizeMode(QQuickWidget::SizeRootObjectToView);
+            mapWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+            l->addWidget(mapWidget);
+            
+            double sLat = 0.0, sLon = 0.0;
+            if (!startAddr.isEmpty() && startAddr != "---") {
+                QStringList parts = startAddr.split(",");
+                if (parts.size() == 2) {
+                    sLat = parts[0].trimmed().toDouble();
+                    sLon = parts[1].trimmed().toDouble();
+                }
+            }
+            
+            if (mapWidget->rootObject()) {
+                mapWidget->rootObject()->setProperty("isReadOnly", true);
+                mapWidget->rootObject()->setProperty("showLocButton", false);
+                mapWidget->rootObject()->setProperty("showHistory", true);
+                mapWidget->rootObject()->setProperty("showOptimalRoute", !stat.contains("livr"));
+                QMetaObject::invokeMethod(mapWidget->rootObject(), "setInitialLocation",
+                    Q_ARG(QVariant, sLat), Q_ARG(QVariant, sLon), Q_ARG(QVariant, adr == "---" ? "" : adr));
+                QMetaObject::invokeMethod(mapWidget->rootObject(), "setPathHistory",
+                    Q_ARG(QVariant, pathHist));
+            }
+            
+            mainStacked()->addWidget(page);
+            mainStacked()->setCurrentWidget(page);
+            connect(btnBack, &QPushButton::clicked, [this, page]() {
+                if (auto *sw = mainStacked()) {
+                    if (auto *dash = sw->findChild<QWidget*>("pageCmdDashboard", Qt::FindDirectChildrenOnly)) {
+                        sw->setCurrentWidget(dash);
+                    }
+                }
+                page->deleteLater();
+            });
+        });
+    }
 }
 
 void MainWindow::reindexCmdActions2()
@@ -22494,6 +23073,23 @@ void MainWindow::installCmdActions2(int row)
     auto *btnPdf = new QPushButton("pdf", cell);
     auto *btnEdit = new QPushButton("Modifier", cell);
     auto *btnDelete = new QPushButton("Supprimer", cell);
+    
+    QString stat = ui->tableProduits_2->item(row, 3)->text().toLower();
+    QPushButton *btnTrack = nullptr;
+    // Normalized status check to handle accents and upper/lower case
+    if (stat.contains("livr") || stat.contains("termin")) {
+        btnTrack = new QPushButton("Trajet effectué", cell);
+    } else {
+        // En préparation, En cours de livraison, etc.
+        btnTrack = new QPushButton("Suivre la livraison", cell);
+    }
+    if (btnTrack) {
+        btnTrack->setStyleSheet("QPushButton { background-color: #f39c12; color: white; border-radius: 4px; padding: 4px 8px; font-weight: bold; }");
+        btnTrack->setCursor(Qt::PointingHandCursor);
+        btnTrack->setProperty("row", row);
+        layout->addWidget(btnTrack);
+    }
+    
     btnPdf->setStyleSheet("QPushButton { background-color: #27ae60; color: white; border-radius: 4px; padding: 4px 8px; font-weight: bold; }");
     btnEdit->setStyleSheet("QPushButton { background-color: #3498db; color: white; border-radius: 4px; padding: 4px 8px; font-weight: bold; }");
     btnDelete->setStyleSheet("QPushButton { background-color: #e74c3c; color: white; border-radius: 4px; padding: 4px 8px; font-weight: bold; }");
@@ -22508,6 +23104,69 @@ void MainWindow::installCmdActions2(int row)
     layout->addWidget(btnDelete);
     ui->tableProduits_2->setCellWidget(row, 8, cell);
     
+    if (btnTrack) {
+        connect(btnTrack, &QPushButton::clicked, this, [this, btnTrack]() {
+            const int currentRow = btnTrack->property("row").toInt();
+            if (!ui->tableProduits_2 || currentRow < 0 || currentRow >= ui->tableProduits_2->rowCount()) return;
+            
+            QString startAddr = ui->tableProduits_2->item(currentRow, 0)->data(Qt::UserRole + 2).toString();
+            QString pathHist  = ui->tableProduits_2->item(currentRow, 0)->data(Qt::UserRole + 3).toString();
+            QString adr       = ui->tableProduits_2->item(currentRow, 4)->text();
+            
+            QWidget* page = new QWidget();
+            QVBoxLayout* l = new QVBoxLayout(page);
+            l->setContentsMargins(20, 20, 20, 20);
+            
+            QPushButton* btnBack = new QPushButton("← Retour au Dashboard", page);
+            btnBack->setStyleSheet("QPushButton { background: #34495e; color: white; font-size: 16px; padding: 12px; border-radius: 8px; font-weight: bold; border: none; } QPushButton:hover { background: #2c3e50; }");
+            btnBack->setCursor(Qt::PointingHandCursor);
+            l->addWidget(btnBack);
+            
+            QQuickWidget* mapWidget = new QQuickWidget(QUrl("qrc:/assets/MapWidget.qml"), page);
+            mapWidget->rootContext()->setContextProperty("mainWindow", this);
+            mapWidget->setResizeMode(QQuickWidget::SizeRootObjectToView);
+            mapWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+            l->addWidget(mapWidget);
+            
+            double sLat = 0.0;
+            double sLon = 0.0;
+            if (!startAddr.isEmpty() && startAddr != "---") {
+                QStringList parts = startAddr.split(",");
+                if (parts.size() == 2) {
+                    sLat = parts[0].trimmed().toDouble();
+                    sLon = parts[1].trimmed().toDouble();
+                }
+            }
+            
+            if (mapWidget->rootObject()) {
+                mapWidget->rootObject()->setProperty("isReadOnly", true);
+                mapWidget->rootObject()->setProperty("showLocButton", false);
+                mapWidget->rootObject()->setProperty("showHistory", true);
+                if (ui->tableProduits_2->item(currentRow, 3)->text().toLower().contains("livr")) {
+                    mapWidget->rootObject()->setProperty("showOptimalRoute", false);
+                } else {
+                    mapWidget->rootObject()->setProperty("showOptimalRoute", true);
+                }
+                QMetaObject::invokeMethod(mapWidget->rootObject(), "setInitialLocation",
+                    Q_ARG(QVariant, sLat), Q_ARG(QVariant, sLon), Q_ARG(QVariant, adr == "---" ? "" : adr));
+                QMetaObject::invokeMethod(mapWidget->rootObject(), "setPathHistory",
+                    Q_ARG(QVariant, pathHist));
+            }
+            
+            mainStacked()->addWidget(page);
+            mainStacked()->setCurrentWidget(page);
+            
+            connect(btnBack, &QPushButton::clicked, [this, page]() {
+                if (auto *sw = mainStacked()) {
+                    if (auto *dash = sw->findChild<QWidget*>("pageCmdDashboard", Qt::FindDirectChildrenOnly)) {
+                        sw->setCurrentWidget(dash);
+                    }
+                }
+                page->deleteLater();
+            });
+        });
+    }
+
     // PDF Button Connection
     connect(btnPdf, &QPushButton::clicked, this, [this, btnPdf]() {
         const int currentRow = btnPdf->property("row").toInt();
@@ -22558,11 +23217,14 @@ void MainWindow::refreshDashboardTable(const QString &searchField, const QString
         QTableWidgetItem *refItem = new QTableWidgetItem(model->data(model->index(i, 0)).toString());
         refItem->setData(Qt::UserRole, model->data(model->index(i, 8)).toInt());    // id client
         refItem->setData(Qt::UserRole + 1, model->data(model->index(i, 10)).toInt()); // id commande
+        refItem->setData(Qt::UserRole + 2, model->data(model->index(i, 11)).toString()); // START_ADRESSE
+        refItem->setData(Qt::UserRole + 3, model->data(model->index(i, 12)).toString()); // PATH_HISTORY
+        
         ui->tableDashboard->setItem(row, 0, refItem);
         ui->tableDashboard->setItem(row, 1, new QTableWidgetItem(model->data(model->index(i, 2)).toString()));
+        ui->tableDashboard->setItem(row, 3, new QTableWidgetItem(model->data(model->index(i, 4)).toString())); // Status
+        ui->tableDashboard->setItem(row, 4, new QTableWidgetItem(model->data(model->index(i, 9)).toString())); // Address (Destination)
         ui->tableDashboard->setItem(row, 2, new QTableWidgetItem(model->data(model->index(i, 3)).toString()));
-        ui->tableDashboard->setItem(row, 3, new QTableWidgetItem(model->data(model->index(i, 4)).toString()));
-        ui->tableDashboard->setItem(row, 4, new QTableWidgetItem(model->data(model->index(i, 9)).toString()));
         ui->tableDashboard->setItem(row, 5, new QTableWidgetItem(model->data(model->index(i, 5)).toDate().toString("yyyy-MM-dd")));
         ui->tableDashboard->setItem(row, 6, new QTableWidgetItem(model->data(model->index(i, 6)).toDate().toString("yyyy-MM-dd")));
         ui->tableDashboard->setItem(row, 7, new QTableWidgetItem(model->data(model->index(i, 7)).toString() + " TND"));
@@ -24032,127 +24694,93 @@ void MainWindow::exportClientPdf() {
 
     QPdfWriter writer(fileName);
     writer.setPageSize(QPageSize::A4);
-    writer.setPageMargins(QMarginsF(25, 25, 25, 25));
+    writer.setPageMargins(QMarginsF(0, 0, 0, 0));
     writer.setResolution(300);
 
     QPainter painter(&writer);
-    int pageW = writer.width();
+    QImage logo(":/WASTEGUARD (1) (1).png");
+    if (logo.isNull()) logo.load(":/wasteguard_logo.png");
 
-    // -- Colors --
-    QColor headerBg(15, 43, 76);
-    QColor lightGray(245, 247, 250);
-    QColor borderGray(220, 225, 230);
-    QColor textDark(30, 30, 30);
-    QColor white(255, 255, 255);
-    QColor green(39, 174, 96);
-    QColor red(231, 76, 60);
-
-    int y = 0;
-
-    // -- Header banner --
-    painter.fillRect(0, 0, pageW, 520, headerBg);
-    painter.setPen(white);
-    painter.setFont(QFont("Segoe UI", 24, QFont::Bold));
-    painter.drawText(QRect(200, 60, pageW - 400, 180), Qt::AlignLeft | Qt::AlignVCenter, "WasteGuard");
-    painter.setFont(QFont("Segoe UI", 12));
-    QString subtitle = (selectedContrat == "Tous")
-        ? "Rapport des Clients - Tous les contrats"
-        : "Rapport des Clients - Contrat " + selectedContrat;
-    painter.drawText(QRect(200, 240, pageW - 400, 120), Qt::AlignLeft | Qt::AlignVCenter, subtitle);
-    painter.setFont(QFont("Segoe UI", 9));
-    painter.drawText(QRect(200, 380, pageW - 400, 100), Qt::AlignLeft | Qt::AlignVCenter,
-        "Date : " + QDate::currentDate().toString("dd MMMM yyyy") + "   |   Clients : " + QString::number(rowsToExport.size()));
-    y = 660;
-
-    // -- Summary cards --
-    int annualCount = 0, monthlyCount = 0;
-    for (int row : rowsToExport) {
-        QTableWidgetItem *item = ui->tableWidget_Client->item(row, 4);
-        if (item && item->text().contains("Annuel", Qt::CaseInsensitive)) annualCount++;
-        else monthlyCount++;
-    }
-    int totalFiltered = rowsToExport.size();
-
-    int cardW = (pageW - 300) / 3;
-    int cardH = 300;
-    int cardY = y;
-
-    auto drawCard = [&](int idx, int value, const QString &label, QColor valueColor) {
-        int cx = 100 + idx * (cardW + 50);
-        painter.fillRect(cx, cardY, cardW, cardH, white);
-        painter.setPen(QPen(borderGray, 3));
-        painter.drawRoundedRect(cx, cardY, cardW, cardH, 20, 20);
-        painter.setPen(valueColor);
-        painter.setFont(QFont("Segoe UI", 20, QFont::Bold));
-        painter.drawText(QRect(cx, cardY + 30, cardW, 140), Qt::AlignCenter, QString::number(value));
-        painter.setFont(QFont("Segoe UI", 9));
-        painter.setPen(textDark);
-        painter.drawText(QRect(cx, cardY + 170, cardW, 100), Qt::AlignCenter, label);
+    auto drawFancySection = [&](int y, const QString &title, const QStringList &labels, const QStringList &values) {
+        painter.setFont(QFont("Segoe UI", 14, QFont::Bold));
+        painter.setPen(QColor("#0f2b4c"));
+        painter.drawText(700, y, title);
+        painter.setPen(QPen(QColor("#e2e8f0"), 2));
+        painter.drawLine(700, y + 150, 9300, y + 150);
+        int currentY = y + 550;
+        painter.setFont(QFont("Segoe UI", 11));
+        for (int i = 0; i < labels.size(); ++i) {
+            painter.setPen(QColor("#0f2b4c"));
+            painter.setFont(QFont("Segoe UI", 11, QFont::Bold));
+            painter.drawText(1000, currentY, "- " + labels[i] + " :");
+            painter.setPen(Qt::black);
+            painter.setFont(QFont("Segoe UI", 11));
+            painter.drawText(3500, currentY, values[i]);
+            currentY += 500;
+        }
+        return currentY + 100;
     };
-    drawCard(0, totalFiltered, "Total Clients", headerBg);
-    drawCard(1, annualCount, "Contrat Annuel", green);
-    drawCard(2, monthlyCount, "Autres Contrats", red);
 
-    y = cardY + cardH + 160;
-
-    // -- Table header --
-    QStringList headers = {"Matricule", "Nom", "Email", "Type Contrat", "Date Creation", "Date Expiration", "Telephone"};
-    int colCount = headers.size();
-    int colW = (pageW - 200) / colCount;
-    int rowH = 240;
-    int xStart = 100;
-
-    auto drawTableHeader = [&]() {
-        painter.fillRect(xStart, y, pageW - 200, rowH, headerBg);
-        painter.setPen(white);
-        painter.setFont(QFont("Segoe UI", 9, QFont::Bold));
-        for (int c = 0; c < colCount; ++c)
-            painter.drawText(QRect(xStart + c * colW + 40, y, colW - 80, rowH), Qt::AlignVCenter | Qt::AlignLeft, headers[c]);
-        y += rowH;
-    };
-    drawTableHeader();
-
-    // -- Table rows --
-    int visibleIdx = 0;
-    for (int row : rowsToExport) {
-        if (y + rowH > writer.height() - 400) {
-            painter.setPen(borderGray);
-            painter.drawLine(100, writer.height() - 300, pageW - 100, writer.height() - 300);
-            painter.setPen(QColor(150, 150, 150));
-            painter.setFont(QFont("Segoe UI", 7));
-            painter.drawText(QRect(100, writer.height() - 280, pageW - 200, 200), Qt::AlignCenter,
-                "WasteGuard - Page " + QString::number(writer.logicalDpiX())); // placeholder
+    for (int index = 0; index < rowsToExport.size(); ++index) {
+        const int rowIdx = rowsToExport[index];
+        if (index > 0) {
             writer.newPage();
-            y = 200;
-            drawTableHeader();
         }
 
-        QColor rowBg = (visibleIdx % 2 == 0) ? white : lightGray;
-        painter.fillRect(xStart, y, pageW - 200, rowH, rowBg);
-        painter.setPen(QPen(borderGray, 1));
-        painter.drawRect(xStart, y, pageW - 200, rowH);
-        painter.setPen(textDark);
+        const QString matricule = ui->tableWidget_Client->item(rowIdx, 1) ? ui->tableWidget_Client->item(rowIdx, 1)->text().trimmed() : QString();
+        const QString nom = ui->tableWidget_Client->item(rowIdx, 2) ? ui->tableWidget_Client->item(rowIdx, 2)->text().trimmed() : QString();
+        const QString email = ui->tableWidget_Client->item(rowIdx, 3) ? ui->tableWidget_Client->item(rowIdx, 3)->text().trimmed() : QString();
+        const QString contrat = ui->tableWidget_Client->item(rowIdx, 4) ? ui->tableWidget_Client->item(rowIdx, 4)->text().trimmed() : QString();
+        const QString dateCreation = ui->tableWidget_Client->item(rowIdx, 5) ? ui->tableWidget_Client->item(rowIdx, 5)->text().trimmed() : QString();
+        const QString echeance = ui->tableWidget_Client->item(rowIdx, 6) ? ui->tableWidget_Client->item(rowIdx, 6)->text().trimmed() : QString();
+        const QString telephone = ui->tableWidget_Client->item(rowIdx, 7) ? ui->tableWidget_Client->item(rowIdx, 7)->text().trimmed() : QString();
+
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(QColor("#0f2b4c"));
+        painter.drawRect(0, 0, 10000, 120);
+
+        if (!logo.isNull()) {
+            painter.drawImage(QRect(400, 300, 1400, 1400), logo);
+        }
+
+        painter.setPen(QColor("#0f2b4c"));
+        painter.setFont(QFont("Segoe UI", 26, QFont::Bold));
+        painter.drawText(2000, 800, "WasteGuard Intelligent Solutions");
+
+        painter.setFont(QFont("Segoe UI", 12));
+        painter.setPen(QColor("#64748b"));
+        painter.drawText(2000, 1150, "Expertise en gestion intelligente et tracabilite des dechets");
+
+        painter.setPen(QColor("#1e293b"));
+        painter.setFont(QFont("Segoe UI", 10));
+        painter.drawText(7800, 600, "Emis le: " + QDate::currentDate().toString("dd/MM/yyyy"));
+
+        painter.setPen(QPen(QColor("#cbd5e1"), 2));
+        painter.setBrush(QColor("#f8fafc"));
+        painter.drawRoundedRect(7080, 760, 2560, 920, 24, 24);
+        painter.setPen(QColor("#64748b"));
+        painter.setFont(QFont("Segoe UI", 9));
+        painter.drawText(QRect(7160, 850, 2400, 180), Qt::AlignCenter, "Matricule :");
+        painter.setPen(QColor("#0f2b4c"));
+        painter.setFont(QFont("Segoe UI", 14, QFont::Bold));
+        painter.drawText(QRect(7160, 1020, 2400, 360), Qt::AlignCenter, matricule.isEmpty() ? QString("-") : matricule.toUpper());
+
+        painter.setPen(QPen(QColor("#0f2b4c"), 8));
+        painter.drawLine(500, 1800, 9500, 1800);
+
+        int curY = 2500;
+        curY = drawFancySection(curY, "1. IDENTIFICATION DU CLIENT", {"Matricule", "Nom", "Contact"}, {matricule.isEmpty() ? QString("-") : matricule, nom, email});
+        curY = drawFancySection(curY, "2. INFORMATIONS COMMERCIALES", {"Type de Contrat", "Date Creation", "Date Expiration"}, {contrat, dateCreation, echeance});
+        curY = drawFancySection(curY, "3. COORDONNEES ET SUIVI", {"Telephone", "Statut"}, {telephone, selectedContrat == "Tous" ? QString("Tous contrats") : selectedContrat});
+        curY = drawFancySection(curY, "4. ENGAGEMENT SERVICE", {"Prestataire", "Qualite de Suivi"}, {"WasteGuard (Code Green Solutions)", "Gestion intelligente et support operationnel"});
+
+        painter.setBrush(QColor("#0f2b4c"));
+        painter.setPen(Qt::NoPen);
+        painter.drawRect(0, 13200, 10000, 800);
+        painter.setPen(Qt::white);
         painter.setFont(QFont("Segoe UI", 8));
-
-        const QList<int> colMap = {1, 2, 3, 4, 5, 6, 7};
-        for (int c = 0; c < colMap.size(); ++c) {
-            QString txt;
-            QTableWidgetItem *item = ui->tableWidget_Client->item(row, colMap[c]);
-            if (item) txt = item->text();
-            painter.drawText(QRect(xStart + c * colW + 40, y, colW - 80, rowH), Qt::AlignVCenter | Qt::AlignLeft, txt);
-        }
-        y += rowH;
-        visibleIdx++;
+        painter.drawText(600, 13700, "CONFIDENTIEL - Document genere par le systeme WasteGuard ERP.");
     }
-
-    // -- Footer --
-    painter.setPen(borderGray);
-    painter.drawLine(100, writer.height() - 300, pageW - 100, writer.height() - 300);
-    painter.setPen(QColor(150, 150, 150));
-    painter.setFont(QFont("Segoe UI", 7));
-    QString footerText = "WasteGuard - Genere le " + QDate::currentDate().toString("dd/MM/yyyy");
-    if (selectedContrat != "Tous") footerText += " - Filtre : " + selectedContrat;
-    painter.drawText(QRect(100, writer.height() - 280, pageW - 200, 200), Qt::AlignCenter, footerText);
 
     painter.end();
     QMessageBox::information(this, "Export PDF",
@@ -24498,6 +25126,8 @@ void MainWindow::loadCmdToModificationForm(int row)
     // Retrieve data from table
     int idClient = ui->tableProduits_2->item(row, 0)->data(Qt::UserRole).toInt();
     int idCmd    = ui->tableProduits_2->item(row, 0)->data(Qt::UserRole + 1).toInt();
+    QString startAddr = ui->tableProduits_2->item(row, 0)->data(Qt::UserRole + 2).toString();
+    QString pathHist  = ui->tableProduits_2->item(row, 0)->data(Qt::UserRole + 3).toString();
     (void)idCmd; // Read from table but used by other operations
     int qte      = ui->tableProduits_2->item(row, 1)->text().toInt();
     QString prio = ui->tableProduits_2->item(row, 2)->text();
@@ -24742,6 +25372,9 @@ void MainWindow::on_btnSave_CmdMod_clicked()
     }
 
     QMessageBox::information(this, "Succes", "Commande modifiee avec succes.");
+    if (m_mapModOrder && m_mapModOrder->rootObject()) {
+        QMetaObject::invokeMethod(m_mapModOrder->rootObject(), "resetMap");
+    }
     refreshCommandes();
     populateCommandeBacList();
     if (auto *sw = mainStacked()) {
@@ -24816,6 +25449,9 @@ void MainWindow::on_btnSave_CmdMod_clicked()
             }
         }
         QMessageBox::information(this, "Succes", "Commande modifiee.");
+        if (m_mapModOrder && m_mapModOrder->rootObject()) {
+            QMetaObject::invokeMethod(m_mapModOrder->rootObject(), "resetMap");
+        }
         refreshCommandes();
         populateCommandeBacList();
         if (auto *sw = mainStacked()) {
@@ -24934,6 +25570,9 @@ void MainWindow::on_btnSave_Mod_3_clicked()
     }
 
     QMessageBox::information(this, "Succes", "Commande ajoutee avec succes.");
+    if (m_mapAddOrder && m_mapAddOrder->rootObject()) {
+        QMetaObject::invokeMethod(m_mapAddOrder->rootObject(), "resetMap");
+    }
     refreshCommandes();
     populateCommandeBacList();
     if (ui->dsb_price_add_4) ui->dsb_price_add_4->setValue(0.0);
@@ -25011,6 +25650,9 @@ void MainWindow::on_btnSave_Mod_3_clicked()
             }
         }
         QMessageBox::information(this, "Succes", "Commande ajoutee.");
+        if (m_mapAddOrder && m_mapAddOrder->rootObject()) {
+            QMetaObject::invokeMethod(m_mapAddOrder->rootObject(), "resetMap");
+        }
         refreshCommandes();
         populateCommandeBacList();
         if (auto *sw = mainStacked()) {
@@ -25877,6 +26519,8 @@ void MainWindow::refreshCommandes(const QString &searchField, const QString &sea
         int idCmd    = model->data(model->index(i, 10)).toInt();
         refItem->setData(Qt::UserRole, idClient);
         refItem->setData(Qt::UserRole + 1, idCmd);
+        refItem->setData(Qt::UserRole + 2, model->data(model->index(i, 11)).toString());
+        refItem->setData(Qt::UserRole + 3, model->data(model->index(i, 12)).toString());
         
         // Fetch Client Address from index 9
         QString adresse = model->data(model->index(i, 9)).toString();
@@ -28373,40 +29017,67 @@ void MainWindow::handleVoiceHelp()
 
 void MainWindow::checkAndNotifyExpiringContracts()
 {
-    QDate today = QDate::currentDate();
-    QDate notificationThreshold = today.addMonths(1); // Notify when expiration is ~1 month away
+    const QDate today = QDate::currentDate();
+    QSettings settings("WasteGuard", "WasteGuard");
+    const QDate startWindow = today.addDays(-7);   // catch recently expired if app was offline
+    const QDate endWindow = today.addDays(30);     // warning window for upcoming expirations
 
-    // Query contracts expiring within 7 days - using TO_DATE for Oracle compatibility
+    // Query contracts near expiry from DB continuously.
     QSqlQuery query;
     query.prepare(
-        "SELECT EMAIL, NOM, DATE_EXPIRATION_CONTRAT FROM CLIENT "
-        "WHERE DATE_EXPIRATION_CONTRAT <= TO_DATE(:threshold, 'YYYY-MM-DD') "
-        "AND DATE_EXPIRATION_CONTRAT >= TO_DATE(:today, 'YYYY-MM-DD') "
+        "SELECT EMAIL, NOM, DATE_EXPIRATION_CONTRAT, TYPE_CONTRAT FROM CLIENT "
+        "WHERE DATE_EXPIRATION_CONTRAT BETWEEN :startWindow AND :endWindow "
     );
-    query.bindValue(":threshold", notificationThreshold.toString("yyyy-MM-dd"));
-    query.bindValue(":today", today.toString("yyyy-MM-dd"));
+    query.bindValue(":startWindow", startWindow);
+    query.bindValue(":endWindow", endWindow);
 
-    if (!query.exec()) {
-        qDebug() << "Error checking expiring contracts:" << query.lastError().text();
+    bool queryOk = query.exec();
+    if (!queryOk) {
+        // Oracle fallback for date parameters in strict environments.
+        query.prepare(
+            "SELECT EMAIL, NOM, DATE_EXPIRATION_CONTRAT, TYPE_CONTRAT FROM CLIENT "
+            "WHERE DATE_EXPIRATION_CONTRAT BETWEEN TO_DATE(:startWindow, 'YYYY-MM-DD') "
+            "AND TO_DATE(:endWindow, 'YYYY-MM-DD') "
+        );
+        query.bindValue(":startWindow", startWindow.toString("yyyy-MM-dd"));
+        query.bindValue(":endWindow", endWindow.toString("yyyy-MM-dd"));
+        queryOk = query.exec();
+    }
+
+    if (!queryOk) {
+        qDebug() << "Erreur verification contrats expirants:" << query.lastError().text();
         return;
     }
 
-    // Send email notifications for each expiring contract
-    while (query.next()) {
-        QString email = query.value(0).toString();
-        QString nom = query.value(1).toString();
-        QString dateExpiration = query.value(2).toString();
+    int sentCount = 0;
 
-        if (!email.isEmpty()) {
-            sendContractExpirationEmail(email, nom, dateExpiration);
+    // Send once per contract expiration date (anti-duplicate).
+    while (query.next()) {
+        const QString email = query.value(0).toString().trimmed();
+        const QString nom = query.value(1).toString().trimmed();
+        const QDate expDate = query.value(2).toDate();
+        QString dateExpiration = expDate.isValid() ? expDate.toString("yyyy-MM-dd") : query.value(2).toString().trimmed();
+        const QString contractType = query.value(3).toString().trimmed();
+
+        const QString notifKey = QString("contractExpiryNotice/sent/%1/%2")
+                                     .arg(email.toLower(), dateExpiration);
+        const bool alreadySent = settings.value(notifKey, false).toBool();
+
+        if (!email.isEmpty() && !alreadySent) {
+            if (sendContractExpirationEmail(email, nom, dateExpiration, contractType)) {
+                settings.setValue(notifKey, true);
+                ++sentCount;
+            }
         }
     }
+
+    qDebug() << "[CONTRACT NOTIF] Scan DB" << startWindow.toString("yyyy-MM-dd")
+             << "->" << endWindow.toString("yyyy-MM-dd") << "emails envoyes:" << sentCount;
 }
 
-void MainWindow::sendContractExpirationEmail(const QString &clientEmail, const QString &clientName, const QString &expirationDate)
+bool MainWindow::sendContractExpirationEmail(const QString &clientEmail, const QString &clientName, const QString &expirationDate, const QString &contractType)
 {
-    // Create professional email notification
-    QString subject = "Notification Urgente: Votre contrat arrive a expiration - WasteGuard";
+    QString subject = "Alerte WasteGuard : votre contrat arrive a expiration";
     
     QString htmlBody = QString(
         "<!DOCTYPE html>"
@@ -28424,6 +29095,13 @@ void MainWindow::sendContractExpirationEmail(const QString &clientEmail, const Q
         ".info-section { background: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 16px; border-radius: 6px; margin-bottom: 20px; }"
         ".info-label { font-weight: 700; color: #0c4a6e; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }"
         ".info-value { color: #075985; font-size: 16px; font-weight: 600; margin-top: 4px; }"
+        ".separator { border: 0; border-top: 1px dashed #cbd5e1; margin: 18px 0; }"
+        ".summary { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; }"
+        ".summary ul { margin: 8px 0 0 18px; padding: 0; color: #334155; }"
+        ".summary li { margin: 6px 0; line-height: 1.4; }"
+        ".steps { margin: 10px 0 0 0; padding-left: 0; list-style: none; }"
+        ".steps li { margin: 8px 0; color: #334155; }"
+        ".steps b { color: #0f2b4c; }"
         ".action-button { display: inline-block; background: linear-gradient(135deg, #2a5298, #0f2b4c); color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 700; margin-top: 12px; font-size: 14px; }"
         ".footer { background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 30px; text-align: center; color: #64748b; font-size: 12px; }"
         ".timestamp { color: #94a3b8; font-size: 12px; }"
@@ -28432,33 +29110,40 @@ void MainWindow::sendContractExpirationEmail(const QString &clientEmail, const Q
         "<body>"
         "<div class='container'>"
         "<div class='header'>"
-        "<div class='status-icon'></div>"
+        "<div class='status-icon'>[ALERTE]</div>"
         "<h1>Notification d'Expiration de Contrat</h1>"
         "<p>WasteGuard - Systeme de Gestion Intelligente des Dechets</p>"
         "</div>"
         "<div class='content'>"
-        "<p>Chere <strong>%1</strong>,</p>"
+        "<p>Bonjour <strong>%1</strong>,</p>"
         "<div class='alert-box'>"
-        "<div class='alert-title'>Ã¯Â¸Â ACTION REQUISE</div>"
-        "<div class='alert-text'>Votre contrat arrivera bientot a expiration. Nous vous recommandons de renouveler votre contrat des que possible.</div>"
+        "<div class='alert-title'>ACTION REQUISE</div>"
+        "<div class='alert-text'>Votre contrat arrive bientot a expiration. Nous vous recommandons de lancer le renouvellement des maintenant.</div>"
         "</div>"
-        "<div class='info-section'>"
-        "<div class='info-label'>Date d'Expiration</div>"
-        "<div class='info-value'>%2</div>"
+        "<div class='summary'>"
+        "<div class='info-label'>Resume du contrat</div>"
+        "<ul>"
+        "<li>- Contrat : <strong>%6</strong></li>"
+        "<li>- Date d'expiration : <strong>%2</strong></li>"
+        "<li>- Jours restants : <strong>%3</strong></li>"
+        "</ul>"
         "</div>"
-        "<div class='info-section'>"
-        "<div class='info-label'>Jours Restants</div>"
-        "<div class='info-value' id='daysLeft'>%3</div>"
-        "</div>"
+        "<hr class='separator'/>"
+        "<div class='info-label'>Prochaines etapes conseillees</div>"
+        "<ul class='steps'>"
+        "<li><b>1.</b> Verifiez les conditions de renouvellement de votre contrat.</li>"
+        "<li><b>2.</b> Contactez notre support pour finaliser le renouvellement.</li>"
+        "<li><b>3.</b> Conservez cet email comme rappel de suivi.</li>"
+        "</ul>"
         "<p style='margin: 20px 0; color: #475569;'>"
-        "Pour renouveler votre contrat ou obtenir plus d'informations, veuillez contacter notre equipe support.<br>"
-        "Nous sommes la pour assurer la continuite de votre service !"
+        "Pour renouveler votre contrat ou obtenir plus d'informations, contactez notre equipe support.<br>"
+        "Nous sommes a votre disposition pour assurer la continuite de votre service."
         "</p>"
         "<a href='mailto:support@wasteguard.com' class='action-button'>Contacter le Support</a>"
         "</div>"
         "<div class='footer'>"
         "<p style='margin: 0 0 8px 0;'>WasteGuard (C) 2026 - Tous droits reserves</p>"
-        "<p class='timestamp' style='margin: 0;'>Email envoye le: %4 a %5</p>"
+        "<p class='timestamp' style='margin: 0;'>Email envoye le %4 a %5</p>"
         "</div>"
         "</div>"
     );
@@ -28467,12 +29152,33 @@ void MainWindow::sendContractExpirationEmail(const QString &clientEmail, const Q
     int daysLeft = QDate::currentDate().daysTo(expDate);
     QString currentDate = QDate::currentDate().toString("dd/MM/yyyy");
     QString currentTime = QTime::currentTime().toString("HH:mm:ss");
+    QString daysLeftText;
+    if (daysLeft < 0) {
+        daysLeftText = QString("Expire il y a %1 jour(s)").arg(-daysLeft);
+    } else if (daysLeft == 0) {
+        daysLeftText = "Expire aujourd'hui";
+    } else {
+        daysLeftText = QString("%1 jour(s)").arg(daysLeft);
+    }
+    QString contractTypeText = contractType.trimmed().isEmpty() ? "Standard" : contractType.trimmed();
     
-    htmlBody = htmlBody.arg(clientName, expirationDate, QString::number(daysLeft), currentDate, currentTime);
+    htmlBody = htmlBody.arg(clientName,
+                            expirationDate,
+                            daysLeftText,
+                            currentDate,
+                            currentTime,
+                            contractTypeText);
 
     if (m_emailManager) {
-        m_emailManager->sendEmail(clientEmail, subject, htmlBody);
+        const bool sent = m_emailManager->sendEmail(clientEmail, subject, htmlBody);
+        if (!sent) {
+            qWarning() << "Echec envoi email expiration contrat pour" << clientEmail;
+        }
+        return sent;
     }
+
+    qWarning() << "Email manager non initialise. Impossible d'envoyer l'email d'expiration a" << clientEmail;
+    return false;
 }
 
 // ===================================================
@@ -28576,10 +29282,13 @@ void MainWindow::exportSingleClientContratPdf() {
 
         painter.setPen(QPen(QColor("#cbd5e1"), 2));
         painter.setBrush(QColor("#f8fafc"));
-        painter.drawRect(7200, 800, 2400, 600);
+        painter.drawRoundedRect(7080, 760, 2560, 920, 24, 24);
+        painter.setPen(QColor("#64748b"));
+        painter.setFont(QFont("Segoe UI", 9));
+        painter.drawText(QRect(7160, 850, 2400, 180), Qt::AlignCenter, "Matricule :");
         painter.setPen(QColor("#0f2b4c"));
-        painter.setFont(QFont("Segoe UI", 10, QFont::Bold));
-        painter.drawText(7350, 1200, "Ref : WG-2026-" + matricule.toUpper());
+        painter.setFont(QFont("Segoe UI", 14, QFont::Bold));
+        painter.drawText(QRect(7160, 1020, 2400, 360), Qt::AlignCenter, matricule.isEmpty() ? QString("-") : matricule.toUpper());
 
         painter.setPen(QPen(QColor("#0f2b4c"), 8));
         painter.drawLine(500, 1800, 9500, 1800);
@@ -28642,7 +29351,7 @@ void MainWindow::openEcoScoreInterface() {
         ui->chartEcoScoreBar->setChart(barChart);
         ui->chartEcoScoreBar->setRenderHint(QPainter::Antialiasing);
 
-        // 2. Global Tiers Pie Chart (A-D Grades)
+        // 2. Global Tiers Pie Chart (A-D Grades + percentages)
         QPieSeries *pieSeries = new QPieSeries();
         int gA=0, gB=0, gC=0, gD=0;
         q.exec("SELECT TAUX_TRI FROM CLIENT");
@@ -28650,31 +29359,136 @@ void MainWindow::openEcoScoreInterface() {
             int s = q.value(0).toInt();
             if(s>=85) gA++; else if(s>=70) gB++; else if(s>=50) gC++; else gD++;
         }
-        
-        pieSeries->append("Grade A (Excellent)", gA)->setBrush(QColor("#059669"));
-        pieSeries->append("Grade B (Bien)", gB)->setBrush(QColor("#2563eb"));
-        pieSeries->append("Grade C (Passable)", gC)->setBrush(QColor("#d97706"));
-        pieSeries->append("Grade D (A revoir)", gD)->setBrush(QColor("#dc2626"));
+
+        const int totalGrades = qMax(1, gA + gB + gC + gD);
+        auto appendGradeSlice = [&](const QString &label, int count, const QColor &color) {
+            if (count <= 0) return;
+            const double pct = (100.0 * count) / totalGrades;
+            QPieSlice *slice = pieSeries->append(
+                QString("%1: %2 (%3%)").arg(label).arg(count).arg(QString::number(pct, 'f', 1)),
+                count);
+            slice->setBrush(color);
+            slice->setLabelVisible(true);
+            slice->setLabelColor(QColor("#1f2937"));
+            if (pct >= 45.0) {
+                slice->setExploded(true);
+                slice->setExplodeDistanceFactor(0.08);
+            }
+        };
+
+        appendGradeSlice("Grade A", gA, QColor("#059669"));
+        appendGradeSlice("Grade B", gB, QColor("#2563eb"));
+        appendGradeSlice("Grade C", gC, QColor("#d97706"));
+        appendGradeSlice("Grade D", gD, QColor("#dc2626"));
+
+        if (pieSeries->isEmpty()) {
+            QPieSlice *empty = pieSeries->append("Aucune donnee", 1);
+            empty->setBrush(QColor("#94a3b8"));
+            empty->setLabelVisible(true);
+        }
         
         QChart *pieChart = new QChart();
         pieChart->addSeries(pieSeries);
-        pieChart->setTitle("Repartition de la Qualite du Tri");
+        pieChart->setTitle(QString("Repartition de la Qualite du Tri (%1 clients)").arg(gA + gB + gC + gD));
         pieChart->legend()->setAlignment(Qt::AlignRight);
+        pieChart->setAnimationOptions(QChart::SeriesAnimations);
         
         ui->chartEcoScorePie->setChart(pieChart);
         ui->chartEcoScorePie->setRenderHint(QPainter::Antialiasing);
 
-        // 3. Contract Types Distribution Line/Area
+        // 3. Contract types distribution with percentages/colors
         QPieSeries *contratPie = new QPieSeries();
         q.exec("SELECT TYPE_CONTRAT, COUNT(*) FROM CLIENT GROUP BY TYPE_CONTRAT");
+        int contratTotal = 0;
+        QVector<QPair<QString, int>> contrats;
         while(q.next()){
-            contratPie->append(q.value(0).toString(), q.value(1).toInt());
+            const QString type = q.value(0).toString().trimmed();
+            const int count = q.value(1).toInt();
+            contratTotal += count;
+            contrats.push_back({type.isEmpty() ? "Non specifie" : type, count});
+        }
+
+        const QList<QColor> contratColors = {
+            QColor("#16a34a"), QColor("#2563eb"), QColor("#f59e0b"), QColor("#ef4444"), QColor("#7c3aed")
+        };
+        for (int i = 0; i < contrats.size(); ++i) {
+            const QString type = contrats[i].first;
+            const int count = contrats[i].second;
+            const double pct = contratTotal > 0 ? (100.0 * count / contratTotal) : 0.0;
+            QPieSlice *slice = contratPie->append(
+                QString("%1: %2 (%3%)").arg(type).arg(count).arg(QString::number(pct, 'f', 1)),
+                count);
+            slice->setBrush(contratColors[i % contratColors.size()]);
+            slice->setLabelVisible(true);
+            slice->setLabelColor(QColor("#1f2937"));
         }
         QChart *distChart = new QChart();
         distChart->addSeries(contratPie);
-        distChart->setTitle("Distribution des Types de Contrat");
+        distChart->setTitle("Distribution des Types de Contrat (avec pourcentages)");
+        distChart->setAnimationOptions(QChart::SeriesAnimations);
         ui->chartContratDist->setChart(distChart);
         ui->chartContratDist->setRenderHint(QPainter::Antialiasing);
+    }
+}
+
+void MainWindow::fetchDeviceLocation(QObject* mapObject)
+{
+    if (!mapObject) return;
+    
+    QProcess *process = new QProcess(this);
+    // Forced-Loading .NET Legacy Bridge
+    QString psScript = 
+        "$ProgressPreference = 'SilentlyContinue'; "
+        "try { "
+        "  Add-Type -AssemblyName System.Device -ErrorAction SilentlyContinue; "
+        "  $GeoWatcher = New-Object System.Device.Location.GeoCoordinateWatcher; "
+        "  $GeoWatcher.Start(); "
+        "  $i=0; while (($GeoWatcher.Status -ne 'Ready') -and ($i -lt 40)) { Start-Sleep -m 100; $i++ }; "
+        "  if ($GeoWatcher.Position.Location.IsUnknown) { echo '0,0' } "
+        "  else { echo \"$($GeoWatcher.Position.Location.Latitude),$($GeoWatcher.Position.Location.Longitude)\" } "
+        "} catch { "
+        "  echo \"FATAL_EXCEPTION_$($_.Exception.Message)\" "
+        "}";
+    
+    qDebug() << "Launching PowerShell Native Location Bridge...";
+    
+    connect(process, &QProcess::errorOccurred, this, [this](QProcess::ProcessError error) {
+        qDebug() << "PS Process error:" << error;
+    });
+    
+    connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this, [mapObject, process, this](int exitCode, QProcess::ExitStatus /*exitStatus*/) {
+        if (exitCode == 0) {
+            QString out = process->readAllStandardOutput().trimmed();
+            qDebug() << "PS Bridge result:" << out;
+            
+            QStringList parts = out.contains(",") ? out.split(",") : out.split("\n");
+            if (parts.size() >= 2) {
+                double lLat = parts[0].trimmed().toDouble();
+                double lLon = parts[1].trimmed().toDouble();
+                
+                if (lLat != 0 || lLon != 0) {
+                    QMetaObject::invokeMethod(mapObject, "updateFromBridge", Q_ARG(QVariant, lLat), Q_ARG(QVariant, lLon));
+                } else {
+                    qDebug() << "Location unknown by OS. Ensure Location Permissions are enabled.";
+                    QMessageBox::warning(this, "Geolocation", "Could not retrieve your location. Check your Windows Privacy settings.");
+                }
+            }
+        } else {
+            qDebug() << "PS Bridge failed with exit code:" << exitCode;
+            qDebug() << "Error output:" << process->readAllStandardError();
+        }
+        process->deleteLater();
+    });
+    
+    process->start("powershell", QStringList() << "-NoProfile" << "-ExecutionPolicy" << "Bypass" << "-Command" << psScript);
+}
+
+void MainWindow::fetchMyPosition()
+{
+    if (m_mapAddOrder && m_mapAddOrder->isVisible() && m_mapAddOrder->rootObject()) {
+        fetchDeviceLocation(m_mapAddOrder->rootObject());
+    } else if (m_mapModOrder && m_mapModOrder->isVisible() && m_mapModOrder->rootObject()) {
+        fetchDeviceLocation(m_mapModOrder->rootObject());
     }
 }
 

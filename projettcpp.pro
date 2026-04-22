@@ -1,4 +1,4 @@
-QT       += core gui widgets sql charts multimedia multimediawidgets printsupport network concurrent opengl openglwidgets
+QT       += core gui widgets sql charts multimedia multimediawidgets printsupport network concurrent opengl openglwidgets quickwidgets qml quick location positioning
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 

@@ -21,7 +21,7 @@ Connection* Connection::instance()
 bool Connection::createConnect()
 {
     if (db.isOpen()) {
-        db.close();
+        return true;
     }
 
     db.setDatabaseName("Source_Projet2A");
@@ -39,8 +39,8 @@ bool Connection::createConnect()
 
 bool Connection::createConnect(const QString &userName, const QString &password)
 {
-    if (db.isOpen()) {
-        db.close();
+    if (db.isOpen() && db.userName().compare(userName.trimmed(), Qt::CaseInsensitive) == 0) {
+        return true;
     }
 
     const QString user = userName.trimmed();
@@ -77,6 +77,6 @@ QString Connection::lastError() const
 
 Connection::~Connection()
 {
-    closeConnection();
+    // Keep shutdown non-destructive: Qt will tear down SQL drivers at process exit.
 }
 

@@ -66,18 +66,12 @@ bool ensureSessionAlive(QString &errorText)
         return false;
     }
 
-    connection->closeConnection();
-    if (!connection->createConnect()) {
-        errorText = connection->lastError();
-        return false;
-    }
-
-    if (!pingCurrentSession(pingError)) {
-        errorText = pingError;
-        return false;
-    }
-
-    return true;
+    // Avoid force-closing shared Oracle connection while cursors/models are alive.
+    // This can crash inside Oracle ODBC (SQLCloseCursor/SQORA32). Ask caller to retry later.
+    errorText = pingError.isEmpty()
+                    ? "Session Oracle invalide. Reessayez l'operation ou redemarrez l'application."
+                    : pingError;
+    return false;
 }
 
 bool tryDeleteEmployeeRow(int idEmp, QString &errorText)
