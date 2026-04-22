@@ -1,0 +1,1 @@
+Drivers disponibles: QList("QSQLITE", "QMIMER", "QODBC", "QPSQL")

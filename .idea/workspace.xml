@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="BackendCodeEditorMiscSettings">
+    <option name="/Default/Housekeeping/FeatureSuggestion/FeatureSuggestionManager/DisabledSuggesters/=SwitchToGoToActionSuggester/@EntryIndexedValue" value="true" type="bool" />
+    <option name="/Default/Housekeeping/GlobalSettingsUpgraded/IsUpgraded/@EntryValue" value="true" type="bool" />
+    <option name="/Default/RiderDebugger/RiderRestoreDecompile/RestoreDecompileSetting/@EntryValue" value="false" type="bool" />
+  </component>
+  <component name="CMakeProjectFlavorService">
+    <option name="flavorId" value="CMakePlainProjectFlavor" />
+  </component>
+  <component name="CMakeSettings">
+    <configurations>
+      <configuration PROFILE_NAME="Debug" ENABLED="true" CONFIG_NAME="Debug" />
+    </configurations>
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="28795076-82e5-4f48-b472-621e12207eee" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.qtcreator/WasteGuard.pro.user" beforeDir="false" afterPath="$PROJECT_DIR$/.qtcreator/WasteGuard.pro.user" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/WasteGuard.pro" beforeDir="false" afterPath="$PROJECT_DIR$/WasteGuard.pro" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/accessibilityhelper.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/accessibilityhelper.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/client.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client.h" beforeDir="false" afterPath="$PROJECT_DIR$/client.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/connection.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/connection.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/connection.h" beforeDir="false" afterPath="$PROJECT_DIR$/connection.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/employe.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/employe.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/intervention.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/intervention.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/intervention.h" beforeDir="false" afterPath="$PROJECT_DIR$/intervention.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/logo.qrc" beforeDir="false" afterPath="$PROJECT_DIR$/logo.qrc" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/main.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mainwindow.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/mainwindow.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mainwindow.h" beforeDir="false" afterPath="$PROJECT_DIR$/mainwindow.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mainwindow.ui" beforeDir="false" afterPath="$PROJECT_DIR$/mainwindow.ui" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mainwindow_accessibility_impl.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/mainwindow_accessibility_impl.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mainwindow_temp.ui" beforeDir="false" afterPath="$PROJECT_DIR$/mainwindow_temp.ui" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mascotwidget.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/mascotwidget.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/produit.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/produit.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/projettcpp.pro" beforeDir="false" afterPath="$PROJECT_DIR$/projettcpp.pro" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/stock.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/stock.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/videogenerationdialog.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/videogenerationdialog.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/videogenerationdialog.h" beforeDir="false" afterPath="$PROJECT_DIR$/videogenerationdialog.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/wasteguard.sql" beforeDir="false" afterPath="$PROJECT_DIR$/wasteguard.sql" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ClangdSettings">
+    <option name="formatViaClangd" value="false" />
+  </component>
+  <component name="ComposerSettings">
+    <execution />
+  </component>
+  <component name="CopilotPersistence">
+    <persistenceIdMap>
+      <entry key="_C:/Users/gigabyte/Downloads/letravaille/INTEGRATION_FINALE1" value="3AUnMF2N2AjGDfhBbat8Nel2agD" />
+      <entry key="_C:/Users/moham/OneDrive/Bureau/ui/ui/INTEGRATION_FINALE1" value="3CUniYTVdHDAl2ypyHwiUTn64CP" />
+    </persistenceIdMap>
+  </component>
+  <component name="CopilotUserSelectedModel">
+    <selectedModels>
+      <entry key="chat-panel" value="GPT-5.3-Codex" />
+      <entry key="agent-panel" value="GPT-5.3-Codex" />
+    </selectedModels>
+  </component>
+  <component name="EmbeddingIndexingInfo">
+    <option name="cachedIndexableFilesCount" value="2823" />
+    <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="MacroExpansionManager">
+    <option name="directoryName" value="myMLI14X" />
+  </component>
+  <component name="McpProjectServerCommands">
+    <commands />
+    <urls />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 1
+}</component>
+  <component name="ProjectId" id="3AUnMF2N2AjGDfhBbat8Nel2agD" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.RadMigrateCodeStyle&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.readMode.enableVisualFormatting&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;cf.first.check.clang-format&quot;: &quot;false&quot;,
+    &quot;cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;gestion-produit&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/gigabyte/Downloads/letravaille/INTEGRATION_FINALE1&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  }
+}</component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-js-predefined-d6986cc7102b-c7e53b3be11b-JavaScript-PS-253.28294.345" />
+        <option value="bundled-php-predefined-a98d8de5180a-09080813851e-com.jetbrains.php.sharedIndexes-PS-253.28294.345" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="28795076-82e5-4f48-b472-621e12207eee" name="Changes" comment="" />
+      <created>1772655967040</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1772655967040</updated>
+      <workItem from="1772655968231" duration="191000" />
+      <workItem from="1775078317654" duration="67000" />
+      <workItem from="1776027774233" duration="4430000" />
+      <workItem from="1776072404081" duration="38000" />
+      <workItem from="1776093650582" duration="197000" />
+      <workItem from="1776106268558" duration="968000" />
+      <workItem from="1776157131272" duration="52000" />
+      <workItem from="1776158531118" duration="230000" />
+      <workItem from="1776449141386" duration="729000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="XSLT-Support.FileAssociations.UIState">
+    <expand />
+    <select />
+  </component>
+  <component name="github-copilot-workspace">
+    <instructionFileLocations>
+      <option value=".github/instructions" />
+    </instructionFileLocations>
+    <promptFileLocations>
+      <option value=".github/prompts" />
+    </promptFileLocations>
+  </component>
+</project>
