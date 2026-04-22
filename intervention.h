@@ -11,8 +11,10 @@ class Intervention
 public:
     Intervention();
     Intervention(int idInter, const QDate &dateInter, const QString &reference,
-                 double duree, double cout, const QString &statut,
-                 const QString &type, const QString &priorite, int idBac);
+                 double duree, double cout, double mainOeuvre, const QString &statut,
+                 const QString &type, const QString &priorite, int idBac,
+                 const QString &technicien = "", const QString &adresse = "", const QString &descript = "",
+                 const QString &photoAvant = "", const QString &photoApres = "");
 
     // CRUD
     bool ajouter();
@@ -28,10 +30,16 @@ public:
     QString getReference() const;
     double getDuree() const;
     double getCout() const;
+    double getMainOeuvre() const;
     QString getStatut() const;
     QString getType() const;
     QString getPriorite() const;
     int getIdBac() const;
+    QString getTechnicien() const;
+    QString getAdresse() const;
+    QString getDescript() const;
+    QString getPhotoAvant() const;
+    QString getPhotoApres() const;
 
     // Setters
     void setIdInter(int value);
@@ -39,10 +47,16 @@ public:
     void setReference(const QString &value);
     void setDuree(double value);
     void setCout(double value);
+    void setMainOeuvre(double value);
     void setStatut(const QString &value);
     void setType(const QString &value);
     void setPriorite(const QString &value);
     void setIdBac(int value);
+    void setTechnicien(const QString &value);
+    void setAdresse(const QString &value);
+    void setDescript(const QString &value);
+    void setPhotoAvant(const QString &value);
+    void setPhotoApres(const QString &value);
 
 private:
     int m_idInter;
@@ -50,10 +64,16 @@ private:
     QString m_reference;
     double m_duree;
     double m_cout;
+    double m_mainOeuvre;
     QString m_statut;
     QString m_type;
     QString m_priorite;
     int m_idBac;
+    QString m_technicien;
+    QString m_adresse;
+    QString m_descript;
+    QString m_photoAvant;
+    QString m_photoApres;
     QString m_lastError;
 };
 

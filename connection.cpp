@@ -1,50 +1,63 @@
-
-
-
-
 #include "connection.h"
+
 #include <QSqlError>
 #include <QDebug>
 
-// Initialisation du pointeur d'instance
 Connection* Connection::p_instance = nullptr;
 
-// Constructeur privé
 Connection::Connection()
 {
-    // Initialisation de la base de données
     db = QSqlDatabase::addDatabase("QODBC");
 }
 
-// Méthode statique pour obtenir l'instance unique
 Connection* Connection::instance()
 {
-    if (p_instance == nullptr) {
+    if (!p_instance) {
         p_instance = new Connection();
     }
     return p_instance;
 }
 
-// Méthode pour établir la connexion
 bool Connection::createConnect()
 {
-    bool test = false;
+    if (db.isOpen()) {
+        db.close();
+    }
 
-    db.setDatabaseName("Source_Projet2A");//inserer le nom de la source de données
-    db.setUserName("wasteguard");//inserer nom de l'utilisateur
-    db.setPassword("123");//inserer mot de passe de cet utilisateur
+    db.setDatabaseName("Source_Projet2A");
+    db.setUserName("wasteguard");
+    db.setPassword("123");
 
     if (db.open()) {
-        test = true;
-        qDebug() << "Connexion à la base de données réussie";
+        qDebug() << "Connexion a la base de donnees reussie";
+        return true;
+    }
+
+    qDebug() << "Erreur de connexion:" << db.lastError().text();
+    return false;
+}
+
+bool Connection::createConnect(const QString &userName, const QString &password)
+{
+    if (db.isOpen()) {
+        db.close();
+    }
+
+    const QString user = userName.trimmed();
+
+    db.setDatabaseName("Source_Projet2A");
+    db.setUserName(user);
+    db.setPassword(password);
+
+    const bool ok = db.open();
+    if (ok) {
+        qDebug() << "Connexion base reussie pour" << db.userName();
     } else {
         qDebug() << "Erreur de connexion:" << db.lastError().text();
     }
-
-    return test;
+    return ok;
 }
 
-// Fermer la connexion
 void Connection::closeConnection()
 {
     if (db.isOpen()) {
@@ -52,13 +65,18 @@ void Connection::closeConnection()
     }
 }
 
-// Destructeur privé
+bool Connection::isOpen() const
+{
+    return db.isOpen();
+}
+
+QString Connection::lastError() const
+{
+    return db.lastError().text();
+}
+
 Connection::~Connection()
 {
     closeConnection();
 }
-
-
-
-
 

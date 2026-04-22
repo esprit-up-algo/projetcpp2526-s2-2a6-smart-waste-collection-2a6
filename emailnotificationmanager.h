@@ -33,6 +33,9 @@ public:
                                 const QString &amount,
                                 const QString &dueDate);
     
+    // Generic email sending method
+    bool sendEmail(const QString &to, const QString &subject, const QString &htmlBody);
+    
     // Test connection
     bool testConnection();
     

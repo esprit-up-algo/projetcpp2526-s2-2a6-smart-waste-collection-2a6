@@ -13,6 +13,8 @@
 #include <QDebug>
 #include <QAccessible>
 #include <QList>
+#include <QScreen>
+#include <QWindow>
 
 AccessibilityHelper::AccessibilityHelper(QObject *parent)
     : QObject(parent), m_highContrastEnabled(false), m_textZoomPercentage(100)
@@ -27,21 +29,53 @@ AccessibilityHelper::~AccessibilityHelper()
 void AccessibilityHelper::enableHighContrast(QWidget *widget, bool enable)
 {
     if (!widget) return;
-
-    if (enable == m_highContrastEnabled) {
-        return;
-    }
+    if (enable == m_highContrastEnabled) return;
 
     if (enable) {
-        // Preserve the active application stylesheet so disabling high contrast
-        // restores the exact previous visual design.
-        m_savedStyleSheet = widget->styleSheet();
         m_highContrastEnabled = true;
-        applyHighContrastTheme(widget);
+
+        // Save the root widget stylesheet.
+        m_savedStyleSheet = widget->styleSheet();
+
+        // Walk the entire widget tree: save and CLEAR every inline stylesheet.
+        // This is necessary because Qt's cascade gives widget-level stylesheets
+        // higher priority than parent stylesheets, so without clearing them the
+        // high-contrast theme would be silently overridden on most widgets.
+        m_savedWidgetStyleSheets.clear();
+        const auto children = widget->findChildren<QWidget*>();
+        for (QWidget *w : children) {
+            const QString ss = w->styleSheet();
+            if (!ss.isEmpty()) {
+                m_savedWidgetStyleSheets.insert(w, ss);
+                w->setStyleSheet(QString());
+            }
+        }
+
+        // Now apply the high-contrast sheet to the root: it cascades freely
+        // because all descendants have been cleared.
+        widget->setStyleSheet(getStyleSheetHighContrast());
+
     } else {
         m_highContrastEnabled = false;
-        applyDefaultTheme(widget);
+
+        // Remove the high-contrast root stylesheet.
+        widget->setStyleSheet(QString());
+
+        // Restore every child widget's original stylesheet.
+        for (auto it = m_savedWidgetStyleSheets.cbegin();
+             it != m_savedWidgetStyleSheets.cend(); ++it) {
+            QWidget *w = it.key();
+            if (w) w->setStyleSheet(it.value());
+        }
+        m_savedWidgetStyleSheets.clear();
+
+        // Restore the root widget's original stylesheet (may be empty).
+        widget->setStyleSheet(m_savedStyleSheet);
     }
+
+    saveContrastState();
+    widget->update();
+    widget->repaint();
 }
 
 bool AccessibilityHelper::isHighContrastEnabled() const
@@ -140,66 +174,144 @@ void AccessibilityHelper::enableTabOrder(QWidget * /*widget*/, const QList<QWidg
 // ========== THÈMES ==========
 QString AccessibilityHelper::getStyleSheetHighContrast()
 {
+    // WCAG AAA compliant: black background (#000) / yellow text (#FFFF00)
+    // contrast ratio ≈ 19.1:1 — far above the 7:1 AAA threshold.
     return R"(
-        QWidget {
+        /* ── Base ─────────────────────────────────────────── */
+        QWidget, QFrame, QGroupBox, QScrollArea, QAbstractScrollArea {
             background-color: #000000;
-            color: #FFFFFF;
-            border: 2px solid #FFFF00;
+            color: #FFFF00;
+            border-color: #FFFF00;
         }
-        QPushButton {
+        QStackedWidget, QSplitter, QMainWindow, QDialog {
             background-color: #000000;
-            color: #FFFFFF;
-            border: 3px solid #FFFF00;
-            border-radius: 5px;
-            padding: 8px;
-            font-weight: bold;
-            font-size: 12pt;
         }
-        QPushButton:hover {
-            background-color: #1a1a1a;
-            border: 3px solid #00FFFF;
-        }
-        QPushButton:pressed {
-            background-color: #2a2a2a;
-            border: 3px solid #FFFFFF;
-        }
-        QPushButton:focus {
-            outline: 3px solid #00FF00;
-        }
-        QLineEdit, QTextEdit {
-            background-color: #1a1a1a;
-            color: #FFFFFF;
-            border: 2px solid #FFFF00;
-            border-radius: 3px;
-            padding: 5px;
-        }
-        QLineEdit:focus, QTextEdit:focus {
-            border: 2px solid #00FF00;
-            outline: 3px dashed #00FF00;
-        }
-        QComboBox {
-            background-color: #1a1a1a;
-            color: #FFFFFF;
-            border: 2px solid #FFFF00;
-            padding: 5px;
-        }
+
+        /* ── Labels ────────────────────────────────────────── */
         QLabel {
-            color: #FFFFFF;
+            background-color: transparent;
+            color: #FFFF00;
             font-weight: bold;
         }
-        QTableWidget {
-            background-color: #1a1a1a;
+
+        /* ── Buttons ───────────────────────────────────────── */
+        QPushButton, QToolButton {
+            background-color: #1a1a00;
+            color: #FFFF00;
+            border: 2px solid #FFFF00;
+            border-radius: 6px;
+            padding: 8px 14px;
+            font-weight: bold;
+            font-size: 11pt;
+        }
+        QPushButton:hover, QToolButton:hover {
+            background-color: #2e2e00;
+            border-color: #00FFFF;
+            color: #00FFFF;
+        }
+        QPushButton:pressed, QToolButton:pressed {
+            background-color: #3a3a00;
+            border-color: #FFFFFF;
             color: #FFFFFF;
-            gridline-color: #FFFF00;
         }
-        QTableWidget::item {
+        QPushButton:checked {
+            background-color: #FFFF00;
+            color: #000000;
+            border-color: #FFFFFF;
+        }
+        QPushButton:focus, QToolButton:focus {
+            border: 3px solid #00FF00;
+        }
+
+        /* ── Text inputs ───────────────────────────────────── */
+        QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox, QDoubleSpinBox, QDateEdit {
+            background-color: #0d0d00;
+            color: #FFFF00;
+            border: 2px solid #FFFF00;
+            border-radius: 4px;
             padding: 5px;
-            border: 1px solid #666666;
+            selection-background-color: #FFFF00;
+            selection-color: #000000;
         }
-        QTableWidget::item:selected {
-            background-color: #00FFFF;
+        QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus {
+            border: 2px solid #00FF00;
+        }
+
+        /* ── ComboBox ──────────────────────────────────────── */
+        QComboBox {
+            background-color: #0d0d00;
+            color: #FFFF00;
+            border: 2px solid #FFFF00;
+            border-radius: 4px;
+            padding: 5px 8px;
+        }
+        QComboBox QAbstractItemView {
+            background-color: #1a1a00;
+            color: #FFFF00;
+            selection-background-color: #FFFF00;
+            selection-color: #000000;
+            border: 2px solid #FFFF00;
+        }
+        QComboBox::drop-down { border: none; }
+
+        /* ── Tables ────────────────────────────────────────── */
+        QTableWidget, QTableView, QHeaderView {
+            background-color: #0d0d00;
+            color: #FFFF00;
+            gridline-color: #FFFF00;
+            border: 2px solid #FFFF00;
+        }
+        QHeaderView::section {
+            background-color: #1a1a00;
+            color: #FFFF00;
+            border: 1px solid #FFFF00;
+            padding: 6px;
+            font-weight: bold;
+        }
+        QTableWidget::item, QTableView::item {
+            padding: 5px;
+            color: #FFFF00;
+        }
+        QTableWidget::item:selected, QTableView::item:selected {
+            background-color: #FFFF00;
             color: #000000;
         }
+        QTableWidget::item:alternate {
+            background-color: #0a0a00;
+        }
+
+        /* ── Scrollbars ────────────────────────────────────── */
+        QScrollBar:vertical, QScrollBar:horizontal {
+            background-color: #1a1a00;
+            border: 1px solid #FFFF00;
+        }
+        QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
+            background-color: #FFFF00;
+            border-radius: 4px;
+            min-height: 20px;
+        }
+        QScrollBar::handle:vertical:hover, QScrollBar::handle:horizontal:hover {
+            background-color: #00FFFF;
+        }
+        QScrollBar::add-line, QScrollBar::sub-line { background: transparent; }
+
+        /* ── Menu / Toolbar ────────────────────────────────── */
+        QMenuBar, QMenu, QToolBar {
+            background-color: #000000;
+            color: #FFFF00;
+            border: 1px solid #FFFF00;
+        }
+        QMenu::item:selected { background-color: #FFFF00; color: #000000; }
+
+        /* ── Tab widget ────────────────────────────────────── */
+        QTabWidget::pane { border: 2px solid #FFFF00; }
+        QTabBar::tab {
+            background-color: #1a1a00;
+            color: #FFFF00;
+            border: 2px solid #FFFF00;
+            padding: 6px 14px;
+        }
+        QTabBar::tab:selected { background-color: #FFFF00; color: #000000; }
     )";
 }
 
@@ -303,6 +415,24 @@ void AccessibilityHelper::setupHighContrastColors()
     // Vert : #00FF00 (pour le focus)
 }
 
+void AccessibilityHelper::saveContrastState()
+{
+    QSettings settings("WasteGuard", "WasteGuard");
+    settings.setValue("accessibility/highContrast", m_highContrastEnabled);
+    settings.sync();
+    qDebug() << "[ACCESSIBILITY] Contrast state saved:" << m_highContrastEnabled;
+}
+
+void AccessibilityHelper::loadContrastState(QWidget *widget)
+{
+    if (!widget) return;
+    QSettings settings("WasteGuard", "WasteGuard");
+    const bool saved = settings.value("accessibility/highContrast", false).toBool();
+    if (saved && !m_highContrastEnabled) {
+        enableHighContrast(widget, true);
+    }
+}
+
 void AccessibilityHelper::saveZoom()
 {
     QSettings settings("WasteGuard", "WasteGuard");
@@ -340,13 +470,53 @@ void AccessibilityHelper::loadWindowState(QWidget *window)
     if (!window) return;
     
     QSettings settings("WasteGuard", "WasteGuard");
-    QByteArray geometry = settings.value("window/geometry", QByteArray()).toByteArray();
-    Qt::WindowStates windowState = static_cast<Qt::WindowStates>(settings.value("window/windowState", static_cast<int>(Qt::WindowNoState)).toInt());
-    
-    if (!geometry.isEmpty()) {
+    const QByteArray geometry = settings.value("window/geometry", QByteArray()).toByteArray();
+    Qt::WindowStates storedState = static_cast<Qt::WindowStates>(
+        settings.value("window/windowState", static_cast<int>(Qt::WindowNoState)).toInt());
+    storedState &= (Qt::WindowMaximized | Qt::WindowFullScreen);
+
+    // Restore raw geometry only for normal-window state.
+    // Maximized/fullscreen states are handled separately below.
+    if (!geometry.isEmpty() && storedState == Qt::WindowNoState) {
         window->restoreGeometry(geometry);
     }
-    
-    window->setWindowState(windowState);
+
+    QScreen *screen = nullptr;
+    if (window->windowHandle() && window->windowHandle()->screen()) {
+        screen = window->windowHandle()->screen();
+    }
+    if (!screen) {
+        screen = QApplication::screenAt(window->frameGeometry().center());
+    }
+    if (!screen) {
+        screen = QApplication::primaryScreen();
+    }
+
+    const QRect avail = screen ? screen->availableGeometry() : QRect();
+    if (avail.isValid() && storedState == Qt::WindowNoState) {
+        QSize safeSize = window->size();
+        if (safeSize.width() <= 0 || safeSize.height() <= 0) {
+            safeSize = QSize(qMin(1200, avail.width()), qMin(800, avail.height()));
+        }
+
+        safeSize.setWidth(qBound(320, safeSize.width(), avail.width()));
+        safeSize.setHeight(qBound(240, safeSize.height(), avail.height()));
+        if (window->size() != safeSize) {
+            window->resize(safeSize);
+        }
+
+        const QPoint p = window->pos();
+        const int maxX = avail.right() - window->width() + 1;
+        const int maxY = avail.bottom() - window->height() + 1;
+        const int clampedX = qBound(avail.left(), p.x(), maxX);
+        const int clampedY = qBound(avail.top(), p.y(), maxY);
+        if (clampedX != p.x() || clampedY != p.y()) {
+            window->move(clampedX, clampedY);
+        }
+    }
+
+    if (storedState != Qt::WindowNoState) {
+        window->setWindowState(window->windowState() | storedState);
+    }
     qDebug() << "[ACCESSIBILITY] Window state loaded";
 }

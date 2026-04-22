@@ -562,6 +562,8 @@ bool LabibAssistant::addRecordToDatabase(const QJsonObject &record, const QStrin
 
 bool LabibAssistant::modifyRecordInDatabase(const QJsonObject &record, const QString &module)
 {
+    (void)record;
+    (void)module;
     // Implementation for modify - similar to add but with UPDATE
     return true;
 }

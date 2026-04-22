@@ -5,6 +5,7 @@
 #include <QWidget>
 #include <QFont>
 #include <QString>
+#include <QMap>
 
 /**
  * @class AccessibilityHelper
@@ -55,7 +56,11 @@ public:
     // Sauvegarde/Chargement du zoom
     void saveZoom();
     void loadZoom();
-    
+
+    // Sauvegarde/Chargement de l'état contraste (QSettings persistance)
+    void saveContrastState();
+    void loadContrastState(QWidget *widget);
+
     // Sauvegarde/Chargement de la géométrie de la fenêtre
     void saveWindowState(QWidget *window);
     void loadWindowState(QWidget *window);
@@ -64,6 +69,9 @@ private:
     bool m_highContrastEnabled;
     int m_textZoomPercentage;
     QString m_savedStyleSheet;
+    // Cache of per-widget stylesheets cleared when high-contrast is activated,
+    // keyed by widget pointer so they can be restored on deactivation.
+    QMap<QWidget*, QString> m_savedWidgetStyleSheets;
 
     void setupHighContrastColors();
 };

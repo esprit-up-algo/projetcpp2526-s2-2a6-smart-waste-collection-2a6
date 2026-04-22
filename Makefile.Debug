@@ -158,7 +158,7 @@ all: Makefile.Debug  debug/WasteGuard.exe
 
 debug/WasteGuard.exe: C:/Qt/6.7.3/mingw_64/lib/libQt6Charts.a C:/Qt/6.7.3/mingw_64/lib/libQt6OpenGLWidgets.a C:/Qt/6.7.3/mingw_64/lib/libQt6MultimediaWidgets.a C:/Qt/6.7.3/mingw_64/lib/libQt6PrintSupport.a C:/Qt/6.7.3/mingw_64/lib/libQt6QuickWidgets.a C:/Qt/6.7.3/mingw_64/lib/libQt6Widgets.a C:/Qt/6.7.3/mingw_64/lib/libQt6Location.a C:/Qt/6.7.3/mingw_64/lib/libQt6PositioningQuick.a C:/Qt/6.7.3/mingw_64/lib/libQt6QuickShapes.a C:/Qt/6.7.3/mingw_64/lib/libQt6Quick.a C:/Qt/6.7.3/mingw_64/lib/libQt6OpenGL.a C:/Qt/6.7.3/mingw_64/lib/libQt6Multimedia.a C:/Qt/6.7.3/mingw_64/lib/libQt6Gui.a C:/Qt/6.7.3/mingw_64/lib/libQt6Sql.a C:/Qt/6.7.3/mingw_64/lib/libQt6QmlModels.a C:/Qt/6.7.3/mingw_64/lib/libQt6Qml.a C:/Qt/6.7.3/mingw_64/lib/libQt6Network.a C:/Qt/6.7.3/mingw_64/lib/libQt6Positioning.a C:/Qt/6.7.3/mingw_64/lib/libQt6Core.a C:/Qt/6.7.3/mingw_64/lib/libQt6QmlBuiltins.a ui_mainwindow.h $(OBJECTS) 
 	$(LINKER) $(LFLAGS) -o $(DESTDIR_TARGET) @debug\object_script.WasteGuard.Debug $(LIBS)
-	cmd /c (copy /Y "C:/Users/gigabyte/Downloads/letravaille/INTEGRATION_FINALE1\voice_engine.py" "C:/Users/gigabyte/Downloads/letravaille/INTEGRATION_FINALE1\voice_engine.py" >nul || ver >nul)
+	cmd /c (copy /Y "C:/Users/moham/OneDrive/Bureau/Ui/ui/INTEGRATION_FINALE1\voice_engine.py" "C:/Users/moham/OneDrive/Bureau/Ui/ui/INTEGRATION_FINALE1\voice_engine.py" >nul || ver >nul)
 
 qmake: FORCE
 	@$(QMAKE) -o Makefile.Debug WasteGuard.pro
@@ -1002,7 +1002,7 @@ debug/moc_mainwindow.cpp: mainwindow.h \
 		debug/mocinclude.opt \
 		debug/moc_predefs.h \
 		C:/Qt/6.7.3/mingw_64/bin/moc.exe
-	C:\Qt\6.7.3\mingw_64\bin\moc.exe $(DEFINES) --include C:/Users/gigabyte/Downloads/letravaille/INTEGRATION_FINALE1/debug/moc_predefs.h @debug/mocinclude.opt mainwindow.h -o debug\moc_mainwindow.cpp
+	C:\Qt\6.7.3\mingw_64\bin\moc.exe $(DEFINES) --include C:/Users/moham/OneDrive/Bureau/Ui/ui/INTEGRATION_FINALE1/debug/moc_predefs.h @debug/mocinclude.opt mainwindow.h -o debug\moc_mainwindow.cpp
 
 debug/moc_mascotwidget.cpp: mascotwidget.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QWidget \
@@ -1206,7 +1206,7 @@ debug/moc_mascotwidget.cpp: mascotwidget.h \
 		debug/mocinclude.opt \
 		debug/moc_predefs.h \
 		C:/Qt/6.7.3/mingw_64/bin/moc.exe
-	C:\Qt\6.7.3\mingw_64\bin\moc.exe $(DEFINES) --include C:/Users/gigabyte/Downloads/letravaille/INTEGRATION_FINALE1/debug/moc_predefs.h @debug/mocinclude.opt mascotwidget.h -o debug\moc_mascotwidget.cpp
+	C:\Qt\6.7.3\mingw_64\bin\moc.exe $(DEFINES) --include C:/Users/moham/OneDrive/Bureau/Ui/ui/INTEGRATION_FINALE1/debug/moc_predefs.h @debug/mocinclude.opt mascotwidget.h -o debug\moc_mascotwidget.cpp
 
 debug/moc_stockmapwidget.cpp: stockmapwidget.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QDialog \
@@ -1433,7 +1433,7 @@ debug/moc_stockmapwidget.cpp: stockmapwidget.h \
 		debug/mocinclude.opt \
 		debug/moc_predefs.h \
 		C:/Qt/6.7.3/mingw_64/bin/moc.exe
-	C:\Qt\6.7.3\mingw_64\bin\moc.exe $(DEFINES) --include C:/Users/gigabyte/Downloads/letravaille/INTEGRATION_FINALE1/debug/moc_predefs.h @debug/mocinclude.opt stockmapwidget.h -o debug\moc_stockmapwidget.cpp
+	C:\Qt\6.7.3\mingw_64\bin\moc.exe $(DEFINES) --include C:/Users/moham/OneDrive/Bureau/Ui/ui/INTEGRATION_FINALE1/debug/moc_predefs.h @debug/mocinclude.opt stockmapwidget.h -o debug\moc_stockmapwidget.cpp
 
 debug/moc_videogenerationdialog.cpp: videogenerationdialog.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QDialog \
@@ -1668,7 +1668,7 @@ debug/moc_videogenerationdialog.cpp: videogenerationdialog.h \
 		debug/mocinclude.opt \
 		debug/moc_predefs.h \
 		C:/Qt/6.7.3/mingw_64/bin/moc.exe
-	C:\Qt\6.7.3\mingw_64\bin\moc.exe $(DEFINES) --include C:/Users/gigabyte/Downloads/letravaille/INTEGRATION_FINALE1/debug/moc_predefs.h @debug/mocinclude.opt videogenerationdialog.h -o debug\moc_videogenerationdialog.cpp
+	C:\Qt\6.7.3\mingw_64\bin\moc.exe $(DEFINES) --include C:/Users/moham/OneDrive/Bureau/Ui/ui/INTEGRATION_FINALE1/debug/moc_predefs.h @debug/mocinclude.opt videogenerationdialog.h -o debug\moc_videogenerationdialog.cpp
 
 debug/moc_triposr3ddialog.cpp: triposr3ddialog.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QDialog \
@@ -1956,7 +1956,7 @@ debug/moc_triposr3ddialog.cpp: triposr3ddialog.h \
 		debug/mocinclude.opt \
 		debug/moc_predefs.h \
 		C:/Qt/6.7.3/mingw_64/bin/moc.exe
-	C:\Qt\6.7.3\mingw_64\bin\moc.exe $(DEFINES) --include C:/Users/gigabyte/Downloads/letravaille/INTEGRATION_FINALE1/debug/moc_predefs.h @debug/mocinclude.opt triposr3ddialog.h -o debug\moc_triposr3ddialog.cpp
+	C:\Qt\6.7.3\mingw_64\bin\moc.exe $(DEFINES) --include C:/Users/moham/OneDrive/Bureau/Ui/ui/INTEGRATION_FINALE1/debug/moc_predefs.h @debug/mocinclude.opt triposr3ddialog.h -o debug\moc_triposr3ddialog.cpp
 
 debug/moc_viewer3ddialog.cpp: viewer3ddialog.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QDialog \
@@ -2216,7 +2216,7 @@ debug/moc_viewer3ddialog.cpp: viewer3ddialog.h \
 		debug/mocinclude.opt \
 		debug/moc_predefs.h \
 		C:/Qt/6.7.3/mingw_64/bin/moc.exe
-	C:\Qt\6.7.3\mingw_64\bin\moc.exe $(DEFINES) --include C:/Users/gigabyte/Downloads/letravaille/INTEGRATION_FINALE1/debug/moc_predefs.h @debug/mocinclude.opt viewer3ddialog.h -o debug\moc_viewer3ddialog.cpp
+	C:\Qt\6.7.3\mingw_64\bin\moc.exe $(DEFINES) --include C:/Users/moham/OneDrive/Bureau/Ui/ui/INTEGRATION_FINALE1/debug/moc_predefs.h @debug/mocinclude.opt viewer3ddialog.h -o debug\moc_viewer3ddialog.cpp
 
 debug/moc_modelviewerwidget.cpp: modelviewerwidget.h \
 		C:/Qt/6.7.3/mingw_64/include/QtOpenGLWidgets/QOpenGLWidget \
@@ -2448,7 +2448,7 @@ debug/moc_modelviewerwidget.cpp: modelviewerwidget.h \
 		debug/mocinclude.opt \
 		debug/moc_predefs.h \
 		C:/Qt/6.7.3/mingw_64/bin/moc.exe
-	C:\Qt\6.7.3\mingw_64\bin\moc.exe $(DEFINES) --include C:/Users/gigabyte/Downloads/letravaille/INTEGRATION_FINALE1/debug/moc_predefs.h @debug/mocinclude.opt modelviewerwidget.h -o debug\moc_modelviewerwidget.cpp
+	C:\Qt\6.7.3\mingw_64\bin\moc.exe $(DEFINES) --include C:/Users/moham/OneDrive/Bureau/Ui/ui/INTEGRATION_FINALE1/debug/moc_predefs.h @debug/mocinclude.opt modelviewerwidget.h -o debug\moc_modelviewerwidget.cpp
 
 debug/moc_accessibilityhelper.cpp: accessibilityhelper.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/QObject \
@@ -2642,7 +2642,7 @@ debug/moc_accessibilityhelper.cpp: accessibilityhelper.h \
 		debug/mocinclude.opt \
 		debug/moc_predefs.h \
 		C:/Qt/6.7.3/mingw_64/bin/moc.exe
-	C:\Qt\6.7.3\mingw_64\bin\moc.exe $(DEFINES) --include C:/Users/gigabyte/Downloads/letravaille/INTEGRATION_FINALE1/debug/moc_predefs.h @debug/mocinclude.opt accessibilityhelper.h -o debug\moc_accessibilityhelper.cpp
+	C:\Qt\6.7.3\mingw_64\bin\moc.exe $(DEFINES) --include C:/Users/moham/OneDrive/Bureau/Ui/ui/INTEGRATION_FINALE1/debug/moc_predefs.h @debug/mocinclude.opt accessibilityhelper.h -o debug\moc_accessibilityhelper.cpp
 
 debug/moc_voiceassistant.cpp: voiceassistant.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/QObject \
@@ -2779,7 +2779,7 @@ debug/moc_voiceassistant.cpp: voiceassistant.h \
 		debug/mocinclude.opt \
 		debug/moc_predefs.h \
 		C:/Qt/6.7.3/mingw_64/bin/moc.exe
-	C:\Qt\6.7.3\mingw_64\bin\moc.exe $(DEFINES) --include C:/Users/gigabyte/Downloads/letravaille/INTEGRATION_FINALE1/debug/moc_predefs.h @debug/mocinclude.opt voiceassistant.h -o debug\moc_voiceassistant.cpp
+	C:\Qt\6.7.3\mingw_64\bin\moc.exe $(DEFINES) --include C:/Users/moham/OneDrive/Bureau/Ui/ui/INTEGRATION_FINALE1/debug/moc_predefs.h @debug/mocinclude.opt voiceassistant.h -o debug\moc_voiceassistant.cpp
 
 debug/moc_labibassistant.cpp: labibassistant.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QDialog \
@@ -3022,7 +3022,7 @@ debug/moc_labibassistant.cpp: labibassistant.h \
 		debug/mocinclude.opt \
 		debug/moc_predefs.h \
 		C:/Qt/6.7.3/mingw_64/bin/moc.exe
-	C:\Qt\6.7.3\mingw_64\bin\moc.exe $(DEFINES) --include C:/Users/gigabyte/Downloads/letravaille/INTEGRATION_FINALE1/debug/moc_predefs.h @debug/mocinclude.opt labibassistant.h -o debug\moc_labibassistant.cpp
+	C:\Qt\6.7.3\mingw_64\bin\moc.exe $(DEFINES) --include C:/Users/moham/OneDrive/Bureau/Ui/ui/INTEGRATION_FINALE1/debug/moc_predefs.h @debug/mocinclude.opt labibassistant.h -o debug\moc_labibassistant.cpp
 
 compiler_moc_objc_header_make_all:
 compiler_moc_objc_header_clean:
@@ -7197,7 +7197,8 @@ debug/modelviewerwidget.o: modelviewerwidget.cpp modelviewerwidget.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/QtMath \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/QDebug \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/QRegularExpression \
-		C:/Qt/6.7.3/mingw_64/include/QtCore/qregularexpression.h
+		C:/Qt/6.7.3/mingw_64/include/QtCore/qregularexpression.h \
+		C:/Qt/6.7.3/mingw_64/include/QtCore/QCoreApplication
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o debug\modelviewerwidget.o modelviewerwidget.cpp
 
 debug/accessibilityhelper.o: accessibilityhelper.cpp accessibilityhelper.h \

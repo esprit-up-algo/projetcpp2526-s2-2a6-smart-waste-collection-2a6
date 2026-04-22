@@ -1079,9 +1079,13 @@ StockMapDialog::StockMapDialog(QWidget *parent)
     setMinimumSize(900, 640);
     resize(1100, 750);
 
+    // WasteGuard brand: deep navy background, emerald accents.
     setStyleSheet(
-        "StockMapDialog { background-color: #050810; }"
-        "QLabel { color: #E0E8F0; background: transparent; }"
+        "StockMapDialog {"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1,"
+        "    stop:0 #0a1628, stop:0.6 #0f2b4c, stop:1 #0c2a23);"
+        "}"
+        "QLabel { color: #E2E8F0; background: transparent; }"
         "QPushButton {"
         "  border-radius: 10px; padding: 10px 28px;"
         "  font-size: 13px; font-weight: 700; border: none;"
@@ -1095,15 +1099,15 @@ StockMapDialog::StockMapDialog(QWidget *parent)
     // ── Top bar ──
     auto *topBar = new QHBoxLayout;
     m_lblInfo = new QLabel("🎯  Utilisez WASD / flèches / boutons pour naviguer dans les allées. Cliquez un slot vert.", this);
-    m_lblInfo->setStyleSheet("color:#7A8AA0; font-size:11px; padding:6px 14px;"
-                             "background:rgba(12,20,38,220); border-radius:8px;"
-                             "border:1px solid rgba(59,130,246,0.2);");
+    m_lblInfo->setStyleSheet("color:#94a3b8; font-size:11px; padding:6px 14px;"
+                             "background:rgba(15,43,76,0.75); border-radius:8px;"
+                             "border:1px solid rgba(39,174,96,0.25);");
     m_lblInfo->setAlignment(Qt::AlignCenter);
 
     m_lblAisle = new QLabel("Allée A-B", this);
-    m_lblAisle->setStyleSheet("color:#3B82F6; font-size:12px; font-weight:700;"
-                              "padding:6px 14px; background:rgba(59,130,246,0.08);"
-                              "border-radius:8px; border:1px solid rgba(59,130,246,0.25);");
+    m_lblAisle->setStyleSheet("color:#34d399; font-size:12px; font-weight:700;"
+                              "padding:6px 14px; background:rgba(39,174,96,0.10);"
+                              "border-radius:8px; border:1px solid rgba(39,174,96,0.35);");
     m_lblAisle->setAlignment(Qt::AlignCenter);
     m_lblAisle->setFixedWidth(130);
 
@@ -1121,33 +1125,34 @@ StockMapDialog::StockMapDialog(QWidget *parent)
     bb->setSpacing(10);
 
     m_lblSelected = new QLabel("  Aucun emplacement sélectionné", this);
-    m_lblSelected->setStyleSheet("color:#6B7B93; font-size:13px; font-weight:600;"
-                                 "padding:8px 16px; background:rgba(15,25,42,200);"
-                                 "border:1px solid rgba(50,70,100,0.3); border-radius:10px;");
+    m_lblSelected->setStyleSheet("color:#94a3b8; font-size:13px; font-weight:600;"
+                                 "padding:8px 16px; background:rgba(15,43,76,0.75);"
+                                 "border:1px solid rgba(71,85,105,0.35); border-radius:10px;");
     bb->addWidget(m_lblSelected, 1);
 
-    // Toggle view button
+    // Toggle view button (brand navy gradient)
     m_btnToggleView = new QPushButton("🛰️  Vue Aérienne", this);
     m_btnToggleView->setStyleSheet(
-        "QPushButton { background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #1E40AF,stop:1 #3B82F6); color:white; }"
-        "QPushButton:hover { background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #2563EB,stop:1 #60A5FA); }"
+        "QPushButton { background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #0f2b4c,stop:1 #1d4f91); color:white; }"
+        "QPushButton:hover { background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #1d4f91,stop:1 #2563EB); }"
     );
     m_btnToggleView->setCursor(Qt::PointingHandCursor);
     m_btnToggleView->setMinimumHeight(42);
     m_btnToggleView->setMinimumWidth(160);
 
     m_btnCancel = new QPushButton("Annuler", this);
-    m_btnCancel->setStyleSheet("QPushButton { background:#1E293B; color:#94A3B8; border:1px solid #334155; }"
-                               "QPushButton:hover { background:#334155; color:#E2E8F0; }");
+    m_btnCancel->setStyleSheet("QPushButton { background:rgba(15,43,76,0.65); color:#cbd5e1; border:1px solid rgba(71,85,105,0.45); }"
+                               "QPushButton:hover { background:rgba(29,79,145,0.75); color:#f1f5f9; border-color:rgba(39,174,96,0.55); }");
     m_btnCancel->setCursor(Qt::PointingHandCursor);
     m_btnCancel->setMinimumHeight(42);
 
+    // Confirm button (brand emerald gradient)
     m_btnConfirm = new QPushButton("✅  Confirmer l'emplacement", this);
     m_btnConfirm->setEnabled(false);
     m_btnConfirm->setStyleSheet(
-        "QPushButton { background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #00C853,stop:1 #00E676); color:#050810; font-size:14px; }"
-        "QPushButton:hover { background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #00E676,stop:1 #69F0AE); }"
-        "QPushButton:disabled { background:#121A2E; color:#3A4A62; }"
+        "QPushButton { background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #059669,stop:1 #10b981); color:white; font-size:14px; }"
+        "QPushButton:hover { background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #10b981,stop:1 #34d399); }"
+        "QPushButton:disabled { background:rgba(15,43,76,0.55); color:#64748b; }"
     );
     m_btnConfirm->setCursor(Qt::PointingHandCursor);
     m_btnConfirm->setMinimumHeight(42);
@@ -1177,9 +1182,9 @@ StockMapDialog::StockMapDialog(QWidget *parent)
 
     connect(m_view, &Warehouse3DView::slotSelected, this, [this](const QString &code) {
         m_lblSelected->setText(QString("📍  Emplacement : %1").arg(code));
-        m_lblSelected->setStyleSheet("color:#FFD700; font-size:14px; font-weight:700;"
-                                     "padding:8px 16px; background:rgba(255,215,0,0.08);"
-                                     "border:1px solid rgba(255,215,0,0.3); border-radius:10px;");
+        m_lblSelected->setStyleSheet("color:#34d399; font-size:14px; font-weight:700;"
+                                     "padding:8px 16px; background:rgba(39,174,96,0.12);"
+                                     "border:1px solid rgba(39,174,96,0.4); border-radius:10px;");
         m_btnConfirm->setEnabled(true);
     });
 
