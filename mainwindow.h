@@ -38,6 +38,47 @@
 #include <QTimer>
 #include <QSystemTrayIcon>
 #include <QMenu>
+#include <QQuickWidget>
+#include <QQmlContext>
+#include <QQuickItem>
+#include <QCalendarWidget>
+#include <QPainter>
+
+class DotCalendar : public QCalendarWidget {
+    Q_OBJECT
+public:
+    explicit DotCalendar(QWidget *parent = nullptr) : QCalendarWidget(parent) {}
+    void setDayDots(const QDate &date, const QList<QColor> &dots) {
+        m_dayData[date] = dots;
+        update();
+    }
+    void clearDayDots() { m_dayData.clear(); update(); }
+protected:
+    void paintCell(QPainter *painter, const QRect &rect, QDate date) const override {
+        QCalendarWidget::paintCell(painter, rect, date);
+        if (m_dayData.contains(date)) {
+            const auto &dots = m_dayData[date];
+            int n = qMin(dots.size(), 8);
+            if (n > 0) {
+                painter->save();
+                painter->setRenderHint(QPainter::Antialiasing);
+                int dotSize = 5;
+                int spacing = 2;
+                int totalWidth = n * dotSize + (n - 1) * spacing;
+                int startX = rect.center().x() - totalWidth / 2;
+                int y = rect.bottom() - dotSize - 4;
+                for (int i = 0; i < n; ++i) {
+                    painter->setPen(Qt::NoPen);
+                    painter->setBrush(dots[i]);
+                    painter->drawEllipse(startX + i * (dotSize + spacing), y, dotSize, dotSize);
+                }
+                painter->restore();
+            }
+        }
+    }
+private:
+    QMap<QDate, QList<QColor>> m_dayData;
+};
 
 #include "employe.h"
 #include "produit.h"
@@ -46,10 +87,13 @@
 #include "client.h"
 #include "intervention.h"
 #include "stockmapwidget.h"
+#include "triposr3ddialog.h"
 #include "accessibilityhelper.h"
 #include "voiceassistant.h"
 #include "labibassistant.h"
 #include "emailnotificationmanager.h"
+#include "maintenancestatusdelegate.h"
+#include "arduino.h"
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
@@ -58,6 +102,10 @@ class QStackedWidget;
 class QTableWidget;
 class QWidget;
 class QPushButton;
+class QLineEdit;
+class QDockWidget;
+class QResizeEvent;
+class QMoveEvent;
 
 class MainWindow : public QMainWindow
 {
@@ -69,6 +117,13 @@ public:
     void setSessionContext(bool isAdmin, const QString &email);
     bool eventFilter(QObject *obj, QEvent *event) override;
 
+signals:
+    void logoutRequested();
+
+public slots:
+    Q_INVOKABLE void fetchDeviceLocation(QObject* mapObject);
+    Q_INVOKABLE void fetchMyPosition();
+
 private slots:
     // Employe
     void on_btnNouveau_clicked();
@@ -78,10 +133,12 @@ private slots:
     void on_btnSave_clicked();
     void on_btnAnalyser_clicked();
     void on_btnSimulerBadge_clicked();
+    void onRfidSerialDataReady();
     void on_btnSupprimer_clicked();
     void on_cbProjetStats_currentIndexChanged(const QString &arg1);
     void on_btnFichePaie_clicked();
     void on_btnCommsSend_clicked();
+    void on_btnLogout_clicked();
     
    
     // Client module slots (from mainwindowcl)
@@ -90,8 +147,8 @@ private slots:
     void on_btn_modifier_client_clicked();
     void on_btn_annuler_client_clicked();
     void on_btnNouveau_client_clicked();
-    void onClientAdded(QString matricule, QString nom, QString email, QString type_contrat, QString date_expiration, QString paiement);
-    void onClientModified(int row, QString matricule, QString nom, QString email, QString type_contrat, QString date_expiration, QString paiement);
+    void onClientAdded(QString matricule, QString nom, QString email, QString type_contrat, QString date_creation, QString date_expiration, QString telephone);
+    void onClientModified(int row, QString matricule, QString nom, QString email, QString type_contrat, QString date_creation, QString date_expiration, QString telephone);
 
     // Stock
     void on_btnSave_add_clicked();
@@ -116,11 +173,13 @@ private slots:
     void on_prod_btnUpload_Mod_clicked();
     void applyProduitFilterAndSort();
     void on_prod_btnPdf_clicked();
+    void on_prod_btnBacStatus_clicked();
     void on_prod_btnMap3D_clicked();
     void onGeminiPdfReply(QNetworkReply *reply);
     void onProductImageDownloaded(QNetworkReply *reply, const QString &numSerie);
     void openStockMap3D();
     void on_prod_btnVideo3D_clicked();
+    void on_prod_btn3DModel_clicked();
 
     void handleEditClicked();
     void handleDeleteClicked();
@@ -172,9 +231,9 @@ private slots:
 
     // ============ ACCESSIBILITÉ ET VOIX (SLOTS) ============
     void on_btnMicrophone_clicked();
-    void on_btnHighContrast_clicked();
-    void on_btnZoomPlus_clicked();
-    void on_btnZoomMinus_clicked();
+    void handleHighContrastToggle();
+    void handleZoomInClicked();
+    void handleZoomOutClicked();
 
     // Voice Assistant Slots
     void onVoiceListeningStarted();
@@ -218,8 +277,10 @@ private:
     void applyStyleFix();
     void refreshActionButtons();
     void buildStatsCharts();
+    void refreshProduitDashboardSummary();
     void refreshProduitTable();
     void addExampleRow();
+    void verifyFournisseurEmail(QLineEdit *emailField);
     void loadProduitToModificationForm(int row);
     void installActionButtonsForRow(int row);
     void ensureProduitModuleVisible();
@@ -283,6 +344,7 @@ private:
     void generateMaintenancePdf();
 
     void setupCommandesModule();
+    void setupCommandesNavigation();
     void refreshCommandes(const QString &searchField = "", const QString &searchValue = "", const QString &sortCriteria = "");
     void refreshCmdStats();
     void buildCommandeStats();
@@ -298,10 +360,14 @@ private:
     void refreshDashboardTable(const QString &searchField = "", const QString &searchValue = "", const QString &sortCriteria = "");
     QString getCmdSortCriteria(QComboBox* cb);
     void on_btnPdf_Cmd_clicked();
+    void generateCommandePdfForOrder(int commandeId, int row);
     void installCmdActions(int row);
     void installCmdActions2(int row);
     void reindexCmdActions();
     void reindexCmdActions2();
+    void showCalendarView();
+    void refreshCalendarEvents();
+    void checkScheduledDeliveries();
     int currentCmdRow = -1;
     QTableWidget* m_lastCmdTable = nullptr;
     int m_lastCmdIndex = -1;
@@ -311,6 +377,21 @@ private:
     void loadCmdToModificationForm(int row);
     void openEmployeeTasksDialog();
     void openEmployeeLeaveDialog();
+    bool isModuleAccessAllowed(const QString &moduleKey) const;
+    bool guardModuleAccess(const QString &moduleKey, const QString &moduleLabel);
+    void applySessionAccessControl();
+    void installPageAccessGuard();
+    void applyHomogeneousTheme();
+    void ensureNavigationAndButtonConsistency();
+    void installWindowGeometryGuard();
+    void stabilizeWindowGeometry();
+    void polishHomogeneousSurfaces();
+    void ensureRetractableRightPanels();
+    QWidget *ensureStockRightSidebarWidget();
+    void installRetractableRightPanel(QWidget *panel);
+    void updateRetractableRightPanel(QWidget *panel);
+    void toggleRetractableRightPanel(const QString &panelObjectName);
+    bool retractableRightPanelAvailable(const QString &panelObjectName) const;
 
 
     // Helpers for merged UI
@@ -326,12 +407,16 @@ private:
     QWidget *homeDashboardPage;
     bool m_isAdminSession;
     QString m_sessionEmail;
+    QString m_sessionSpecialite;
+    QString m_employeeAllowedModule;
 
     bool m_employeeTaskPromptShown;
     int currentEmployeRow;
     QByteArray m_employeePhotoAjout;
     QString m_employeeFaceTemplateAjout;
     QByteArray m_employeePhotoModif;
+    QString m_employeeFaceTemplateModif;
+    QString m_currentEmployeeRfidOriginal;
 
     int currentProduitRow;
     int currentClientRow;
@@ -346,12 +431,14 @@ private:
     int getRowForClientWidget(QWidget *widget);
     void refreshClients();
     void checkAndNotifyExpiringContracts();
-    void sendContractExpirationEmail(const QString &clientEmail, const QString &clientName, const QString &expirationDate);
+    bool sendContractExpirationEmail(const QString &clientEmail, const QString &clientName, const QString &expirationDate, const QString &contractType = QString());
     void exportClientPdf();
     void showClientStats();
     void openEcoScoreInterface();
     void exportSingleClientContratPdf();
     void filterClients();
+    bool validateClientForm(bool isModificationForm) const;
+    void updateClientFormValidationState();
     void forceApplySidebarStyles();
 
     // Card View state (Produit)
@@ -377,6 +464,7 @@ private:
     QGridLayout *m_clientCardLayout = nullptr;
     int m_clientCurrentPage = 0;
     int m_clientItemsPerPage = 6;
+    QMap<QString, bool> m_rightPanelCollapsedStates;
 
     // Card View state (Maintenance)
     bool m_isMaintCardView = false;
@@ -395,8 +483,12 @@ private:
     QString m_photoApresPath;
     QString m_photoModPath;
 
+    // Maintenance status delegate for row coloring
+    MaintenanceStatusDelegate *m_maintenanceDelegate = nullptr;
+
     // Notification system
     QTimer *m_stockNotifTimer = nullptr;
+    QTimer *m_clientContractNotifTimer = nullptr;
     QSystemTrayIcon *m_trayIcon = nullptr;
 
     // Produit photo paths
@@ -425,7 +517,11 @@ private:
 
     // Labib AI Assistant
     LabibAssistant *m_labibAssistant = nullptr;
+    QDockWidget *m_labibDock = nullptr;
     void openLabibAssistant();
+
+    QQuickWidget *m_mapAddOrder = nullptr;
+    QQuickWidget *m_mapModOrder = nullptr;
 
     // Floating AI Button
     QPushButton *m_floatingAIButton = nullptr;
@@ -435,14 +531,62 @@ private:
     // Email Notification Manager for client notifications
     EmailNotificationManager *m_emailManager = nullptr;
 
+    // --- RFID / Pointage ---
+    Arduino *m_arduino = nullptr;
+    QByteArray m_rfidSerialBuffer;
+    QLineEdit *m_rfidScanTarget = nullptr;
+    QDialog *m_rfidScanDialog = nullptr;
+    void enterPointagePage();
+    void ensureArduinoConnected();
+    void performDailyAttendanceResetIfNeeded();
+    void handleRfidTag(const QString &rfidTag);
+    void appendPointageLog(const QString &rfidTag, const QString &employeName, const QString &status);
+    void startRfidCapture(QLineEdit *targetField);
+    void stopRfidCapture();
+
+    // --- Capteur de mouvement (PIR sur A0 du meme Arduino) ---
+    // Default: false (EN ATTENTE). Set to true when the sketch publishes
+    // a MOTION:1 frame; held true for 60 s after the last detection, then
+    // auto-revert to false. The bac status dialog listens to
+    // bacMotionStateChanged() to flip its global badge live, and BAC_INTEL.
+    // STATUT_BAC is updated in step (EN_ATTENTE <-> EN_SERVICE) - rows in
+    // EN_PANNE / A_VIDER are never overwritten.
+    bool m_bacMotionActive = false;
+    int  m_motionTargetBacId = 0;   // 0 = no bac selected -> motion ignored
+    QTimer *m_motionHoldTimer = nullptr;
+    void onMotionHoldExpired();
+    void applyBacMotionDbState(bool active, int idBac);
+public:
+    bool isBacMotionActive() const { return m_bacMotionActive; }
+    int  motionTargetBacId() const { return m_motionTargetBacId; }
+    // Called by BacStatusDialog whenever the user picks a bac. Switching
+    // bacs while motion is active immediately reverts the previous bac
+    // back to EN_ATTENTE and resets the hold so the new bac will only
+    // become EN_SERVICE on the next PIR edge.
+    void setMotionTargetBac(int idBac);
+signals:
+    void bacMotionStateChanged(bool active);
+private:
+
     // Initialize accessibility features
     void setupAccessibilityModule();
     void setupMaintenanceAccessibility();
     void addAccessibilityButtonsToMaintenance();
     void ensureScrollbarsVisible();
 
+    // Settings / Theme customization module
+    QWidget *m_settingsPage = nullptr;
+    QPushButton *m_btnParametres = nullptr;
+    void setupSettingsModule();
+    void openSettingsPage();
+    void rebuildSettingsCustomColorsList();
+    void applyThemeFromManager();
+    void recolorHardcodedStylesForTheme();
+
 protected:
     void closeEvent(QCloseEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
+    void moveEvent(QMoveEvent *event) override;
 
 private slots:
     void on_btnToggleSidebar_clicked();

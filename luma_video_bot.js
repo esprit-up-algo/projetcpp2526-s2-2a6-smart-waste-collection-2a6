@@ -73,15 +73,6 @@ function buildPrompt(args) {
 }
 
 async function main() {
-  let chromium;
-  try {
-    ({ chromium } = require('playwright'));
-  } catch (e) {
-    log('ERREUR: Playwright n\'est pas installé.');
-    log('Installez-le avec: npm i playwright');
-    process.exit(1);
-  }
-
   const args = parseArgs();
   const imagePath = args.image_path ? path.resolve(args.image_path) : null;
   const prompt = buildPrompt(args) || '';
@@ -283,10 +274,26 @@ Start-Sleep -Milliseconds 200
 [System.Windows.Forms.SendKeys]::SendWait("^v")
 `);
       try { fs.unlinkSync(promptFile); } catch {}
+
+      log('Lancement de la génération (ENTER)...');
+      runPS(`
+Add-Type -AssemblyName System.Windows.Forms
+[System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
+`);
+      await sleep(800);
     }
 
     log('UI automation terminée.');
     return;
+  }
+
+  let chromium;
+  try {
+    ({ chromium } = require('playwright'));
+  } catch (e) {
+    log('ERREUR: Playwright n\'est pas installé.');
+    log('Installez-le avec: npm i playwright');
+    process.exit(1);
   }
 
   let context;

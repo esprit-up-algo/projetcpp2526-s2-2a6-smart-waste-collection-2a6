@@ -40,10 +40,35 @@
 #include <QSslSocket>
 #include <QtMath>
 #include <QDebug>
+#include <QSettings>
+#include <QProcessEnvironment>
+#include <QtSerialPort/QSerialPort>
+#include <QtSerialPort/QSerialPortInfo>
+#include <cstdio>
 
 #include "connection.h"
+#include "thememanager.h"
 
 namespace {
+
+QtMessageHandler g_previousMessageHandler = nullptr;
+
+void filteredQtMessageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
+{
+    if (msg.startsWith("QPainter::end: Painter ended with")
+        || msg.startsWith("QWidget::setMaximumSize: (prod_rightSidebar/QFrame) The largest allowed size is")
+        || msg.startsWith("nmea: No known GPS device found.")) {
+        return;
+    }
+
+    if (g_previousMessageHandler) {
+        g_previousMessageHandler(type, context, msg);
+        return;
+    }
+
+    const QByteArray localMsg = msg.toLocal8Bit();
+    std::fprintf(stderr, "%s\n", localMsg.constData());
+}
 
 bool hasMissingColumnError(const QString &errorText)
 {
@@ -198,10 +223,31 @@ double cosineSimilarity(const QVector<float> &a, const QVector<float> &b)
     return dot / qSqrt(na * nb);
 }
 
+QString faceApiCredential(const char *envKey, const QString &settingsKey, const QString &fallback = QString())
+{
+    // 1) Process env (what qEnvironmentVariable reads).
+    const QString envValue = qEnvironmentVariable(envKey).trimmed();
+    if (!envValue.isEmpty()) return envValue;
+
+    // 2) System env snapshot (redundant but harmless safety net).
+    const QString sysValue =
+        QProcessEnvironment::systemEnvironment().value(QString::fromLatin1(envKey)).trimmed();
+    if (!sysValue.isEmpty()) return sysValue;
+
+    // 3) Persistent QSettings fallback — immune to Windows env-var propagation
+    //    quirks (setx / SetEnvironmentVariable not visible to already-running
+    //    parent processes like Qt Creator / Explorer).
+    QSettings settings("WasteGuard", "WasteGuard");
+    const QString stored = settings.value(settingsKey).toString().trimmed();
+    if (!stored.isEmpty()) return stored;
+
+    return fallback;
+}
+
 bool isFaceApiEnabled()
 {
-    const QString key = qEnvironmentVariable("WG_FACE_API_KEY").trimmed();
-    const QString secret = qEnvironmentVariable("WG_FACE_API_SECRET").trimmed();
+    const QString key = faceApiCredential("WG_FACE_API_KEY", "faceApi/key");
+    const QString secret = faceApiCredential("WG_FACE_API_SECRET", "faceApi/secret");
     return !key.isEmpty() && !secret.isEmpty();
 }
 
@@ -270,14 +316,35 @@ bool compareFacesWithApi(const QByteArray &probeImage,
     strictThreshold = -1.0;
     errorText.clear();
 
-    const QString key = qEnvironmentVariable("WG_FACE_API_KEY").trimmed();
-    const QString secret = qEnvironmentVariable("WG_FACE_API_SECRET").trimmed();
-    const QString endpoint = qEnvironmentVariable(
-        "WG_FACE_API_URL",
-        "https://api-us.faceplusplus.com/facepp/v3/compare").trimmed();
+    const QString key = faceApiCredential("WG_FACE_API_KEY", "faceApi/key");
+    const QString secret = faceApiCredential("WG_FACE_API_SECRET", "faceApi/secret");
+    QString endpoint = faceApiCredential("WG_FACE_API_URL", "faceApi/url",
+                                         "https://api-us.faceplusplus.com/facepp/v3/compare");
+    if (endpoint.isEmpty()) {
+        endpoint = "https://api-us.faceplusplus.com/facepp/v3/compare";
+    }
+    // Auto-correct common misconfiguration: base URL without /compare action.
+    // Face++ replies "API_NOT_FOUND" when hitting /facepp/v3 directly.
+    {
+        QString trimmedEndpoint = endpoint.trimmed();
+        while (trimmedEndpoint.endsWith('/')) trimmedEndpoint.chop(1);
+        const bool missingAction =
+            trimmedEndpoint.endsWith("/facepp/v3", Qt::CaseInsensitive) ||
+            trimmedEndpoint.endsWith("/facepp/v3.0", Qt::CaseInsensitive) ||
+            trimmedEndpoint.endsWith("faceplusplus.com", Qt::CaseInsensitive);
+        if (missingAction) {
+            const QString corrected = trimmedEndpoint + "/compare";
+            qWarning().nospace()
+                << "[FaceAPI] URL endpoint semble incomplet (" << endpoint
+                << "), redirection automatique vers " << corrected;
+            endpoint = corrected;
+        }
+    }
 
     if (key.isEmpty() || secret.isEmpty()) {
-        errorText = "Face API non configuree.";
+        errorText = "Face API non configuree. Definissez WG_FACE_API_KEY / WG_FACE_API_SECRET "
+                    "(relancez Qt Creator apres setx) ou les cles faceApi/key et faceApi/secret "
+                    "dans QSettings WasteGuard.";
         return false;
     }
     if (probeImage.isEmpty() || referenceImage.isEmpty()) {
@@ -326,6 +393,13 @@ bool compareFacesWithApi(const QByteArray &probeImage,
     appendImagePart("image_file1", probeNormalized, "probe.jpg");
     appendImagePart("image_file2", referenceNormalized, "reference.jpg");
 
+    qInfo().nospace() << "[FaceAPI] POST " << endpoint
+                      << " ssl=" << QSslSocket::supportsSsl()
+                      << " sslBuild=" << QSslSocket::sslLibraryBuildVersionString()
+                      << " sslRuntime=" << QSslSocket::sslLibraryVersionString()
+                      << " probe=" << probeNormalized.size() << "B"
+                      << " ref=" << referenceNormalized.size() << "B";
+
     QNetworkAccessManager manager;
     QEventLoop loop;
     QNetworkReply *reply = manager.post(req, multiPart);
@@ -336,21 +410,32 @@ bool compareFacesWithApi(const QByteArray &probeImage,
         for (const QSslError &e : errors) {
             sslErrors << e.errorString();
         }
+        qWarning() << "[FaceAPI] SSL errors:" << sslErrors;
     });
+    QObject::connect(reply, &QNetworkReply::errorOccurred, &loop, [&](QNetworkReply::NetworkError err) {
+        qWarning() << "[FaceAPI] errorOccurred:" << err << reply->errorString();
+    });
+    bool timedOut = false;
     QTimer timeoutTimer;
     timeoutTimer.setSingleShot(true);
     QObject::connect(&timeoutTimer, &QTimer::timeout, &loop, [&]() {
         if (reply && reply->isRunning()) {
+            qWarning() << "[FaceAPI] Timeout after 20s, aborting.";
+            timedOut = true;
             reply->abort();
         }
         loop.quit();
     });
     QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-    timeoutTimer.start(8000);
+    timeoutTimer.start(20000);
     loop.exec();
     timeoutTimer.stop();
 
-    const QByteArray body = reply->readAll();
+    const QByteArray body = timedOut ? QByteArray() : reply->readAll();
+    qInfo().nospace() << "[FaceAPI] reply err=" << reply->error()
+                      << " http=" << reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt()
+                      << " bodyBytes=" << body.size()
+                      << " bodyHead=" << QString::fromUtf8(body.left(300));
     const QJsonDocument docForError = QJsonDocument::fromJson(body);
     const QString apiBodyError = docForError.isObject()
                                      ? docForError.object().value("error_message").toString().trimmed()
@@ -369,6 +454,7 @@ bool compareFacesWithApi(const QByteArray &probeImage,
         } else {
             errorText = "Face API indisponible: " + reply->errorString();
         }
+        qWarning() << "[FaceAPI] FAIL ->" << errorText << "(netErr=" << netErr << ")";
         reply->deleteLater();
         return false;
     }
@@ -406,8 +492,6 @@ bool compareFacesWithApi(const QByteArray &probeImage,
 
 class LoginDialog : public QDialog
 {
-    Q_OBJECT
-
 public:
     LoginDialog(QWidget *parent = nullptr) : QDialog(parent)
     {
@@ -415,145 +499,227 @@ public:
         setMinimumSize(450, 650);
         setStyleSheet("QDialog { background-color: #1F110B; }");
 
-        setFixedSize(450, 600);
+        setFixedSize(460, 720);
         setWindowFlags(Qt::FramelessWindowHint);
         setAttribute(Qt::WA_TranslucentBackground);
 
-        const QString blueBase = "#0F1A2B";
-        const QString accentBlue = "#3498DB";
-        const QString lightBlue = "#D4ECFF";
+        const QString accentBlue  = "#1e40af";
+        const QString accentHover = "#1e3a8a";
+        const QString lightBlue   = "#dbeafe";
 
         QVBoxLayout *mainLayout = new QVBoxLayout(this);
         mainLayout->setContentsMargins(0, 0, 0, 0);
 
         QFrame *container = new QFrame(this);
         container->setObjectName("loginContainer");
-        container->setStyleSheet(QString(
+        container->setStyleSheet(
             "QFrame#loginContainer {"
-            "   background: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1, stop:0 %1, stop:1 %2);"
-            "   border: 2px solid rgba(52, 152, 219, 0.3);"
-            "   border-radius: 40px;"
+            "   background: #ffffff;"
+            "   border: 1px solid #e2e8f0;"
+            "   border-radius: 24px;"
             "}"
             "QLineEdit {"
-            "   background: rgba(255, 255, 255, 0.08);"
-            "   border: 1px solid rgba(52, 152, 219, 0.4);"
-            "   border-radius: 12px;"
-            "   padding: 12px;"
-            "   color: white;"
+            "   background: #f8fafc;"
+            "   border: 1.5px solid #cbd5e1;"
+            "   border-radius: 10px;"
+            "   padding: 12px 14px;"
+            "   color: #1e293b;"
             "   font-size: 14px;"
             "}"
             "QLineEdit:focus {"
-            "   border: 2px solid %3;"
-            "   background: rgba(255, 255, 255, 0.12);"
+            "   border: 2px solid #1e40af;"
+            "   background: #ffffff;"
             "}"
+            "QLineEdit::placeholder { color: #94a3b8; }"
             "QPushButton#btnLogin {"
-            "   background: %3;"
+            "   background: #1e40af;"
             "   color: white;"
-            "   border-radius: 15px;"
-            "   padding: 15px;"
+            "   border-radius: 12px;"
+            "   padding: 14px;"
             "   font-weight: 800;"
-            "   font-size: 16px;"
+            "   font-size: 15px;"
+            "   border: none;"
             "}"
-            "QPushButton#btnLogin:hover {"
-            "   background: #2980B9;"
-            "}"
-        ).arg(blueBase).arg("#1A2F45").arg(accentBlue));
+            "QPushButton#btnLogin:hover { background: #1e3a8a; }"
+            "QPushButton#btnLogin:pressed { background: #172554; }"
+        );
 
         QVBoxLayout *containerLayout = new QVBoxLayout(container);
-        containerLayout->setContentsMargins(40, 20, 40, 40);
-        containerLayout->setSpacing(15);
+        containerLayout->setContentsMargins(0, 0, 0, 0);
+        containerLayout->setSpacing(0);
+
+        // ── Dark green header strip (brand identity) ──────────────────
+        QFrame *headerBand = new QFrame(container);
+        headerBand->setObjectName("loginHeader");
+        headerBand->setStyleSheet(
+            "QFrame#loginHeader {"
+            "   background: qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #1a3a2e,stop:1 #2d5a42);"
+            "   border-top-left-radius: 24px;"
+            "   border-top-right-radius: 24px;"
+            "   border-bottom-left-radius: 0px;"
+            "   border-bottom-right-radius: 0px;"
+            "}"
+        );
+        QVBoxLayout *headerLayout = new QVBoxLayout(headerBand);
+        headerLayout->setContentsMargins(30, 20, 30, 16);
+        headerLayout->setSpacing(6);
+
+        // WasteGuard brand label
+        QLabel *lblBrand = new QLabel("WASTEGUARD", headerBand);
+        lblBrand->setAlignment(Qt::AlignCenter);
+        lblBrand->setStyleSheet("font-size:22px;font-weight:900;color:#ffffff;letter-spacing:4px;background:transparent;");
+        headerLayout->addWidget(lblBrand);
+
+        QLabel *lblTagline = new QLabel("Gestion Intelligente des Dechets", headerBand);
+        lblTagline->setAlignment(Qt::AlignCenter);
+        lblTagline->setStyleSheet("font-size:11px;color:#a8d5b5;letter-spacing:1px;background:transparent;");
+        headerLayout->addWidget(lblTagline);
+
+        containerLayout->addWidget(headerBand);
+
+        // ── Mascot + form area ────────────────────────────────────────
+        QFrame *formArea = new QFrame(container);
+        formArea->setStyleSheet("QFrame{background:transparent;border:none;}");
+        QVBoxLayout *formAreaLayout = new QVBoxLayout(formArea);
+        formAreaLayout->setContentsMargins(36, 16, 36, 32);
+        formAreaLayout->setSpacing(14);
+        containerLayout->addWidget(formArea);
 
         mascot = new MascotWidget(this);
-        mascot->setMinimumHeight(240);
-        containerLayout->addWidget(mascot);
+        mascot->setMinimumHeight(170);
+        mascot->setMaximumHeight(170);
+        formAreaLayout->addWidget(mascot);
 
         QLabel *lblMascotName = new QLabel("LABIB", this);
         lblMascotName->setAlignment(Qt::AlignCenter);
-        lblMascotName->setStyleSheet("font-size: 14px; font-weight: 800; color: #00F2FE; letter-spacing: 4px; margin-top: 5px; margin-bottom: 15px;");
-        containerLayout->addWidget(lblMascotName);
+        lblMascotName->setStyleSheet("font-size:12px;font-weight:800;color:#1e40af;letter-spacing:4px;background:transparent;");
+        formAreaLayout->addWidget(lblMascotName);
 
         stackedWidget = new QStackedWidget(this);
 
         QWidget *pageLogin = new QWidget();
+        pageLogin->setStyleSheet("background:transparent;");
         QVBoxLayout *loginLayout = new QVBoxLayout(pageLogin);
-        loginLayout->setSpacing(14);
+        loginLayout->setSpacing(12);
+        loginLayout->setContentsMargins(0,0,0,0);
 
-        QLabel *lblTitle = new QLabel("ACCES SECURISE - EMAIL/CIN", this);
-        lblTitle->setStyleSheet(QString("font-size: 20px; font-weight: 800; color: %1; letter-spacing: 2px;").arg(accentBlue));
+        // Divider
+        QFrame *divider = new QFrame(); divider->setFrameShape(QFrame::HLine);
+        divider->setStyleSheet("background:#e2e8f0; border:none; max-height:1px;");
+        loginLayout->addWidget(divider);
+        loginLayout->addSpacing(4);
+
+        QLabel *lblTitle = new QLabel("Acces Securise", this);
+        lblTitle->setStyleSheet("font-size:18px;font-weight:800;color:#1e293b;background:transparent;");
         lblTitle->setAlignment(Qt::AlignCenter);
         loginLayout->addWidget(lblTitle);
+
+        QLabel *lblSub = new QLabel("Connectez-vous avec votre email et CIN", this);
+        lblSub->setStyleSheet("font-size:12px;color:#64748b;background:transparent;");
+        lblSub->setAlignment(Qt::AlignCenter);
+        loginLayout->addWidget(lblSub);
         loginLayout->addSpacing(6);
 
+        const QString inputStyle =
+            "QLineEdit { background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:10px;"
+            " padding:12px 14px; color:#1e293b; font-size:14px; }"
+            "QLineEdit:focus { border:2px solid #1e40af; background:#ffffff; }";
+
         txtUser = new QLineEdit(this);
-        txtUser->setPlaceholderText("Email");
+        txtUser->setPlaceholderText("Adresse email");
         txtUser->setMinimumHeight(48);
+        txtUser->setStyleSheet(inputStyle);
         loginLayout->addWidget(txtUser);
-        loginLayout->addSpacing(4);
 
         txtPass = new QLineEdit(this);
         txtPass->setPlaceholderText("CIN / Mot de passe admin");
         txtPass->setEchoMode(QLineEdit::Password);
         txtPass->setMinimumHeight(48);
+        txtPass->setStyleSheet(inputStyle);
         loginLayout->addWidget(txtPass);
-        loginLayout->addSpacing(8);
+        loginLayout->addSpacing(4);
 
         QPushButton *btnLogin = new QPushButton("CONNEXION", this);
         btnLogin->setObjectName("btnLogin");
-        btnLogin->setMinimumHeight(52);
+        btnLogin->setMinimumHeight(50);
         btnLogin->setCursor(Qt::PointingHandCursor);
+        btnLogin->setStyleSheet(
+            "QPushButton { background:#1e40af; color:#ffffff; border-radius:12px;"
+            " padding:14px; font-weight:800; font-size:15px; border:none; }"
+            "QPushButton:hover { background:#1e3a8a; }"
+            "QPushButton:pressed { background:#172554; }"
+        );
         loginLayout->addWidget(btnLogin);
-        loginLayout->addSpacing(6);
 
-        QPushButton *btnFaceId = new QPushButton("CONNEXION PAR VISAGE", this);
-        btnFaceId->setStyleSheet(QString(
-            "QPushButton { background: transparent; color: %1; font-weight: 700; "
-            "font-size: 13px; border-radius: 10px; padding: 10px; border: 1px solid rgba(52, 152, 219, 0.5); } "
-            "QPushButton:hover { background-color: rgba(52, 152, 219, 0.1); }"
-        ).arg(accentBlue));
-        btnFaceId->setMinimumHeight(45);
+        QHBoxLayout *altAuthRow = new QHBoxLayout();
+        altAuthRow->setSpacing(10);
+        altAuthRow->setContentsMargins(0, 0, 0, 0);
+
+        QPushButton *btnFaceId = new QPushButton("Visage", this);
+        btnFaceId->setStyleSheet(
+            "QPushButton { background: transparent; color: #1e40af; font-weight: 700; "
+            "font-size: 13px; border-radius: 10px; padding: 10px; "
+            "border: 1.5px solid #bfdbfe; } "
+            "QPushButton:hover { background-color: #eff6ff; border-color: #1e40af; }"
+        );
+        btnFaceId->setMinimumHeight(42);
         btnFaceId->setCursor(Qt::PointingHandCursor);
-        loginLayout->addWidget(btnFaceId);
-        loginLayout->addSpacing(4);
+        altAuthRow->addWidget(btnFaceId, 1);
 
-        QLabel *lblAuthModes = new QLabel("Choix: (1) Email + CIN, ou (2) Visage + Email (CIN requis seulement a la 1ere inscription)", this);
+        QPushButton *btnRfidLogin = new QPushButton("Badge RFID", this);
+        btnRfidLogin->setStyleSheet(
+            "QPushButton { background: transparent; color: #b45309; font-weight: 700; "
+            "font-size: 13px; border-radius: 10px; padding: 10px; "
+            "border: 1.5px solid #fde68a; } "
+            "QPushButton:hover { background-color: #fffbeb; border-color: #b45309; }"
+        );
+        btnRfidLogin->setMinimumHeight(42);
+        btnRfidLogin->setCursor(Qt::PointingHandCursor);
+        altAuthRow->addWidget(btnRfidLogin, 1);
+
+        loginLayout->addLayout(altAuthRow);
+
+        QLabel *lblAuthModes = new QLabel("Email + CIN  ·  Visage  ·  Badge RFID", this);
         lblAuthModes->setAlignment(Qt::AlignCenter);
-        lblAuthModes->setStyleSheet("color: #93c5fd; font-size: 12px;");
+        lblAuthModes->setStyleSheet("color:#94a3b8;font-size:11px;background:transparent;");
         loginLayout->addWidget(lblAuthModes);
 
         QWidget *pageFaceId = new QWidget();
+        pageFaceId->setStyleSheet("background:transparent;");
         QVBoxLayout *faceLayout = new QVBoxLayout(pageFaceId);
-        faceLayout->setSpacing(15);
+        faceLayout->setSpacing(12);
+        faceLayout->setContentsMargins(0,0,0,0);
 
-        QLabel *lblFaceTitle = new QLabel("SCAN BIOMETRIQUE", this);
-        lblFaceTitle->setStyleSheet("font-size: 18px; font-weight: 800; color: #E9BC99;");
+        QLabel *lblFaceTitle = new QLabel("Reconnaissance Faciale", this);
+        lblFaceTitle->setStyleSheet("font-size:17px;font-weight:800;color:#1e293b;background:transparent;");
         lblFaceTitle->setAlignment(Qt::AlignCenter);
         faceLayout->addWidget(lblFaceTitle);
 
         facePreview = new QLabel(this);
-        facePreview->setMinimumSize(320, 240);
+        facePreview->setMinimumSize(300, 220);
         facePreview->setAlignment(Qt::AlignCenter);
         facePreview->setText("Camera non demarree");
-        facePreview->setStyleSheet(QString("background-color: rgba(0,0,0,0.5); border: 2px solid %1; border-radius: 15px; color: #dbeafe; font-size: 13px;").arg(accentBlue));
+        facePreview->setStyleSheet("background:#f1f5f9;border:2px solid #bfdbfe;border-radius:14px;color:#64748b;font-size:13px;");
         faceLayout->addWidget(facePreview);
 
         lblStatus = new QLabel("Initialisation du capteur...", this);
-        lblStatus->setStyleSheet(QString("font-size: 14px; color: %1;").arg(lightBlue));
+        lblStatus->setStyleSheet("font-size:13px;color:#475569;background:transparent;");
         lblStatus->setAlignment(Qt::AlignCenter);
         faceLayout->addWidget(lblStatus);
 
         btnFaceCapture = new QPushButton("Capturer et verifier", this);
         btnFaceCapture->setObjectName("btnFaceCapture");
-        btnFaceCapture->setMinimumHeight(44);
+        btnFaceCapture->setMinimumHeight(48);
         btnFaceCapture->setCursor(Qt::PointingHandCursor);
-        btnFaceCapture->setStyleSheet(QString(
-            "QPushButton#btnFaceCapture { background: %1; color: white; border-radius: 10px; font-weight: 700; }"
-            "QPushButton#btnFaceCapture:hover { background: #2563eb; }"
-            "QPushButton#btnFaceCapture:disabled { background: #64748b; }"
-        ).arg(accentBlue));
+        btnFaceCapture->setStyleSheet(
+            "QPushButton#btnFaceCapture { background:#1e40af; color:white; border-radius:10px; font-weight:700; border:none; }"
+            "QPushButton#btnFaceCapture:hover { background:#1e3a8a; }"
+            "QPushButton#btnFaceCapture:disabled { background:#94a3b8; }"
+        );
         faceLayout->addWidget(btnFaceCapture);
 
         QPushButton *btnBack = new QPushButton("Annuler et revenir", this);
-        btnBack->setStyleSheet(QString("color: %1; text-decoration: underline; font-size: 12px; border: none;").arg(accentBlue));
+        btnBack->setStyleSheet("color:#1e40af;font-size:12px;border:none;background:transparent;text-decoration:underline;");
         btnBack->setFlat(true);
         btnBack->setCursor(Qt::PointingHandCursor);
         faceLayout->addWidget(btnBack);
@@ -562,7 +728,8 @@ public:
         stackedWidget->addWidget(pageFaceId);
         stackedWidget->setCurrentIndex(0);
 
-        containerLayout->addWidget(stackedWidget);
+        formAreaLayout->addWidget(stackedWidget);
+        containerLayout->addWidget(formArea);
         mainLayout->addWidget(container);
 
         eyeAnim = new QPropertyAnimation(mascot, "eyeCoverFactor", this);
@@ -584,6 +751,8 @@ public:
             startFaceId();
             mascot->setState(MascotWidget::Magnifier);
         });
+
+        connect(btnRfidLogin, &QPushButton::clicked, this, &LoginDialog::attemptRfidLogin);
 
         connect(btnBack, &QPushButton::clicked, this, [this]() {
             stopFaceId();
@@ -659,7 +828,7 @@ public:
         }
     }
 
-private slots:
+private:
     void attemptLogin()
     {
         const QString email = txtUser->text().trimmed();
@@ -721,6 +890,206 @@ private slots:
             "Email ou CIN invalide.\n\nUtilisez un email/CIN employe valide, ou admin@wasteguard.com / 0000.");
         txtPass->clear();
         txtPass->setFocus();
+    }
+
+    void attemptRfidLogin()
+    {
+        Connection *connection = Connection::instance();
+        if (!connection->isOpen() && !connection->createConnect()) {
+            QMessageBox::critical(
+                this,
+                "Connexion base",
+                "Impossible de joindre la base de donnees.\n\nDetails: " + connection->lastError());
+            return;
+        }
+
+        // Locate an Arduino-like serial port and open it.
+        QString portName;
+        for (const QSerialPortInfo &info : QSerialPortInfo::availablePorts()) {
+            const QString desc = info.description().toLower();
+            const QString mfr = info.manufacturer().toLower();
+            if (desc.contains("bluetooth") || mfr.contains("bluetooth")) continue;
+            if (info.hasVendorIdentifier() && info.vendorIdentifier() == 9025
+                && info.hasProductIdentifier() && info.productIdentifier() == 67) {
+                portName = info.portName();
+                break;
+            }
+            if (portName.isEmpty()
+                && (desc.contains("arduino") || desc.contains("ch340")
+                    || desc.contains("ch341") || desc.contains("usb-serial")
+                    || desc.contains("ftdi") || desc.contains("cp210")
+                    || mfr.contains("arduino") || mfr.contains("ftdi")
+                    || mfr.contains("silicon labs") || mfr.contains("wch"))) {
+                portName = info.portName();
+            }
+        }
+
+        QSerialPort *rfidSerial = new QSerialPort(this);
+        if (!portName.isEmpty()) {
+            rfidSerial->setPortName(portName);
+            rfidSerial->setBaudRate(QSerialPort::Baud9600);
+            rfidSerial->setDataBits(QSerialPort::Data8);
+            rfidSerial->setParity(QSerialPort::NoParity);
+            rfidSerial->setStopBits(QSerialPort::OneStop);
+            rfidSerial->setFlowControl(QSerialPort::NoFlowControl);
+            if (!rfidSerial->open(QIODevice::ReadOnly)) {
+                qWarning() << "[RFID Login] Failed to open" << portName << ":" << rfidSerial->errorString();
+            }
+        }
+
+        QDialog dlg(this);
+        dlg.setWindowTitle("Connexion par badge RFID");
+        dlg.setModal(true);
+        dlg.setMinimumWidth(420);
+
+        auto *layout = new QVBoxLayout(&dlg);
+        layout->setContentsMargins(24, 24, 24, 20);
+        layout->setSpacing(14);
+
+        auto *info = new QLabel(QString::fromUcs4(U"\U0001F4E1") +
+                                "  Approchez votre badge du lecteur...", &dlg);
+        info->setAlignment(Qt::AlignCenter);
+        info->setStyleSheet("font-size: 15px; font-weight: 600; color:#1e293b; padding: 8px;");
+        layout->addWidget(info);
+
+        auto *portLbl = new QLabel(&dlg);
+        portLbl->setAlignment(Qt::AlignCenter);
+        portLbl->setStyleSheet("font-size: 12px; color: #475569;");
+        if (rfidSerial->isOpen()) {
+            portLbl->setText(QString("Lecteur connecte sur %1 (9600 bauds)").arg(portName));
+        } else {
+            portLbl->setText(portName.isEmpty()
+                                 ? "Lecteur RFID non detecte. Branchez l'Arduino puis cliquez Reessayer."
+                                 : QString("Echec ouverture %1. Fermez le moniteur serie puis Reessayer.").arg(portName));
+            portLbl->setStyleSheet("font-size: 12px; color: #c0392b; font-weight: 600;");
+        }
+        layout->addWidget(portLbl);
+
+        auto *status = new QLabel(&dlg);
+        status->setAlignment(Qt::AlignCenter);
+        status->setStyleSheet("font-size: 13px; color: #475569;");
+        status->setWordWrap(true);
+        layout->addWidget(status);
+
+        auto *btnRow = new QHBoxLayout();
+        auto *retryBtn = new QPushButton("Reessayer", &dlg);
+        auto *cancelBtn = new QPushButton("Annuler", &dlg);
+        btnRow->addWidget(retryBtn);
+        btnRow->addStretch();
+        btnRow->addWidget(cancelBtn);
+        layout->addLayout(btnRow);
+
+        QByteArray buffer;
+        QString matchedEmail;
+
+        auto tryReopen = [rfidSerial, portLbl, status]() {
+            if (rfidSerial->isOpen()) rfidSerial->close();
+            QString newPort;
+            for (const QSerialPortInfo &i : QSerialPortInfo::availablePorts()) {
+                const QString d = i.description().toLower();
+                const QString m = i.manufacturer().toLower();
+                if (d.contains("bluetooth") || m.contains("bluetooth")) continue;
+                if (d.contains("arduino") || d.contains("ch340") || d.contains("ch341")
+                    || d.contains("usb-serial") || d.contains("ftdi") || d.contains("cp210")
+                    || m.contains("arduino") || m.contains("ftdi")
+                    || m.contains("silicon labs") || m.contains("wch")) {
+                    newPort = i.portName();
+                    break;
+                }
+            }
+            if (newPort.isEmpty()) {
+                portLbl->setText("Lecteur RFID non detecte. Branchez l'Arduino puis Reessayer.");
+                portLbl->setStyleSheet("font-size: 12px; color: #c0392b; font-weight: 600;");
+                return;
+            }
+            rfidSerial->setPortName(newPort);
+            rfidSerial->setBaudRate(QSerialPort::Baud9600);
+            rfidSerial->setDataBits(QSerialPort::Data8);
+            rfidSerial->setParity(QSerialPort::NoParity);
+            rfidSerial->setStopBits(QSerialPort::OneStop);
+            rfidSerial->setFlowControl(QSerialPort::NoFlowControl);
+            if (rfidSerial->open(QIODevice::ReadOnly)) {
+                portLbl->setText(QString("Lecteur connecte sur %1 (9600 bauds)").arg(newPort));
+                portLbl->setStyleSheet("font-size: 12px; color: #16a34a; font-weight: 600;");
+                status->setText("");
+            } else {
+                portLbl->setText(QString("Echec ouverture %1.").arg(newPort));
+                portLbl->setStyleSheet("font-size: 12px; color: #c0392b; font-weight: 600;");
+            }
+        };
+
+        connect(retryBtn, &QPushButton::clicked, &dlg, tryReopen);
+        connect(cancelBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
+
+        connect(rfidSerial, &QSerialPort::readyRead, &dlg, [&]() {
+            buffer.append(rfidSerial->readAll());
+            while (true) {
+                const int nl = buffer.indexOf('\n');
+                if (nl < 0) break;
+                const QByteArray line = buffer.left(nl);
+                buffer.remove(0, nl + 1);
+                const QString text = QString::fromLatin1(line).trimmed();
+                if (text.isEmpty()) continue;
+                static const QString kRfidPrefix = "RFID_TAG:";
+                if (!text.startsWith(kRfidPrefix, Qt::CaseInsensitive)) continue;
+                const QString tag = text.mid(kRfidPrefix.length()).trimmed().toUpper();
+                if (tag.isEmpty()) continue;
+
+                QSqlQuery q;
+                q.prepare(
+                    "SELECT id_emp, email FROM EMPLOYE "
+                    "WHERE UPPER(TRIM(rfid)) = UPPER(TRIM(:tag)) "
+                    "AND rfid IS NOT NULL");
+                q.bindValue(":tag", tag);
+                if (!q.exec()) {
+                    status->setText(QString("Erreur base: %1").arg(q.lastError().text()));
+                    status->setStyleSheet("font-size: 13px; color: #c0392b; font-weight: 700;");
+                    continue;
+                }
+                if (q.next()) {
+                    const int idEmp = q.value(0).toInt();
+                    matchedEmail = q.value(1).toString().trimmed();
+
+                    QSqlQuery upd;
+                    upd.prepare(
+                        "UPDATE EMPLOYE "
+                        "SET disponibilite = 'DISPONIBLE', last_pointage_date = SYSDATE "
+                        "WHERE id_emp = :id");
+                    upd.bindValue(":id", idEmp);
+                    if (!upd.exec()) {
+                        qWarning() << "[RFID Login] Pointage update failed (with date):"
+                                   << upd.lastError().text();
+                        QSqlQuery fallback;
+                        fallback.prepare(
+                            "UPDATE EMPLOYE SET disponibilite = 'DISPONIBLE' "
+                            "WHERE id_emp = :id");
+                        fallback.bindValue(":id", idEmp);
+                        if (!fallback.exec()) {
+                            qWarning() << "[RFID Login] Pointage fallback failed:"
+                                       << fallback.lastError().text();
+                        }
+                    }
+
+                    status->setText(QString::fromUcs4(U"✓") +
+                                    QString(" Badge reconnu : %1\nPresence enregistree.").arg(matchedEmail));
+                    status->setStyleSheet("font-size: 14px; color: #16a34a; font-weight: 800;");
+                    QTimer::singleShot(550, &dlg, &QDialog::accept);
+                    return;
+                }
+                status->setText(QString("Badge inconnu : %1. Approchez un autre badge.").arg(tag));
+                status->setStyleSheet("font-size: 13px; color: #c0392b; font-weight: 700;");
+            }
+        });
+
+        const int rc = dlg.exec();
+        if (rfidSerial->isOpen()) rfidSerial->close();
+        rfidSerial->deleteLater();
+
+        if (rc == QDialog::Accepted && !matchedEmail.isEmpty()) {
+            if (txtUser) txtUser->setText(matchedEmail);
+            m_faceMatchedEmail.clear();
+            grantAccess(false);
+        }
     }
 
     void startFaceId()
@@ -1225,37 +1594,113 @@ private:
 
 int main(int argc, char *argv[])
 {
-    QApplication a(argc, argv);
-    qDebug() << "Drivers disponibles:" << QSqlDatabase::drivers();
-
-    LoginDialog login;
-    if (login.exec() != QDialog::Accepted || !login.isAuthenticated()) {
-        return 0;
+    if (!g_previousMessageHandler) {
+        g_previousMessageHandler = qInstallMessageHandler(filteredQtMessageHandler);
     }
 
-    Connection *c = Connection::instance();
-    const bool dbReady = c->isOpen() || c->createConnect();
-    if (!dbReady) {
-        if (!login.isAdminLogin()) {
-            QMessageBox::critical(
-                nullptr,
-                QObject::tr("database is not open"),
-                QObject::tr("connection failed.\nClick Cancel to exit."),
-                QMessageBox::Cancel);
+    // Stabilite Windows/Qt: evite certains crashes lies aux styles/renderers natifs.
+    if (qEnvironmentVariableIsEmpty("QT_STYLE_OVERRIDE")) {
+        qputenv("QT_STYLE_OVERRIDE", QByteArrayLiteral("Fusion"));
+    }
+    if (qEnvironmentVariableIsEmpty("QT_OPENGL")) {
+        qputenv("QT_OPENGL", QByteArrayLiteral("software"));
+    }
+    if (qEnvironmentVariableIsEmpty("QT_LOGGING_RULES")) {
+        qputenv("QT_LOGGING_RULES",
+                QByteArrayLiteral("qt.core.qmetaobject.connectslotsbyname.warning=false"));
+    }
+
+    QApplication a(argc, argv);
+    a.setQuitOnLastWindowClosed(false);
+    QCoreApplication::setOrganizationName("WasteGuard");
+    QCoreApplication::setOrganizationDomain("wasteguard.local");
+    QCoreApplication::setApplicationName("WasteGuard");
+    ThemeManager::instance()->applyToApplication();
+    qDebug() << "Drivers disponibles:" << QSqlDatabase::drivers();
+
+    // One-shot CLI registration for Face API creds (bypasses Windows env-var
+    // propagation issues). Usage:
+    //   WasteGuard.exe --set-face-api KEY SECRET [URL]
+    {
+        const QStringList args = QCoreApplication::arguments();
+        const int idx = args.indexOf("--set-face-api");
+        if (idx >= 0 && idx + 2 < args.size()) {
+            QSettings settings("WasteGuard", "WasteGuard");
+            settings.setValue("faceApi/key", args.at(idx + 1).trimmed());
+            settings.setValue("faceApi/secret", args.at(idx + 2).trimmed());
+            if (idx + 3 < args.size() && !args.at(idx + 3).startsWith("--")) {
+                settings.setValue("faceApi/url", args.at(idx + 3).trimmed());
+            }
+            settings.sync();
+            qInfo() << "[FaceAPI] Cles enregistrees dans QSettings WasteGuard.";
+            return 0;
+        }
+    }
+
+    // Diagnostic: report which source (env / settings) provided Face API creds.
+    {
+        const bool envKey = !qEnvironmentVariable("WG_FACE_API_KEY").trimmed().isEmpty();
+        const bool envSec = !qEnvironmentVariable("WG_FACE_API_SECRET").trimmed().isEmpty();
+        QSettings s("WasteGuard", "WasteGuard");
+        const bool setKey = !s.value("faceApi/key").toString().trimmed().isEmpty();
+        const bool setSec = !s.value("faceApi/secret").toString().trimmed().isEmpty();
+        qInfo().nospace() << "[FaceAPI] env(KEY=" << envKey << ",SECRET=" << envSec
+                          << ") settings(KEY=" << setKey << ",SECRET=" << setSec
+                          << ") -> enabled=" << isFaceApiEnabled();
+    }
+
+    while (true) {
+        LoginDialog login;
+        if (login.exec() != QDialog::Accepted || !login.isAuthenticated()) {
             return 0;
         }
 
-        QMessageBox::warning(
-            nullptr,
-            QObject::tr("Mode admin hors ligne"),
-            QObject::tr("Connexion base indisponible.\nOuverture en mode admin hors ligne."));
+        Connection *c = Connection::instance();
+        const bool dbReady = c->isOpen() || c->createConnect();
+        if (!dbReady) {
+            if (!login.isAdminLogin()) {
+                QMessageBox::critical(
+                    nullptr,
+                    QObject::tr("database is not open"),
+                    QObject::tr("connection failed.\nClick Cancel to exit."),
+                    QMessageBox::Cancel);
+                return 0;
+            }
+
+            QMessageBox::warning(
+                nullptr,
+                QObject::tr("Mode admin hors ligne"),
+                QObject::tr("Connexion base indisponible.\nOuverture en mode admin hors ligne."));
+        }
+
+        auto *w = new MainWindow;
+        
+        QFile logFile("startup_crash_log.txt");
+        if(logFile.open(QIODevice::WriteOnly | QIODevice::Append)) {
+            QTextStream ts(&logFile);
+            ts << "MainWindow created successfully!\n";
+            logFile.close();
+        }
+        
+        bool logoutTriggered = false;
+        QEventLoop sessionLoop;
+
+        QObject::connect(w, &MainWindow::logoutRequested, &a, [&]() {
+            logoutTriggered = true;
+            w->close();
+        });
+        QObject::connect(w, &QObject::destroyed, &sessionLoop, &QEventLoop::quit);
+
+        w->setAttribute(Qt::WA_DeleteOnClose);
+        w->setSessionContext(login.isAdminLogin(), login.authenticatedEmail());
+        w->showMaximized();
+        sessionLoop.exec();
+
+        if (!logoutTriggered) {
+            break;
+        }
     }
 
-    MainWindow w;
-    w.setSessionContext(login.isAdminLogin(), login.authenticatedEmail());
-    w.showMaximized();
-    return a.exec();
+    return 0;
 }
-
-#include "main.moc"
 
