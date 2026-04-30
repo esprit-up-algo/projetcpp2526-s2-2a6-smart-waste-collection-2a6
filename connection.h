@@ -1,28 +1,29 @@
 #ifndef CONNECTION_H
 #define CONNECTION_H
 
-#include <QSqlDatabase>
-#include <QDebug>
-#include <QSqlError>
+#include <QtSql/QSqlDatabase>
+#include <QSqlQuery>
+#include <QString>
+
 class Connection
 {
 public:
-    // Returns the unique instance (Singleton)
-    static Connection& createInstance();
-
-    // Method to open the database connection
-    bool createConnection();
+    static Connection* instance();
+    bool createConnect();
+    bool createConnect(const QString &userName, const QString &password);
+    void closeConnection();
+    bool isOpen() const;
+    QString lastError() const;
 
 private:
-    QSqlDatabase db;
-
-    // Private constructor & destructor
     Connection();
     ~Connection();
-
-    // Disable copy constructor and assignment operator
     Connection(const Connection&) = delete;
     Connection& operator=(const Connection&) = delete;
+
+    static Connection* p_instance;
+    QSqlDatabase db;
 };
 
 #endif // CONNECTION_H
+

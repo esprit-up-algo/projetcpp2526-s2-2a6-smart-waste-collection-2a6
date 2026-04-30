@@ -2,18 +2,26 @@
 #define EMPLOYE_H
 
 #include <QString>
+#include <QByteArray>
 #include <QSqlQuery>
 #include <QSqlQueryModel>
 
 class Employe
 {
     int id_emp;
-    QString matricule, cin, nom, email, specialite, disponibilite;
+    int salaire;
+    QString matricule, cin, nom, email, specialite, disponibilite, rfid;
+    QByteArray photo;
 
 public:
     Employe();
     Employe(int id_emp, QString matricule, QString cin, QString nom,
-            QString email, QString specialite, QString disponibilite);
+            QString email, QString specialite, QString disponibilite,
+            int salaire,
+            const QByteArray &photo = QByteArray());
+    Employe(int id_emp, QString matricule, QString cin, QString nom,
+            QString email, QString specialite, QString disponibilite,
+            const QByteArray &photo = QByteArray());
 
     // CRUD
     bool ajouter();
@@ -21,6 +29,18 @@ public:
     bool modifier();
     QSqlQueryModel *afficher();
     bool findIdByMatricule(const QString &matricule, int &id_emp);
+
+    // RFID helpers (pointage)
+    enum PointageResult {
+        PointageOk,           // badge accepted, employee marked present
+        PointageAlreadyDone,  // employee already pointed today
+        PointageError         // SQL / session error (see lastError)
+    };
+    bool findIdByRfid(const QString &rfidTag, int &id_emp);
+    bool resetDailyAttendance();
+    bool markPresentById(int id_emp);
+    PointageResult pointById(int id_emp);
+
     QString lastError() const;
 
     // getters
@@ -31,6 +51,9 @@ public:
     QString getEmail() const;
     QString getSpecialite() const;
     QString getDisponibilite() const;
+    int getSalaire() const;
+    QByteArray getPhoto() const;
+    QString getRfid() const;
 
     // setters
     void setIdEmp(int value);
@@ -40,6 +63,9 @@ public:
     void setEmail(const QString &value);
     void setSpecialite(const QString &value);
     void setDisponibilite(const QString &value);
+    void setSalaire(int value);
+    void setPhoto(const QByteArray &value);
+    void setRfid(const QString &value);
 
 private:
     QString m_lastError;

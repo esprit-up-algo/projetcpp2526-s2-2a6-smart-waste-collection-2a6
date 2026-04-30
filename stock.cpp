@@ -1,172 +1,304 @@
-#include "mainwindow.h"
-#include "ui_mainwindow.h"
-#include <QPixmap>
-#include <QMessageBox>
+﻿#include "stock.h"
+#include <QDate>
+#include <QSqlError>
+#include <QSqlQuery>
+#include <QFile>
+#include <QTextStream>
+#include <QDateTime>
 
-MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
-    , ui(new Ui::MainWindow)
+static void logStockHistoryTxt(int idMp, int quantite) {
+    QFile file("stock_history.txt");
+    if (file.open(QIODevice::Append | QIODevice::Text)) {
+        QTextStream out(&file);
+        out << idMp << ";" << QDateTime::currentMSecsSinceEpoch() << ";" << quantite << "\n";
+        file.close();
+    }
+}
+
+Stock::Stock()
+    : m_idMp(0),
+      m_quantite(0),
+      m_seuilCritique(5),
+      m_prix(0.0),
+      m_dateFabrication(QDate::currentDate()),
+      m_dateAchat(QDate::currentDate())
 {
-    ui->setupUi(this);
-
-    // Initial state: Show Dashboard
-    ui->stackedWidget->setCurrentIndex(0);
-
-    // Setup Logo
-    setupLogo();
-
-    // Setup Table
-    setupTableData();
-
-    // Connexions Sliders -> Inputs (Ajouter)
-    connect(ui->sliderStock_add, &QSlider::valueChanged, this, [=](int val){ ui->inputStock_add->setText(QString::number(val)); });
-    connect(ui->sliderPrix_add, &QSlider::valueChanged, this, [=](int val){ ui->inputPrix_add->setText(QString::number(val)); });
-
-    // Connexions Sliders -> Inputs (Modifier)
-    connect(ui->sliderStock_mod, &QSlider::valueChanged, this, [=](int val){ ui->inputStock_mod->setText(QString::number(val)); });
-    connect(ui->sliderPrix_mod, &QSlider::valueChanged, this, [=](int val){ ui->inputPrix_mod->setText(QString::number(val) + " TND"); });
 }
 
-MainWindow::~MainWindow() {
-    delete ui;
+Stock::Stock(int idMp,
+             const QString &reference,
+             const QString &nom,
+             int quantite,
+             int seuilCritique,
+             double prix,
+             const QString &fournisseurInput,
+             const QDate &dateFabrication,
+             const QDate &dateAchat)
+    : m_idMp(idMp),
+      m_reference(reference),
+      m_nom(nom),
+      m_quantite(quantite),
+      m_seuilCritique(seuilCritique),
+      m_prix(prix),
+      m_fournisseurInput(fournisseurInput),
+      m_dateFabrication(dateFabrication),
+      m_dateAchat(dateAchat)
+{
 }
 
-void MainWindow::setupTableData() {
-    ui->tableWidget->setColumnCount(7);
-    ui->tableWidget->setRowCount(3);
-    ui->tableWidget->setHorizontalHeaderLabels({"REF", "NOM", "STOCK", "SEUIL", "PRIX", "FOURNISSEUR", "ACTIONS"});
-    ui->tableWidget->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
-    ui->tableWidget->setEditTriggers(QAbstractItemView::NoEditTriggers);
+int Stock::resolveNextMpId()
+{
+    QSqlQuery q;
+    q.prepare("SELECT NVL(MAX(id_mp), 0) + 1 FROM MATIERE_PREMIERE");
+    if (!q.exec()) {
+        m_lastError = q.lastError().text();
+        return -1;
+    }
+    if (!q.next() || q.value(0).isNull()) {
+        m_lastError = "Impossible de generer un id pour MATIERE_PREMIERE.";
+        return -1;
+    }
+    return q.value(0).toInt();
+}
 
-    ui->tableWidget->verticalHeader()->setDefaultSectionSize(50); // Augmente la hauteur des lignes
-    ui->tableWidget->horizontalHeader()->setSectionResizeMode(6, QHeaderView::Fixed); // Fixe la colonne Actions
-    ui->tableWidget->setColumnWidth(6, 180); // Élargit la colonne Actions
+int Stock::resolveNextFournisseurId()
+{
+    QSqlQuery q;
+    q.prepare("SELECT NVL(MAX(id_four), 0) + 1 FROM FOURNISSEUR");
+    if (!q.exec()) {
+        m_lastError = q.lastError().text();
+        return -1;
+    }
+    if (!q.next() || q.value(0).isNull()) {
+        m_lastError = "Impossible de generer un id fournisseur.";
+        return -1;
+    }
+    return q.value(0).toInt();
+}
 
-    struct Product { QString ref, nom, stock, seuil, prix, fournisseur; };
-    QList<Product> items = {
-        {"REF-001", "Capteur Ultrason", "150", "OK", "25 TND", "TechSupply"},
-        {"REF-002", "Batterie Lithium", "15", "CRITIQUE", "45 TND", "PowerPack"},
-        {"REF-003", "Module GPS", "80", "MOYEN", "30 TND", "GeoTrack"}
+bool Stock::resolveFournisseurIdFromInput(const QString &inputRaw, int &idFour, QString &nomFour)
+{
+    const QString input = inputRaw.trimmed();
+    if (input.isEmpty()) {
+        m_lastError = "Le fournisseur est obligatoire.";
+        return false;
+    }
+
+    bool isInt;
+    int parsedId = input.toInt(&isInt); // First declaration here
+
+    // VÃ©rification de l'existence de la table FOURNISSEUR
+    QSqlQuery probe;
+    if (!probe.exec("SELECT 1 FROM FOURNISSEUR WHERE 1=0")) {
+        idFour = isInt ? parsedId : 1;
+        nomFour = input;
+        m_lastError.clear();
+        return true;
+    }
+
+    auto byId = [&](int id) -> bool {
+        QSqlQuery q;
+        q.prepare("SELECT id_four, nom FROM FOURNISSEUR WHERE id_four = :id");
+        q.bindValue(":id", id);
+        if (!q.exec()) {
+            m_lastError = q.lastError().text();
+            return false;
+        }
+        if (!q.next()) {
+            m_lastError = "ID fournisseur introuvable.";
+            return false;
+        }
+        idFour = q.value(0).toInt();
+        nomFour = q.value(1).toString().trimmed();
+        m_lastError.clear();
+        return true;
     };
 
-    double totalValue = 0;
-    int criticalCount = 0;
+    // FIXED: Removed 'bool' and 'const int' because they were already declared above.
+    // We just reuse the values already stored in 'isInt' and 'parsedId'.
+    if (isInt) {
+        return byId(parsedId);
+    }
 
-    for(int i = 0; i < items.size(); ++i) {
-        ui->tableWidget->setItem(i, 0, new QTableWidgetItem(items[i].ref));
-        ui->tableWidget->setItem(i, 1, new QTableWidgetItem(items[i].nom));
-        ui->tableWidget->setItem(i, 2, new QTableWidgetItem(items[i].stock));
-
-        // Affichage du SEUIL avec style (Badge)
-        QLabel* badge = new QLabel(items[i].seuil);
-        badge->setAlignment(Qt::AlignCenter);
-        badge->setFixedSize(90, 25);
-        QString style = "border-radius: 5px; font-weight: bold;";
-
-        if(items[i].seuil == "CRITIQUE") {
-            style += "background-color: #dc3545; color: white;";
-            criticalCount++;
+    auto byNameQuery = [&](const QString &sql, const QString &val) -> bool {
+        QSqlQuery q;
+        q.prepare(sql);
+        q.bindValue(":nom", val);
+        if (!q.exec()) {
+            m_lastError = q.lastError().text();
+            return false;
         }
-        else if(items[i].seuil == "MOYEN") style += "background-color: #ffc107; color: #333;";
-        else style += "background-color: #28a745; color: white;";
+        if (!q.next()) {
+            return false;
+        }
+        idFour = q.value(0).toInt();
+        nomFour = q.value(1).toString().trimmed();
+        m_lastError.clear();
+        return true;
+    };
 
-        badge->setStyleSheet(style);
-
-        QWidget* badgeWidget = new QWidget();
-        QHBoxLayout* badgeLayout = new QHBoxLayout(badgeWidget);
-        badgeLayout->addWidget(badge);
-        badgeLayout->setAlignment(Qt::AlignCenter);
-        badgeLayout->setContentsMargins(0,0,0,0);
-        ui->tableWidget->setCellWidget(i, 3, badgeWidget);
-
-        ui->tableWidget->setItem(i, 4, new QTableWidgetItem(items[i].prix));
-        ui->tableWidget->setItem(i, 5, new QTableWidgetItem(items[i].fournisseur));
-
-        // Calculs Stats
-        double price = items[i].prix.split(" ")[0].toDouble();
-        totalValue += items[i].stock.toInt() * price;
-
-        // Create Action Buttons
-        QWidget* container = new QWidget();
-        QHBoxLayout* layout = new QHBoxLayout(container);
-        QPushButton* editBtn = new QPushButton("Modifier");
-        QPushButton* delBtn = new QPushButton("Supprimer");
-
-        editBtn->setStyleSheet("color: #3182CE; border: none; font-weight: bold;");
-        delBtn->setStyleSheet("color: #E53E3E; border: none; font-weight: bold;");
-
-        // NAVIGATION: Pre-fill Modifier Page and Switch
-        connect(editBtn, &QPushButton::clicked, this, [=]() {
-            ui->inputRef_mod->setText(ui->tableWidget->item(i, 0)->text());
-            ui->inputNom_mod->setText(ui->tableWidget->item(i, 1)->text());
-            ui->inputStock_mod->setText(ui->tableWidget->item(i, 2)->text());
-            ui->inputPrix_mod->setText(ui->tableWidget->item(i, 4)->text());
-            ui->inputFournisseur_mod->setText(ui->tableWidget->item(i, 5)->text());
-
-            // Sync Sliders avec les valeurs existantes
-            ui->sliderStock_mod->setValue(ui->tableWidget->item(i, 2)->text().toInt());
-            ui->sliderPrix_mod->setValue(ui->tableWidget->item(i, 4)->text().split(" ")[0].toInt());
-
-            ui->stackedWidget->setCurrentIndex(2); // Go to Modifier Page
-        });
-        connect(delBtn, &QPushButton::clicked, this, [this, container]() {
-            if (!ui->tableWidget) return;
-
-            int row = -1;
-            for (int r = 0; r < ui->tableWidget->rowCount(); ++r) {
-                if (ui->tableWidget->cellWidget(r, 6) == container) {
-                    row = r;
-                    break;
-                }
-            }
-            if (row < 0) return;
-
-            if (QMessageBox::question(this, "Supprimer", "Etes-vous sur de supprimer cet element ?", QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes)
-                return;
-
-            ui->tableWidget->removeRow(row);
-        });
-
-        layout->addWidget(editBtn);
-        layout->addWidget(delBtn);
-        layout->setContentsMargins(0,0,0,0);
-        ui->tableWidget->setCellWidget(i, 6, container);
+    if (byNameQuery("SELECT id_four, nom FROM FOURNISSEUR WHERE UPPER(nom)=UPPER(:nom)", input)) {
+        return true;
     }
 
-    // Mise à jour des Widgets Stats & Commandes
-    ui->totalStock->setText(QString::number(totalValue, 'f', 3) + " TND");
-    ui->lblCriticalStock->setText(QString("⚠ %1 Produits Critiques").arg(criticalCount));
-
-    if(criticalCount > 0) {
-        ui->lblOrderSummary->setText(QString("Urgent : %1 articles à commander").arg(criticalCount));
-        ui->lblOrderSummary->setStyleSheet("font-size: 13px; color: #E53E3E; font-weight: bold; margin-bottom: 5px;");
-    } else {
-        ui->lblOrderSummary->setText("Stock suffisant");
-        ui->lblOrderSummary->setStyleSheet("font-size: 13px; color: #28a745; margin-bottom: 5px;");
+    if (byNameQuery("SELECT id_four, nom FROM FOURNISSEUR WHERE UPPER(nom) LIKE UPPER(:nom) ORDER BY id_four", input + "%")) {
+        return true;
     }
-}
 
-// Navigation Slot for Sidebar or +Nouveau button
-void MainWindow::on_btnNew_clicked() {
-    ui->stackedWidget->setCurrentIndex(1);
-}
+    const int newId = resolveNextFournisseurId();
+    if (newId <= 0) return false;
 
-// Global "Back" logic
-void MainWindow::on_btnCancel_add_clicked() { ui->stackedWidget->setCurrentIndex(0); }
-void MainWindow::on_btnCancel_mod_clicked() { ui->stackedWidget->setCurrentIndex(0); }
-
-void MainWindow::setupLogo() {
-    QPixmap logo(":/wasteguard_logo.png");
-
-    if (logo.isNull()) {
-        // Affiche un message si l'image n'est pas chargée (problème de chemin ou de build)
-        ui->label_logo->setText("Logo introuvable");
-        ui->label_logo->setStyleSheet("color: white; font-weight: bold; border: 1px dashed white; padding: 10px;");
-        ui->label_logo->setFixedSize(180, 50);
-    } else {
-        ui->label_logo->setPixmap(logo);
-        ui->label_logo->setScaledContents(true);
-        ui->label_logo->setFixedSize(150, 150); // Taille ajustée pour la sidebar
+    QSqlQuery ins;
+    ins.prepare("INSERT INTO FOURNISSEUR (id_four, nom, email, telephone) VALUES (:id, :nom, NULL, NULL)");
+    ins.bindValue(":id", newId);
+    ins.bindValue(":nom", input);
+    if (!ins.exec()) {
+        m_lastError = ins.lastError().text();
+        return false;
     }
-    ui->label_logo->setAlignment(Qt::AlignCenter);
+
+    idFour = newId;
+    nomFour = input;
+    m_lastError.clear();
+    return true;
 }
+bool Stock::ajouter()
+{
+    const int idMp = (m_idMp > 0) ? m_idMp : resolveNextMpId();
+    if (idMp <= 0) return false;
+
+    int idFour = -1;
+    QString nomFour;
+    if (!resolveFournisseurIdFromInput(m_fournisseurInput, idFour, nomFour)) {
+        nomFour = m_fournisseurInput.trimmed();
+    }
+
+    const int seuil = (m_seuilCritique > 0) ? m_seuilCritique : qMax(5, m_quantite / 5);
+
+    QSqlQuery q;
+    q.prepare("INSERT INTO MATIERE_PREMIERE (ID_MP, REFERENCE, NOM, QUANTITE, PRIX, SEUIL_CRITIQUE, DATE_FABRICATION, DATE_ACHAT, NUM_FOUR, NOM_FOUR, EMAIL_FOUR) "
+        "VALUES (:ID_MP, :REFERENCE, :NOM, :QUANTITE, :PRIX, :SEUIL_CRITIQUE, :DATE_FABRICATION, :DATE_ACHAT, :NUM_FOUR, :NOM_FOUR, :EMAIL_FOUR)");
+
+    q.bindValue(":ID_MP", idMp);
+    q.bindValue(":REFERENCE", m_reference.trimmed());
+    q.bindValue(":NOM", m_nom.trimmed());
+    q.bindValue(":QUANTITE", m_quantite);
+    q.bindValue(":PRIX", m_prix);
+    q.bindValue(":SEUIL_CRITIQUE", seuil);
+    q.bindValue(":DATE_FABRICATION", m_dateFabrication);
+    q.bindValue(":DATE_ACHAT", m_dateAchat);
+    q.bindValue(":NUM_FOUR", idFour > 0 ? idFour : 1);
+    q.bindValue(":NOM_FOUR", nomFour);
+    q.bindValue(":EMAIL_FOUR", m_emailFourInput);
+
+    const bool ok = q.exec();
+    if (ok) logStockHistoryTxt(idMp, m_quantite);
+    m_lastError = ok ? QString() : q.lastError().text();
+    return ok;
+}
+
+bool Stock::modifier()
+{
+    if (m_idMp <= 0) {
+        m_lastError = "ID MATIERE_PREMIERE invalide pour la modification.";
+        return false;
+    }
+
+    int idFour = -1;
+    QString nomFour;
+    if (!resolveFournisseurIdFromInput(m_fournisseurInput, idFour, nomFour)) {
+        nomFour = m_fournisseurInput.trimmed();
+    }
+
+    const int seuil = (m_seuilCritique > 0) ? m_seuilCritique : qMax(5, m_quantite / 5);
+
+    QSqlQuery q;
+    q.prepare("UPDATE MATIERE_PREMIERE SET NOM=:NOM, QUANTITE=:QUANTITE, PRIX=:PRIX, SEUIL_CRITIQUE=:SEUIL_CRITIQUE, DATE_FABRICATION=:DATE_FABRICATION, DATE_ACHAT=:DATE_ACHAT, NUM_FOUR=:NUM_FOUR, NOM_FOUR=:NOM_FOUR, EMAIL_FOUR=:EMAIL_FOUR WHERE REFERENCE=:REFERENCE");
+
+    q.bindValue(":NOM", m_nom.trimmed());
+    q.bindValue(":QUANTITE", m_quantite);
+    q.bindValue(":PRIX", m_prix);
+    q.bindValue(":SEUIL_CRITIQUE", seuil);
+    q.bindValue(":DATE_FABRICATION", m_dateFabrication);
+    q.bindValue(":DATE_ACHAT", m_dateAchat);
+    q.bindValue(":NUM_FOUR", idFour > 0 ? idFour : 1);
+    q.bindValue(":NOM_FOUR", nomFour);
+    q.bindValue(":EMAIL_FOUR", m_emailFourInput);
+    q.bindValue(":REFERENCE", m_reference.trimmed());
+
+    const bool ok = q.exec();
+    if (ok) logStockHistoryTxt(m_idMp, m_quantite);
+    m_lastError = ok ? QString() : q.lastError().text();
+    return ok;
+}
+
+bool Stock::supprimer(int idMp)
+{
+    QSqlQuery q;
+    // Supprimer les enregistrements enfants pour eviter l'erreur de contrainte de clef etrangere
+    q.prepare("DELETE FROM INTERVENTION_MATIERE WHERE ID_MP = :id");
+    q.bindValue(":id", idMp);
+    q.exec();
+
+    q.prepare("DELETE FROM MATIERE_PREMIERE WHERE id_mp = :id");
+    q.bindValue(":id", idMp);
+    const bool ok = q.exec();
+    m_lastError = ok ? QString() : q.lastError().text();
+    return ok;
+}
+
+QSqlQueryModel *Stock::afficher()
+{
+    auto *model = new QSqlQueryModel();
+    model->setQuery("SELECT ID_MP, REFERENCE, NOM, QUANTITE, SEUIL_CRITIQUE, PRIX, DATE_FABRICATION, DATE_ACHAT, NOM_FOUR, EMAIL_FOUR "
+                "FROM MATIERE_PREMIERE");
+
+    m_lastError = model->lastError().isValid() ? model->lastError().text() : QString();
+    return model;
+}
+
+bool Stock::findIdByReference(const QString &reference, int &idMp)
+{
+    idMp = -1;
+    QSqlQuery q;
+    q.prepare("SELECT id_mp FROM MATIERE_PREMIERE WHERE reference = :reference");
+    q.bindValue(":reference", reference.trimmed());
+
+    if (!q.exec()) {
+        m_lastError = q.lastError().text();
+        return false;
+    }
+
+    if (!q.next()) {
+        m_lastError = "Reference introuvable.";
+        return false;
+    }
+
+    idMp = q.value(0).toInt();
+    m_lastError.clear();
+    return true;
+}
+
+QString Stock::lastError() const { return m_lastError; }
+
+int Stock::idMp() const { return m_idMp; }
+QString Stock::reference() const { return m_reference; }
+QString Stock::nom() const { return m_nom; }
+int Stock::quantite() const { return m_quantite; }
+int Stock::seuilCritique() const { return m_seuilCritique; }
+double Stock::prix() const { return m_prix; }
+QString Stock::fournisseurInput() const { return m_fournisseurInput; }
+QString Stock::emailFourInput() const { return m_emailFourInput; }
+QDate Stock::dateFabrication() const { return m_dateFabrication; }
+QDate Stock::dateAchat() const { return m_dateAchat; }
+
+void Stock::setIdMp(int value) { m_idMp = value; }
+void Stock::setReference(const QString &value) { m_reference = value; }
+void Stock::setNom(const QString &value) { m_nom = value; }
+void Stock::setQuantite(int value) { m_quantite = value; }
+void Stock::setSeuilCritique(int value) { m_seuilCritique = value; }
+void Stock::setPrix(double value) { m_prix = value; }
+void Stock::setFournisseurInput(const QString &value) { m_fournisseurInput = value; }
+void Stock::setEmailFourInput(const QString &value) { m_emailFourInput = value; }
+void Stock::setDateFabrication(const QDate &value) { m_dateFabrication = value; }
+void Stock::setDateAchat(const QDate &value) { m_dateAchat = value; }

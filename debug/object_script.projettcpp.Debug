@@ -13,6 +13,7 @@ debug/videogenerationdialog.o
 debug/accessibilityhelper.o
 debug/voiceassistant.o
 debug/labibassistant.o
+debug/emailnotificationmanager.o
 debug/qrc_logo.o
 debug/moc_mainwindow.o
 debug/moc_mascotwidget.o

@@ -13,6 +13,7 @@ release/videogenerationdialog.o
 release/accessibilityhelper.o
 release/voiceassistant.o
 release/labibassistant.o
+release/emailnotificationmanager.o
 release/qrc_logo.o
 release/moc_mainwindow.o
 release/moc_mascotwidget.o
