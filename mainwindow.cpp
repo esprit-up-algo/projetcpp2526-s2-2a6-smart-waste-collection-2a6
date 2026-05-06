@@ -5,8 +5,19 @@
 #include "connection.h"
 #include "accessibilityhelper.h"
 #include "voiceassistant.h"
+#include "thememanager.h"
+#include "employeehistorystore.h"
 
 #include "ui_mainwindow.h"
+#include <QCalendarWidget>
+#include <QTextCharFormat>
+#include <QVBoxLayout>
+#include <QHeaderView>
+#include <QtGlobal>
+#include <QMap>
+#include <QSet>
+#include <QPainter>
+
 #include <QPdfWriter>
 #include <QPainter>
 #include <QPainterPath>
@@ -17,6 +28,9 @@
 #include <QFile>
 #include <QBuffer>
 #include <QMouseEvent>
+#include <QDropEvent>
+#include <QDragEnterEvent>
+#include <QMimeData>
 #include <QDate>
 #include <QDateTime>
 #include <QDir>
@@ -31,6 +45,7 @@
 #include <functional>
 #include <QBoxLayout>
 #include "videogenerationdialog.h"
+#include "bacstatusdialog.h"
 
 
 
@@ -72,6 +87,7 @@
 
 #include <QApplication>
 #include <QGuiApplication>
+#include <QCoreApplication>
 
 #include <QStyle>
 
@@ -114,6 +130,9 @@
 #include <QVideoSink>
 #include <QVideoFrame>
 #include <QScreen>
+#include <QDockWidget>
+#include <QResizeEvent>
+#include <QMoveEvent>
 
 
 
@@ -161,6 +180,7 @@ static constexpr int EMP_ROLE_CIN = Qt::UserRole + 3;
 static constexpr int EMP_ROLE_SALAIRE = Qt::UserRole + 4;
 static constexpr int EMP_ROLE_PERF = Qt::UserRole + 5;
 static constexpr int EMP_ROLE_PHOTO = Qt::UserRole + 6;
+static constexpr int EMP_ROLE_RFID = Qt::UserRole + 7;
 static constexpr int EMP_COL_MATRICULE = 0;
 static constexpr int EMP_COL_NOM = 1;
 static constexpr int EMP_COL_SPECIALITE = 2;
@@ -360,6 +380,123 @@ bool isValidEmail(const QString &email)
 bool isValidEmployeeName(const QString &name)
 {
     return employeeNameRegex().match(name.trimmed()).hasMatch();
+}
+
+int employeeSalaryFromRow(QTableWidget *table, int row)
+{
+    if (!table || row < 0 || row >= table->rowCount()) return 0;
+
+    int salary = 0;
+    if (QTableWidgetItem *matItem = table->item(row, EMP_COL_MATRICULE)) {
+        const QVariant salaryData = matItem->data(EMP_ROLE_SALAIRE);
+        if (salaryData.isValid()) salary = salaryData.toInt();
+    }
+    if (salary > 0) return salary;
+
+    if (QTableWidgetItem *salaryItem = table->item(row, EMP_COL_SALAIRE)) {
+        const QString txt = salaryItem->text().trimmed();
+        static const QRegularExpression numRe(R"((\d+(?:[.,]\d+)?))");
+        const QRegularExpressionMatch match = numRe.match(txt);
+        if (match.hasMatch()) {
+            QString captured = match.captured(1);
+            captured.replace(',', '.');
+            bool ok = false;
+            const double parsed = captured.toDouble(&ok);
+            if (ok) {
+                salary = qMax(0, qRound(parsed));
+            }
+        }
+    }
+    return salary;
+}
+
+void computeEmployeDashboardKpis(QTableWidget *table, int &total, int &dispo, int &mission, double &salTotal)
+{
+    total = 0;
+    dispo = 0;
+    mission = 0;
+    salTotal = 0.0;
+
+    bool dbOk = false;
+    QSqlQuery q;
+    if (q.exec("SELECT COUNT(*), "
+               "NVL(SUM(CASE WHEN UPPER(NVL(DISPONIBILITE,'')) LIKE 'DISPONIBLE%' THEN 1 ELSE 0 END),0), "
+               "NVL(SUM(CASE WHEN UPPER(NVL(DISPONIBILITE,'')) LIKE '%INTERVENTION%' OR UPPER(NVL(DISPONIBILITE,'')) LIKE '%MISSION%' THEN 1 ELSE 0 END),0) "
+               "FROM EMPLOYE") && q.next()) {
+        total = q.value(0).toInt();
+        dispo = q.value(1).toInt();
+        mission = q.value(2).toInt();
+        dbOk = true;
+    }
+
+    if (table) {
+        int totalFromTable = 0;
+        int dispoFromTable = 0;
+        int missionFromTable = 0;
+        double salaryFromTable = 0.0;
+
+        for (int row = 0; row < table->rowCount(); ++row) {
+            ++totalFromTable;
+
+            const QString status = table->item(row, EMP_COL_DISPONIBILITE)
+                ? table->item(row, EMP_COL_DISPONIBILITE)->text().trimmed()
+                : QString();
+            const QString key = foldTextKey(status);
+
+            const bool isOnMission = key.contains("mission") || key.contains("intervention");
+            const bool isUnavailable = key.contains("indispon") || key.contains("non disponible");
+            const bool isAvailable = key.contains("disponible")
+                                  && !isUnavailable
+                                  && !isOnMission
+                                  && !key.contains("conge")
+                                  && !key.contains("absent");
+
+            if (isAvailable) ++dispoFromTable;
+            if (isOnMission) ++missionFromTable;
+
+            const int rowSalary = employeeSalaryFromRow(table, row);
+            if (rowSalary > 0) {
+                salaryFromTable += rowSalary;
+            }
+        }
+
+        if (!dbOk && totalFromTable > 0) {
+            total = totalFromTable;
+            dispo = dispoFromTable;
+            mission = missionFromTable;
+        }
+
+        if (salaryFromTable > 0.0) {
+            salTotal = salaryFromTable;
+        }
+    }
+
+    if (salTotal <= 0.0 && total > 0) {
+        // Salary is not persisted in some schemas: keep a meaningful estimate.
+        salTotal = total * 1200.0;
+    }
+}
+
+void refreshEmployeTopKpiLabels(QWidget *scope)
+{
+    if (!scope) return;
+    QTableWidget *table = scope->findChild<QTableWidget*>("tableEmployes");
+    int total = 0, dispo = 0, mission = 0;
+    double salTotal = 0.0;
+    computeEmployeDashboardKpis(table, total, dispo, mission, salTotal);
+
+    if (QLabel *lbl = scope->findChild<QLabel*>("emp_kpi_total_value")) {
+        lbl->setText(QString::number(total));
+    }
+    if (QLabel *lbl = scope->findChild<QLabel*>("emp_kpi_dispo_value")) {
+        lbl->setText(QString::number(dispo));
+    }
+    if (QLabel *lbl = scope->findChild<QLabel*>("emp_kpi_mission_value")) {
+        lbl->setText(QString::number(mission));
+    }
+    if (QLabel *lbl = scope->findChild<QLabel*>("emp_kpi_salary_value")) {
+        lbl->setText(QString("%1 TND").arg(QString::number(salTotal, 'f', 0)));
+    }
 }
 
 QString productStatusFromQty(int qty)
@@ -791,7 +928,7 @@ static QList<int> selectedTechIdsFromCombo(QComboBox *combo)
         if (!item) continue;
         if (item->checkState() != Qt::Checked) continue;
         const int id = item->data(Qt::UserRole).toInt();
-        if (id > 0) ids << id;
+        if (id > 0 && !ids.contains(id)) ids << id;
     }
     return ids;
 }
@@ -847,6 +984,62 @@ static void applyMaintenanceImageLabel(QLabel *lbl, const QString &imagePath, co
     lbl->setToolTip(QString());
 }
 
+static bool isSupportedMaintenanceImageFile(const QString &path)
+{
+    const QString suffix = QFileInfo(path).suffix().toLower();
+    static const QSet<QString> allowed = {"png", "jpg", "jpeg", "bmp", "webp"};
+    return allowed.contains(suffix);
+}
+
+static QString persistedMaintenanceImagePath(const QString &sourcePath)
+{
+    const QString cleanSource = sourcePath.trimmed();
+    if (cleanSource.isEmpty()) return QString();
+    QFileInfo info(cleanSource);
+    if (!info.exists() || !info.isFile() || !isSupportedMaintenanceImageFile(cleanSource)) {
+        return QString();
+    }
+
+    const QString appData = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    if (appData.trimmed().isEmpty()) {
+        return QDir::toNativeSeparators(cleanSource);
+    }
+
+    QDir targetDir(appData);
+    if (!targetDir.mkpath("maintenance_photos")) {
+        return QDir::toNativeSeparators(cleanSource);
+    }
+    if (!targetDir.cd("maintenance_photos")) {
+        return QDir::toNativeSeparators(cleanSource);
+    }
+
+    QString base = info.completeBaseName().trimmed();
+    if (base.isEmpty()) base = "maint_photo";
+    base = base.left(48);
+    base.replace(QRegularExpression(R"([^A-Za-z0-9_\-])"), "_");
+    if (base.isEmpty()) base = "maint_photo";
+
+    const QString ext = info.suffix().toLower();
+    const QString timestamp = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss_zzz");
+    QString targetPath = targetDir.filePath(QString("%1_%2.%3").arg(base, timestamp, ext));
+    int salt = 1;
+    while (QFileInfo::exists(targetPath)) {
+        targetPath = targetDir.filePath(QString("%1_%2_%3.%4").arg(base, timestamp).arg(salt++).arg(ext));
+    }
+
+    if (QFile::copy(cleanSource, targetPath)) {
+        return QDir::toNativeSeparators(targetPath);
+    }
+
+    return QDir::toNativeSeparators(cleanSource);
+}
+
+static bool isMaintenanceStatusCompleted(const QString &statusUi)
+{
+    const QString s = foldTextKey(statusUi);
+    return s.contains("termine") || s.contains("completed") || s.contains("done");
+}
+
 static void pickMaintenanceImages(MainWindow *w, QLabel *lbl, QString &storePath, bool allowMulti)
 {
     if (!w || !lbl) return;
@@ -863,10 +1056,17 @@ static void pickMaintenanceImages(MainWindow *w, QLabel *lbl, QString &storePath
     }
     if (files.isEmpty()) return;
 
-    storePath = allowMulti ? files.join(";") : files.first();
-    applyMaintenanceImageLabel(lbl, files.first(), placeholder);
-    if (allowMulti && files.size() > 1) {
-        lbl->setToolTip(QString("%1 images selectionnees").arg(files.size()));
+    QStringList persisted;
+    for (const QString &f : files) {
+        const QString saved = persistedMaintenanceImagePath(f);
+        if (!saved.trimmed().isEmpty()) persisted << saved;
+    }
+    if (persisted.isEmpty()) return;
+
+    storePath = allowMulti ? persisted.join(";") : persisted.first();
+    applyMaintenanceImageLabel(lbl, persisted.first(), placeholder);
+    if (allowMulti && persisted.size() > 1) {
+        lbl->setToolTip(QString("%1 images selectionnees").arg(persisted.size()));
     }
 }
 
@@ -899,6 +1099,264 @@ static QStringList splitMaintenancePhotoPair(const QString &rawPaths)
 static QString formatMaintenancePhotoPair(const QString &beforePath, const QString &afterPath)
 {
     return QString("%1;%2").arg(beforePath.trimmed(), afterPath.trimmed());
+}
+
+struct MaintenanceImageAiResult
+{
+    bool hasAnyAnalysis = false;
+    QString beforeStatus; // READY | MAINTENANCE | UNRELATED
+    QString afterStatus;  // READY | MAINTENANCE | UNRELATED
+    QString suggestedStatus; // TERMINEE | EN_COURS
+    QString noteLine; // Persisted in description
+    QString userSummary;
+    QStringList errors;
+};
+
+static QString normalizeMaintenanceAiStatus(const QString &raw)
+{
+    static const QRegularExpression tokenRegex(
+        R"(\b(ready|maintenance|unrelated)\b)",
+        QRegularExpression::CaseInsensitiveOption);
+    const QRegularExpressionMatch m = tokenRegex.match(raw);
+    if (m.hasMatch()) {
+        return m.captured(1).toUpper();
+    }
+    return QString();
+}
+
+static QString resolveMaintenancePythonExecutable()
+{
+    const QStringList envKeys = {"WG_PYTHON_EXE", "PYTHON_EXE"};
+    for (const QString &key : envKeys) {
+        const QString candidate = qEnvironmentVariable(key.toUtf8().constData()).trimmed();
+        if (!candidate.isEmpty() && QFileInfo::exists(candidate)) {
+            return QDir::toNativeSeparators(candidate);
+        }
+    }
+
+    const QStringList names = {"python", "python3", "py"};
+    for (const QString &name : names) {
+        const QString exe = QStandardPaths::findExecutable(name).trimmed();
+        if (!exe.isEmpty()) return QDir::toNativeSeparators(exe);
+    }
+    return QString();
+}
+
+static QString resolveMaintenanceAiWorkerScriptPath()
+{
+    const auto normalizeIfExists = [](const QString &path) -> QString {
+        if (path.trimmed().isEmpty()) return QString();
+        const QFileInfo fi(path.trimmed());
+        if (!fi.exists() || !fi.isFile()) return QString();
+        return QDir::toNativeSeparators(fi.absoluteFilePath());
+    };
+
+    const QString envPath = qEnvironmentVariable("WG_MAINT_IMAGE_WORKER").trimmed();
+    if (const QString resolvedEnv = normalizeIfExists(envPath); !resolvedEnv.isEmpty()) {
+        return resolvedEnv;
+    }
+
+    const QStringList fileNames = {
+        "ai_worker.py",
+        "ai_worker_simple.py",
+        "ai_worker_test.py"
+    };
+    const QStringList relDirs = {
+        ".",
+        "scripts",
+        "python",
+        "ai",
+        "tools"
+    };
+
+    QStringList baseDirs;
+    baseDirs << QDir::currentPath()
+             << QCoreApplication::applicationDirPath();
+
+    const QString sourceDir = QFileInfo(QString::fromUtf8(__FILE__)).absolutePath();
+    if (!sourceDir.trimmed().isEmpty()) {
+        baseDirs << sourceDir;
+    }
+
+    auto addAncestors = [&](const QString &start, int levels) {
+        QDir dir(start);
+        for (int i = 0; i < levels; ++i) {
+            const QString up = dir.absoluteFilePath("..");
+            if (up == dir.absolutePath()) break;
+            baseDirs << up;
+            dir.setPath(up);
+        }
+    };
+
+    addAncestors(QCoreApplication::applicationDirPath(), 8);
+    addAncestors(QDir::currentPath(), 8);
+    if (!sourceDir.trimmed().isEmpty()) addAncestors(sourceDir, 4);
+
+    QStringList normalizedBases;
+    for (const QString &base : baseDirs) {
+        const QString clean = QDir(base).absolutePath().trimmed();
+        if (!clean.isEmpty() && !normalizedBases.contains(clean)) {
+            normalizedBases << clean;
+        }
+    }
+
+    for (const QString &base : normalizedBases) {
+        for (const QString &rel : relDirs) {
+            const QString folder = (rel == "." ? base : QDir(base).absoluteFilePath(rel));
+            for (const QString &name : fileNames) {
+                const QString candidate = QDir(folder).absoluteFilePath(name);
+                if (const QString resolved = normalizeIfExists(candidate); !resolved.isEmpty()) {
+                    return resolved;
+                }
+            }
+        }
+    }
+
+    return QString();
+}
+
+static bool runMaintenanceImageAi(const QString &imagePath,
+                                  QString &statusOut,
+                                  QString &errorOut,
+                                  QString *scriptPathOut = nullptr)
+{
+    statusOut.clear();
+    errorOut.clear();
+    if (scriptPathOut) scriptPathOut->clear();
+
+    const QString cleanImagePath = imagePath.trimmed();
+    if (cleanImagePath.isEmpty()) {
+        errorOut = "Image absente.";
+        return false;
+    }
+    if (!QFileInfo::exists(cleanImagePath)) {
+        errorOut = "Image introuvable.";
+        return false;
+    }
+
+    const QString pythonExe = resolveMaintenancePythonExecutable();
+    if (pythonExe.isEmpty()) {
+        errorOut = "Python introuvable.";
+        return false;
+    }
+
+    const QString workerScript = resolveMaintenanceAiWorkerScriptPath();
+    if (workerScript.isEmpty()) {
+        errorOut = "Script IA maintenance introuvable.";
+        return false;
+    }
+    if (scriptPathOut) *scriptPathOut = workerScript;
+
+    QStringList args;
+    const QString pythonBase = QFileInfo(pythonExe).fileName().toLower();
+    if (pythonBase == "py" || pythonBase == "py.exe") {
+        args << "-3";
+    }
+    args << workerScript << cleanImagePath;
+
+    QProcess proc;
+    proc.setProgram(pythonExe);
+    proc.setArguments(args);
+    proc.start();
+    if (!proc.waitForStarted(2000)) {
+        errorOut = "Impossible de demarrer le worker IA.";
+        return false;
+    }
+    if (!proc.waitForFinished(20000)) {
+        proc.kill();
+        proc.waitForFinished(1000);
+        errorOut = "Timeout du worker IA image.";
+        return false;
+    }
+
+    const QString stdoutText = QString::fromUtf8(proc.readAllStandardOutput()).trimmed();
+    const QString stderrText = QString::fromUtf8(proc.readAllStandardError()).trimmed();
+    const QString merged = (stdoutText + "\n" + stderrText).trimmed();
+    const QString normalized = normalizeMaintenanceAiStatus(merged);
+    if (normalized.isEmpty()) {
+        errorOut = merged.isEmpty() ? "Reponse IA vide." : ("Reponse IA invalide: " + merged.left(200));
+        return false;
+    }
+
+    statusOut = normalized;
+    return true;
+}
+
+static QString upsertMaintenanceImageAiNote(const QString &description, const QString &noteLine)
+{
+    QString out = description.trimmed();
+    const QRegularExpression iaNoteRegex(
+        R"((?:\r?\n)?\[IA_IMAGE\][^\n]*)",
+        QRegularExpression::CaseInsensitiveOption);
+    out.remove(iaNoteRegex);
+    out = out.trimmed();
+    if (!noteLine.trimmed().isEmpty()) {
+        if (!out.isEmpty()) out += "\n";
+        out += noteLine.trimmed();
+    }
+    return out;
+}
+
+static MaintenanceImageAiResult analyzeMaintenanceBeforeAfterImages(const QString &beforePath, const QString &afterPath)
+{
+    MaintenanceImageAiResult result;
+    QString workerScriptPath;
+
+    auto runOne = [&](const QString &path, const QString &label) -> QString {
+        const QString cleanPath = path.trimmed();
+        if (cleanPath.isEmpty()) return QString();
+        QString status;
+        QString error;
+        if (runMaintenanceImageAi(cleanPath, status, error, &workerScriptPath)) {
+            result.hasAnyAnalysis = true;
+            return status;
+        }
+        if (!error.trimmed().isEmpty()) {
+            result.errors << QString("%1: %2").arg(label, error);
+        }
+        return QString();
+    };
+
+    result.beforeStatus = runOne(beforePath, "avant");
+    result.afterStatus = runOne(afterPath, "apres");
+
+    const bool hasUnrelated =
+        (result.beforeStatus.compare("UNRELATED", Qt::CaseInsensitive) == 0)
+        || (result.afterStatus.compare("UNRELATED", Qt::CaseInsensitive) == 0);
+
+    if (!hasUnrelated && result.beforeStatus == "MAINTENANCE" && result.afterStatus == "READY") {
+        result.suggestedStatus = "TERMINEE";
+    } else if (!hasUnrelated && result.beforeStatus == "MAINTENANCE" && result.afterStatus == "MAINTENANCE") {
+        result.suggestedStatus = "EN_COURS";
+    } else if (!hasUnrelated && result.beforeStatus == "READY" && result.afterStatus == "MAINTENANCE") {
+        result.suggestedStatus = "EN_COURS";
+    } else if (!hasUnrelated && result.beforeStatus.isEmpty() && result.afterStatus == "READY") {
+        result.suggestedStatus = "TERMINEE";
+    } else if (!hasUnrelated && result.beforeStatus == "MAINTENANCE" && result.afterStatus.isEmpty()) {
+        result.suggestedStatus = "EN_COURS";
+    }
+
+    if (result.hasAnyAnalysis) {
+        QStringList parts;
+        parts << QString("avant=%1").arg(result.beforeStatus.isEmpty() ? "N/A" : result.beforeStatus);
+        parts << QString("apres=%1").arg(result.afterStatus.isEmpty() ? "N/A" : result.afterStatus);
+        if (hasUnrelated) {
+            parts << "alerte=image_non_pertinente";
+        }
+        if (!result.suggestedStatus.isEmpty()) {
+            parts << QString("suggestion_statut=%1").arg(result.suggestedStatus);
+        }
+        if (!workerScriptPath.isEmpty()) {
+            parts << QString("script=%1").arg(QFileInfo(workerScriptPath).fileName());
+        }
+        result.noteLine = "[IA_IMAGE] " + parts.join(" | ");
+        result.userSummary = QString("Analyse image IA: %1").arg(parts.join(" | "));
+    } else if (!result.errors.isEmpty()) {
+        result.userSummary = QString("Analyse image IA non disponible (%1).").arg(result.errors.join(" ; "));
+    }
+
+    result.errors.removeDuplicates();
+    return result;
 }
 
 static void openMaintenancePhotoPreview(QWidget *owner, const QString &path, const QString &title)
@@ -1520,26 +1978,31 @@ QStringList produitValidationIssues(MainWindow *window, bool modification, bool 
     const char *refName = modification ? "prod_ln_ref_mod" : "prod_ln_ref_add";
     const char *modelLineName = modification ? "prod_ln_model_mod" : "prod_ln_model_add";
     const char *modelComboName = modification ? "prod_cb_model_mod" : "prod_cb_model_add";
+    const char *qtyName = modification ? "prod_sb_qty_mod" : "prod_sb_qty_add";
     const char *priceName = modification ? "prod_dsb_price_mod" : "prod_dsb_price_add";
     const char *buttonName = modification ? "prod_btnSave_Mod" : "prod_btnSave_Add";
 
     QLineEdit *refEdit = window->findChild<QLineEdit*>(refName);
     QLineEdit *modelLine = window->findChild<QLineEdit*>(modelLineName);
     QComboBox *modelCombo = window->findChild<QComboBox*>(modelComboName);
+    QSpinBox *qtySpin = window->findChild<QSpinBox*>(qtyName);
     QDoubleSpinBox *priceSpin = window->findChild<QDoubleSpinBox*>(priceName);
     QPushButton *saveButton = window->findChild<QPushButton*>(buttonName);
 
     const QString reference = refEdit ? refEdit->text().trimmed() : QString();
     const QString modele = produitModeleSaisi(window, modification);
+    const int quantite = qtySpin ? qtySpin->value() : 0;
     const double prix = priceSpin ? priceSpin->value() : 0.0;
 
     const bool referenceOk = !reference.isEmpty();
     const bool modeleOk = !modele.isEmpty();
+    const bool quantiteOk = quantite > 0;
     const bool prixOk = prix > 0.0;
 
     QStringList issues;
     if (!referenceOk) issues << "code-barres obligatoire";
     if (!modeleOk) issues << "modele obligatoire";
+    if (!quantiteOk) issues << "quantite strictement positive";
     if (!prixOk) issues << "prix strictement positif";
 
     if (applyUiFeedback) {
@@ -1555,6 +2018,9 @@ QStringList produitValidationIssues(MainWindow *window, bool modification, bool 
 
         if (priceSpin) {
             setProduitValidationState(priceSpin, prixOk, prixOk ? "Prix valide." : "Le prix doit etre strictement positif.");
+        }
+        if (qtySpin) {
+            setProduitValidationState(qtySpin, quantiteOk, quantiteOk ? "Quantite valide." : "La quantite doit etre strictement positive.");
         }
 
         if (saveButton) {
@@ -2577,205 +3043,47 @@ bool ensureEmployeDisponibiliteStatusesReady(QString &errorText)
     return true;
 }
 
+// Stockage migre vers data/employee_missions.json (EmployeeHistoryStore).
+// Stubs conserves pour compatibilite des appelants.
 bool ensureMissionAffectationColumns(QString &errorText)
 {
-    static bool checked = false;
-    if (checked) return true;
-
     errorText.clear();
-
-    QSqlQuery probeAll;
-    if (probeAll.exec(
-            "SELECT status, completed_at, reward_amount, experience_gain "
-            "FROM MISSION_AFFECTATION WHERE 1=0")) {
-        checked = true;
-        return true;
-    }
-    if (!isMissingPhotoColumnError(probeAll.lastError().text())) {
-        errorText = probeAll.lastError().text();
-        return false;
-    }
-    probeAll.finish();
-
-    auto addColumn = [&](const QString &oracleSql, const QString &sqliteSql) -> bool {
-        QSqlQuery q;
-        if (q.exec(oracleSql)) return true;
-        if (isColumnAlreadyExistsError(q.lastError().text())) return true;
-
-        QSqlQuery fallback;
-        if (fallback.exec(sqliteSql)) return true;
-        if (isColumnAlreadyExistsError(fallback.lastError().text())) return true;
-
-        errorText = q.lastError().text();
-        if (errorText.trimmed().isEmpty()) {
-            errorText = fallback.lastError().text();
-        }
-        return false;
-    };
-
-    if (!addColumn(
-            "ALTER TABLE MISSION_AFFECTATION ADD (status VARCHAR2(20) DEFAULT 'EN_ATTENTE')",
-            "ALTER TABLE MISSION_AFFECTATION ADD COLUMN status TEXT DEFAULT 'EN_ATTENTE'")) {
-        return false;
-    }
-
-    if (!addColumn(
-            "ALTER TABLE MISSION_AFFECTATION ADD (completed_at DATE)",
-            "ALTER TABLE MISSION_AFFECTATION ADD COLUMN completed_at TEXT")) {
-        return false;
-    }
-
-    if (!addColumn(
-            "ALTER TABLE MISSION_AFFECTATION ADD (reward_amount NUMBER(10,2) DEFAULT 0)",
-            "ALTER TABLE MISSION_AFFECTATION ADD COLUMN reward_amount REAL DEFAULT 0")) {
-        return false;
-    }
-
-    if (!addColumn(
-            "ALTER TABLE MISSION_AFFECTATION ADD (experience_gain NUMBER(5) DEFAULT 0)",
-            "ALTER TABLE MISSION_AFFECTATION ADD COLUMN experience_gain INTEGER DEFAULT 0")) {
-        return false;
-    }
-
-    QSqlQuery normalize;
-    normalize.exec("UPDATE MISSION_AFFECTATION SET status='EN_ATTENTE' WHERE status IS NULL OR TRIM(status)=''");
-    normalize.exec("UPDATE MISSION_AFFECTATION SET reward_amount=0 WHERE reward_amount IS NULL");
-    normalize.exec("UPDATE MISSION_AFFECTATION SET experience_gain=0 WHERE experience_gain IS NULL");
-    checked = true;
     return true;
 }
 
 bool ensureMissionAffectationTableExists(QString &errorText)
 {
     errorText.clear();
-
-    QSqlQuery probe;
-    if (probe.exec("SELECT id_emp, mission_text, score, assigned_at FROM MISSION_AFFECTATION WHERE 1=0")) {
-        return ensureMissionAffectationColumns(errorText);
-    }
-    if (!isMissingTableError(probe.lastError().text())) {
-        errorText = probe.lastError().text();
-        return false;
-    }
-
-    QSqlQuery createOracle;
-    const bool oracleTableReady = createOracle.exec(
-                                      "CREATE TABLE MISSION_AFFECTATION ("
-                                      "id_affect NUMBER PRIMARY KEY, "
-                                      "id_emp NUMBER NOT NULL, "
-                                      "mission_text VARCHAR2(1000), "
-                                      "score NUMBER(6,2), "
-                                      "assigned_at DATE DEFAULT SYSDATE, "
-                                      "status VARCHAR2(20) DEFAULT 'EN_ATTENTE', "
-                                      "completed_at DATE, "
-                                      "reward_amount NUMBER(10,2) DEFAULT 0, "
-                                      "experience_gain NUMBER(5) DEFAULT 0)")
-                                  || createOracle.lastError().text().toUpper().contains("ORA-00955");
-    if (oracleTableReady) {
-        QSqlQuery createSeq;
-        if (!createSeq.exec(
-                "CREATE SEQUENCE MISSION_AFFECTATION_SEQ "
-                "START WITH 1 INCREMENT BY 1 NOCACHE")
-            && !createSeq.lastError().text().toUpper().contains("ORA-00955")) {
-            errorText = createSeq.lastError().text();
-            return false;
-        }
-        QSqlQuery createTrigger;
-        if (!createTrigger.exec(
-                "CREATE OR REPLACE TRIGGER MISSION_AFFECTATION_BI "
-                "BEFORE INSERT ON MISSION_AFFECTATION "
-                "FOR EACH ROW "
-                "WHEN (NEW.id_affect IS NULL) "
-                "BEGIN "
-                "SELECT MISSION_AFFECTATION_SEQ.NEXTVAL INTO :NEW.id_affect FROM DUAL; "
-                "END;")) {
-            // Not blocking: insert() also tries explicit sequence usage.
-        }
-        return ensureMissionAffectationColumns(errorText);
-    }
-
-    QSqlQuery createFallback;
-    if (createFallback.exec(
-            "CREATE TABLE MISSION_AFFECTATION ("
-            "id_affect INTEGER PRIMARY KEY AUTOINCREMENT, "
-            "id_emp INTEGER NOT NULL, "
-            "mission_text TEXT, "
-            "score REAL, "
-            "assigned_at TEXT DEFAULT CURRENT_TIMESTAMP, "
-            "status TEXT DEFAULT 'EN_ATTENTE', "
-            "completed_at TEXT, "
-            "reward_amount REAL DEFAULT 0, "
-            "experience_gain INTEGER DEFAULT 0)")) {
-        return ensureMissionAffectationColumns(errorText);
-    }
-    if (createFallback.lastError().text().toUpper().contains("ALREADY EXISTS")) {
-        return ensureMissionAffectationColumns(errorText);
-    }
-
-    errorText = createOracle.lastError().text();
-    if (errorText.trimmed().isEmpty()) {
-        errorText = createFallback.lastError().text();
-    }
-    return false;
+    return true;
 }
 
 bool insertMissionAffectationRow(int idEmp, const QString &missionText, double score, QString &errorText)
 {
     errorText.clear();
-    if (!ensureMissionAffectationTableExists(errorText)) {
+
+    EmployeeHistoryStore::MissionRecord rec;
+    rec.idEmp        = idEmp;
+    rec.missionText  = missionText;
+    rec.score        = score;
+    rec.status       = "EN_ATTENTE";
+    rec.assignedAt   = QDateTime::currentDateTime();
+    if (!EmployeeHistoryStore::instance().addMission(rec, errorText)) {
         return false;
     }
 
-    QSqlQuery insertOracleSeq;
-    insertOracleSeq.prepare(
-        "INSERT INTO MISSION_AFFECTATION (id_affect, id_emp, mission_text, score, assigned_at, status, completed_at, reward_amount, experience_gain) "
-        "VALUES (MISSION_AFFECTATION_SEQ.NEXTVAL, :id_emp, :mission_text, :score, SYSDATE, 'EN_ATTENTE', NULL, 0, 0)");
-    insertOracleSeq.bindValue(":id_emp", idEmp);
-    insertOracleSeq.bindValue(":mission_text", missionText);
-    insertOracleSeq.bindValue(":score", score);
-    if (insertOracleSeq.exec()) {
-        return true;
-    }
+    // Mise a jour des agregats sur EMPLOYE (etat courant + compteur).
+    QSqlQuery upd;
+    upd.prepare(
+        "UPDATE EMPLOYE SET "
+        "current_mission_text=:mt, current_mission_score=:sc, current_mission_status='EN_ATTENTE', "
+        "total_missions=COALESCE(total_missions,0)+1 "
+        "WHERE id_emp=:id");
+    upd.bindValue(":mt", missionText);
+    upd.bindValue(":sc", score);
+    upd.bindValue(":id", idEmp);
+    upd.exec(); // best-effort
 
-    QSqlQuery insertOracle;
-    insertOracle.prepare(
-        "INSERT INTO MISSION_AFFECTATION (id_emp, mission_text, score, assigned_at, status, completed_at, reward_amount, experience_gain) "
-        "VALUES (:id_emp, :mission_text, :score, SYSDATE, 'EN_ATTENTE', NULL, 0, 0)");
-    insertOracle.bindValue(":id_emp", idEmp);
-    insertOracle.bindValue(":mission_text", missionText);
-    insertOracle.bindValue(":score", score);
-    if (insertOracle.exec()) {
-        return true;
-    }
-
-    QSqlQuery insertFallback;
-    insertFallback.prepare(
-        "INSERT INTO MISSION_AFFECTATION (id_emp, mission_text, score, assigned_at, status, completed_at, reward_amount, experience_gain) "
-        "VALUES (:id_emp, :mission_text, :score, CURRENT_TIMESTAMP, 'EN_ATTENTE', NULL, 0, 0)");
-    insertFallback.bindValue(":id_emp", idEmp);
-    insertFallback.bindValue(":mission_text", missionText);
-    insertFallback.bindValue(":score", score);
-    if (insertFallback.exec()) {
-        return true;
-    }
-
-    // Last resort: Oracle without sequence — use MAX(id_affect)+1 to avoid ORA-01400
-    QSqlQuery insertMaxId;
-    insertMaxId.prepare(
-        "INSERT INTO MISSION_AFFECTATION (id_affect, id_emp, mission_text, score, assigned_at, status, completed_at, reward_amount, experience_gain) "
-        "VALUES ((SELECT NVL(MAX(id_affect),0)+1 FROM MISSION_AFFECTATION), :id_emp, :mission_text, :score, SYSDATE, 'EN_ATTENTE', NULL, 0, 0)");
-    insertMaxId.bindValue(":id_emp", idEmp);
-    insertMaxId.bindValue(":mission_text", missionText);
-    insertMaxId.bindValue(":score", score);
-    if (insertMaxId.exec()) {
-        return true;
-    }
-
-    errorText = insertOracleSeq.lastError().text();
-    if (errorText.trimmed().isEmpty()) errorText = insertOracle.lastError().text();
-    if (errorText.trimmed().isEmpty()) errorText = insertFallback.lastError().text();
-    if (errorText.trimmed().isEmpty()) errorText = insertMaxId.lastError().text();
-    return false;
+    return true;
 }
 
 bool loadEmployeeAssignedTasks(const QString &email,
@@ -2793,67 +3101,61 @@ bool loadEmployeeAssignedTasks(const QString &email,
         return false;
     }
 
-    for (int attempt = 0; attempt < 2; ++attempt) {
-        QString sessionError;
-        if (!ensureMainWindowDbSessionAlive(sessionError)) {
-            errorText = sessionError;
-            return false;
-        }
+    QString sessionError;
+    if (!ensureMainWindowDbSessionAlive(sessionError)) {
+        errorText = sessionError;
+        return false;
+    }
 
-        if (!ensureMissionAffectationTableExists(errorText)) {
-            if (attempt == 0 && isDisconnectedSessionError(errorText)) {
-                continue;
-            }
-            return false;
-        }
-
-        QSqlQuery query;
-        query.prepare(
-            "SELECT a.id_affect, a.mission_text, a.score, "
-            "COALESCE(a.reward_amount,0), COALESCE(a.experience_gain,0), "
-            "a.assigned_at, COALESCE(a.status, 'EN_ATTENTE') AS status, a.completed_at "
-            "FROM MISSION_AFFECTATION a "
-            "JOIN EMPLOYE e ON e.id_emp = a.id_emp "
-            "WHERE LOWER(TRIM(e.email)) = LOWER(TRIM(:email)) "
-            "ORDER BY a.assigned_at DESC");
-        query.bindValue(":email", normalizedEmail);
-        if (!query.exec()) {
-            errorText = query.lastError().text();
-            if (attempt == 0 && isDisconnectedSessionError(errorText)) {
-                continue;
-            }
-            return false;
-        }
-
-        auto stringifyTime = [](const QVariant &value) -> QString {
-            if (!value.isValid() || value.isNull()) return QString();
-            const QDateTime dt = parseSqlDateTimeValue(value);
-            if (dt.isValid()) return dt.toString("yyyy-MM-dd HH:mm");
-            return value.toString();
-        };
-
-        while (query.next()) {
-            AssignedTaskItem task;
-            task.idAffect = query.value(0).toInt();
-            task.missionText = query.value(1).toString().trimmed();
-            task.score = query.value(2).toDouble();
-            task.rewardAmount = query.value(3).toDouble();
-            task.experienceGain = query.value(4).toInt();
-            task.assignedAt = stringifyTime(query.value(5));
-            task.status = query.value(6).toString().trimmed();
-            if (task.status.isEmpty()) task.status = "EN_ATTENTE";
-            task.completedAt = stringifyTime(query.value(7));
-
-            if (isMissionTaskDoneStatus(task.status)) {
-                done.push_back(task);
-            } else {
-                pending.push_back(task);
-            }
-        }
-
+    // Resolution email -> id_emp via la table EMPLOYE (seule table SQL restante).
+    QSqlQuery resolve;
+    resolve.prepare("SELECT id_emp FROM EMPLOYE WHERE LOWER(TRIM(email)) = LOWER(TRIM(:email))");
+    resolve.bindValue(":email", normalizedEmail);
+    if (!resolve.exec()) {
+        errorText = resolve.lastError().text();
+        return false;
+    }
+    if (!resolve.next()) {
+        // Aucun employe avec cet email -> aucune mission, pas une erreur bloquante.
         return true;
     }
-    return false;
+    const int idEmp = resolve.value(0).toInt();
+
+    // Lecture de l'historique depuis le store JSON.
+    QVector<EmployeeHistoryStore::MissionRecord> records =
+        EmployeeHistoryStore::instance().missionsForEmployee(idEmp);
+
+    // Tri assignedAt DESC (equivalent ORDER BY assigned_at DESC).
+    std::sort(records.begin(), records.end(),
+              [](const EmployeeHistoryStore::MissionRecord &a,
+                 const EmployeeHistoryStore::MissionRecord &b) {
+        return a.assignedAt > b.assignedAt;
+    });
+
+    auto fmt = [](const QDateTime &dt) -> QString {
+        return dt.isValid() ? dt.toString("yyyy-MM-dd HH:mm") : QString();
+    };
+
+    for (const auto &r : records) {
+        AssignedTaskItem task;
+        task.idAffect       = r.idAffect;
+        task.missionText    = r.missionText.trimmed();
+        task.score          = r.score;
+        task.rewardAmount   = r.rewardAmount;
+        task.experienceGain = r.experienceGain;
+        task.assignedAt     = fmt(r.assignedAt);
+        task.status         = r.status.trimmed();
+        if (task.status.isEmpty()) task.status = "EN_ATTENTE";
+        task.completedAt    = fmt(r.completedAt);
+
+        if (isMissionTaskDoneStatus(task.status)) {
+            done.push_back(task);
+        } else {
+            pending.push_back(task);
+        }
+    }
+
+    return true;
 }
 
 double computeEmployeeMonthlyTaskBonus(int idEmp, const QDate &periodStart, const QDate &periodEnd, QString &errorText)
@@ -2862,56 +3164,24 @@ double computeEmployeeMonthlyTaskBonus(int idEmp, const QDate &periodStart, cons
     if (idEmp <= 0) return 0.0;
     if (!periodStart.isValid() || !periodEnd.isValid()) return 0.0;
 
-    for (int attempt = 0; attempt < 2; ++attempt) {
-        QString sessionError;
-        if (!ensureMainWindowDbSessionAlive(sessionError)) {
-            errorText = sessionError;
-            return 0.0;
+    const QVector<EmployeeHistoryStore::MissionRecord> records =
+        EmployeeHistoryStore::instance().missionsForEmployee(idEmp);
+
+    double total = 0.0;
+    for (const auto &r : records) {
+        if (!isMissionTaskDoneStatus(r.status)) continue;
+        if (!r.completedAt.isValid()) continue;
+        const QDate doneDate = r.completedAt.date();
+        if (doneDate < periodStart || doneDate > periodEnd) continue;
+
+        double reward = r.rewardAmount;
+        if (reward <= 0.0) {
+            reward = missionTaskMonthlyBonusFromScore(r.score, r.missionText);
         }
-
-        if (!ensureMissionAffectationTableExists(errorText)) {
-            if (attempt == 0 && isDisconnectedSessionError(errorText)) {
-                continue;
-            }
-            return 0.0;
-        }
-
-        QSqlQuery query;
-        query.prepare(
-            "SELECT mission_text, score, COALESCE(reward_amount,0), completed_at, COALESCE(status,'EN_ATTENTE') "
-            "FROM MISSION_AFFECTATION "
-            "WHERE id_emp=:id");
-        query.bindValue(":id", idEmp);
-        if (!query.exec()) {
-            errorText = query.lastError().text();
-            if (attempt == 0 && isDisconnectedSessionError(errorText)) {
-                continue;
-            }
-            return 0.0;
-        }
-
-        double total = 0.0;
-        while (query.next()) {
-            const QString missionText = query.value(0).toString();
-            const QString status = query.value(4).toString();
-            if (!isMissionTaskDoneStatus(status)) continue;
-
-            const QDateTime completedAt = parseSqlDateTimeValue(query.value(3));
-            if (!completedAt.isValid()) continue;
-            const QDate doneDate = completedAt.date();
-            if (doneDate < periodStart || doneDate > periodEnd) continue;
-
-            double reward = query.value(2).toDouble();
-            if (reward <= 0.0) {
-                reward = missionTaskMonthlyBonusFromScore(query.value(1).toDouble(), missionText);
-            }
-            total += reward;
-        }
-
-        errorText.clear();
-        return qRound(total * 100.0) / 100.0;
+        total += reward;
     }
-    return 0.0;
+
+    return qRound(total * 100.0) / 100.0;
 }
 
 bool markMissionTaskAsDoneById(int idAffect, QString &errorText, double *appliedBonus = nullptr, int *appliedExperienceGain = nullptr)
@@ -2924,141 +3194,76 @@ bool markMissionTaskAsDoneById(int idAffect, QString &errorText, double *applied
         return false;
     }
 
-    QString lastError;
-    for (int attempt = 0; attempt < 2; ++attempt) {
-        QString sessionError;
-        if (!ensureMainWindowDbSessionAlive(sessionError)) {
-            errorText = sessionError;
-            return false;
-        }
+    QString sessionError;
+    if (!ensureMainWindowDbSessionAlive(sessionError)) {
+        errorText = sessionError;
+        return false;
+    }
 
-        if (!ensureMissionAffectationTableExists(lastError)) {
-            if (attempt == 0 && isDisconnectedSessionError(lastError)) continue;
-            errorText = lastError;
-            return false;
-        }
-        if (!ensureEmployeExperienceColumnExists(lastError)) {
-            if (attempt == 0 && isDisconnectedSessionError(lastError)) continue;
-            errorText = lastError;
-            return false;
-        }
+    QString colError;
+    if (!ensureEmployeExperienceColumnExists(colError)) {
+        errorText = colError;
+        return false;
+    }
 
-        QSqlQuery readTask;
-        readTask.prepare(
-            "SELECT id_emp, mission_text, COALESCE(score,0), COALESCE(status,'EN_ATTENTE') "
-            "FROM MISSION_AFFECTATION WHERE id_affect=:id");
-        readTask.bindValue(":id", idAffect);
-        if (!readTask.exec()) {
-            lastError = readTask.lastError().text();
-            if (attempt == 0 && isDisconnectedSessionError(lastError)) continue;
-            errorText = lastError;
-            return false;
-        }
-        if (!readTask.next()) {
-            errorText = "Tache introuvable.";
-            return false;
-        }
-
-        const int idEmp = readTask.value(0).toInt();
-        const QString missionText = readTask.value(1).toString();
-        const double taskScore = readTask.value(2).toDouble();
-        const QString currentStatus = readTask.value(3).toString();
-        if (isMissionTaskDoneStatus(currentStatus)) {
-            return true;
-        }
-
-        const double reward = missionTaskMonthlyBonusFromScore(taskScore, missionText);
-        const int expGain = missionTaskExperienceGainFromScore(taskScore, missionText);
-
-        QSqlDatabase db = QSqlDatabase::database();
-        bool txStarted = false;
-        if (db.isValid()) {
-            txStarted = db.transaction();
-            if (!txStarted) {
-                lastError = db.lastError().text();
-                if (attempt == 0 && isDisconnectedSessionError(lastError)) {
-                    continue;
-                }
-            }
-        }
-
-        bool updatedTask = false;
-        QSqlQuery updateOracle;
-        updateOracle.prepare(
-            "UPDATE MISSION_AFFECTATION "
-            "SET status='TERMINEE', completed_at=SYSDATE, reward_amount=:reward, experience_gain=:exp "
-            "WHERE id_affect=:id");
-        updateOracle.bindValue(":reward", reward);
-        updateOracle.bindValue(":exp", expGain);
-        updateOracle.bindValue(":id", idAffect);
-        if (updateOracle.exec() && updateOracle.numRowsAffected() != 0) {
-            updatedTask = true;
-        } else {
-            QSqlQuery updateFallback;
-            updateFallback.prepare(
-                "UPDATE MISSION_AFFECTATION "
-                "SET status='TERMINEE', completed_at=CURRENT_TIMESTAMP, reward_amount=:reward, experience_gain=:exp "
-                "WHERE id_affect=:id");
-            updateFallback.bindValue(":reward", reward);
-            updateFallback.bindValue(":exp", expGain);
-            updateFallback.bindValue(":id", idAffect);
-            if (updateFallback.exec() && updateFallback.numRowsAffected() != 0) {
-                updatedTask = true;
-            } else {
-                lastError = updateOracle.lastError().text();
-                if (lastError.trimmed().isEmpty()) {
-                    lastError = updateFallback.lastError().text();
-                }
-            }
-        }
-
-        if (!updatedTask) {
-            if (txStarted) db.rollback();
-            if (attempt == 0 && isDisconnectedSessionError(lastError)) {
-                continue;
-            }
-            if (lastError.trimmed().isEmpty()) lastError = "Mise a jour de la tache impossible.";
-            errorText = lastError;
-            return false;
-        }
-
-        if (idEmp > 0 && expGain > 0) {
-            QSqlQuery incExp;
-            incExp.prepare(
-                "UPDATE EMPLOYE "
-                "SET experience = COALESCE(experience,0) + :gain "
-                "WHERE id_emp=:id");
-            incExp.bindValue(":gain", expGain);
-            incExp.bindValue(":id", idEmp);
-            if (!incExp.exec()) {
-                lastError = incExp.lastError().text();
-                if (txStarted) db.rollback();
-                if (attempt == 0 && isDisconnectedSessionError(lastError)) {
-                    continue;
-                }
-                errorText = lastError;
-                return false;
-            }
-        }
-
-        if (txStarted && !db.commit()) {
-            lastError = db.lastError().text();
-            if (attempt == 0 && isDisconnectedSessionError(lastError)) {
-                continue;
-            }
-            errorText = lastError;
-            return false;
-        }
-
-        if (appliedBonus) *appliedBonus = reward;
-        if (appliedExperienceGain) *appliedExperienceGain = expGain;
+    // Lecture de la mission depuis le store JSON.
+    EmployeeHistoryStore::MissionRecord existing;
+    if (!EmployeeHistoryStore::instance().getMission(idAffect, existing)) {
+        errorText = "Tache introuvable.";
+        return false;
+    }
+    if (isMissionTaskDoneStatus(existing.status)) {
         return true;
     }
 
-    errorText = lastError.trimmed().isEmpty()
-                    ? QString("Session Oracle coupee. Reessayez.")
-                    : lastError;
-    return false;
+    const double reward = missionTaskMonthlyBonusFromScore(existing.score, existing.missionText);
+    const int    expGain = missionTaskExperienceGainFromScore(existing.score, existing.missionText);
+
+    int     outIdEmp = 0;
+    QString outMissionText;
+    double  outScore = 0.0;
+    bool    alreadyDone = false;
+    if (!EmployeeHistoryStore::instance().markMissionDone(
+            idAffect, reward, expGain, outIdEmp, outMissionText, outScore, alreadyDone, errorText)) {
+        return false;
+    }
+    if (alreadyDone) {
+        if (appliedBonus) *appliedBonus = 0.0;
+        if (appliedExperienceGain) *appliedExperienceGain = 0;
+        return true;
+    }
+
+    // Mise a jour des compteurs sur EMPLOYE (experience + agregats).
+    if (outIdEmp > 0 && expGain > 0) {
+        QSqlQuery incExp;
+        incExp.prepare(
+            "UPDATE EMPLOYE "
+            "SET experience = COALESCE(experience,0) + :gain "
+            "WHERE id_emp=:id");
+        incExp.bindValue(":gain", expGain);
+        incExp.bindValue(":id", outIdEmp);
+        if (!incExp.exec()) {
+            errorText = incExp.lastError().text();
+            return false;
+        }
+    }
+    if (outIdEmp > 0) {
+        QSqlQuery upd;
+        upd.prepare(
+            "UPDATE EMPLOYE SET "
+            "current_mission_status='TERMINEE', "
+            "total_reward=COALESCE(total_reward,0)+:rw, "
+            "total_experience=COALESCE(total_experience,0)+:ex "
+            "WHERE id_emp=:id");
+        upd.bindValue(":rw", reward);
+        upd.bindValue(":ex", expGain);
+        upd.bindValue(":id", outIdEmp);
+        upd.exec(); // best-effort
+    }
+
+    if (appliedBonus) *appliedBonus = reward;
+    if (appliedExperienceGain) *appliedExperienceGain = expGain;
+    return true;
 }
 
 struct LeaveAiDecision
@@ -3154,89 +3359,12 @@ bool ensureAdminNotificationTableExists(QString &errorText)
     return false;
 }
 
+// Stockage migre vers data/employee_leaves.json (EmployeeHistoryStore).
+// Stub conserve pour compatibilite des appelants.
 bool ensureEmployeeLeaveTableExists(QString &errorText)
 {
     errorText.clear();
-
-    QSqlQuery probe;
-    if (probe.exec(
-            "SELECT id_leave, id_emp, email, reason_text, start_date, end_date, duration_days, "
-            "attachment_path, attachment_type, ai_decision, ai_confidence, ai_summary, status, created_at "
-            "FROM EMPLOYEE_LEAVE_REQUEST WHERE 1=0")) {
-        return true;
-    }
-    if (!isMissingTableError(probe.lastError().text())) {
-        errorText = probe.lastError().text();
-        return false;
-    }
-
-    QSqlQuery createOracle;
-    const bool oracleReady = createOracle.exec(
-                                 "CREATE TABLE EMPLOYEE_LEAVE_REQUEST ("
-                                 "id_leave NUMBER PRIMARY KEY, "
-                                 "id_emp NUMBER NOT NULL, "
-                                 "email VARCHAR2(255) NOT NULL, "
-                                 "reason_text VARCHAR2(2000), "
-                                 "start_date DATE, "
-                                 "end_date DATE, "
-                                 "duration_days NUMBER(5), "
-                                 "attachment_path VARCHAR2(1000), "
-                                 "attachment_type VARCHAR2(16), "
-                                 "ai_decision VARCHAR2(32), "
-                                 "ai_confidence NUMBER(5,2), "
-                                 "ai_summary VARCHAR2(2000), "
-                                 "status VARCHAR2(32) DEFAULT 'EN_ATTENTE_ADMIN', "
-                                 "created_at DATE DEFAULT SYSDATE)")
-                             || createOracle.lastError().text().toUpper().contains("ORA-00955");
-    if (oracleReady) {
-        QSqlQuery createSeq;
-        if (!createSeq.exec(
-                "CREATE SEQUENCE EMPLOYEE_LEAVE_REQUEST_SEQ "
-                "START WITH 1 INCREMENT BY 1 NOCACHE")
-            && !createSeq.lastError().text().toUpper().contains("ORA-00955")) {
-            errorText = createSeq.lastError().text();
-            return false;
-        }
-        QSqlQuery createTrigger;
-        createTrigger.exec(
-            "CREATE OR REPLACE TRIGGER EMPLOYEE_LEAVE_REQUEST_BI "
-            "BEFORE INSERT ON EMPLOYEE_LEAVE_REQUEST "
-            "FOR EACH ROW "
-            "WHEN (NEW.id_leave IS NULL) "
-            "BEGIN "
-            "SELECT EMPLOYEE_LEAVE_REQUEST_SEQ.NEXTVAL INTO :NEW.id_leave FROM DUAL; "
-            "END;");
-        return true;
-    }
-
-    QSqlQuery createFallback;
-    if (createFallback.exec(
-            "CREATE TABLE EMPLOYEE_LEAVE_REQUEST ("
-            "id_leave INTEGER PRIMARY KEY AUTOINCREMENT, "
-            "id_emp INTEGER NOT NULL, "
-            "email TEXT NOT NULL, "
-            "reason_text TEXT, "
-            "start_date TEXT, "
-            "end_date TEXT, "
-            "duration_days INTEGER, "
-            "attachment_path TEXT, "
-            "attachment_type TEXT, "
-            "ai_decision TEXT, "
-            "ai_confidence REAL, "
-            "ai_summary TEXT, "
-            "status TEXT DEFAULT 'EN_ATTENTE_ADMIN', "
-            "created_at TEXT DEFAULT CURRENT_TIMESTAMP)")) {
-        return true;
-    }
-    if (createFallback.lastError().text().toUpper().contains("ALREADY EXISTS")) {
-        return true;
-    }
-
-    errorText = createOracle.lastError().text();
-    if (errorText.trimmed().isEmpty()) {
-        errorText = createFallback.lastError().text();
-    }
-    return false;
+    return true;
 }
 
 [[maybe_unused]] bool resolveEmployeeByEmail(const QString &email, int &idEmp, QString &employeeName, QString &errorText)
@@ -3351,9 +3479,6 @@ QString resolveToolExecutable(const QString &toolName)
 {
     static QHash<QString, QString> cache;
     const QString cacheKey = toolName.trimmed().toLower();
-    if (cache.contains(cacheKey)) {
-        return cache.value(cacheKey);
-    }
 
     const auto remember = [&](const QString &value) -> QString {
         cache.insert(cacheKey, value);
@@ -3361,6 +3486,22 @@ QString resolveToolExecutable(const QString &toolName)
     };
 
     const QString rawTool = toolName.trimmed();
+    if (cache.contains(cacheKey)) {
+        const QString cached = cache.value(cacheKey).trimmed();
+        if (!cached.isEmpty()) {
+            const QFileInfo cachedInfo(cached);
+            if (cachedInfo.exists()) {
+                return cached;
+            }
+            // If the cached entry was just a command name or became stale, try to re-resolve.
+            const QString byCachedPath = QStandardPaths::findExecutable(cached).trimmed();
+            if (!byCachedPath.isEmpty()) {
+                return remember(byCachedPath);
+            }
+        }
+        cache.remove(cacheKey);
+    }
+
     if (rawTool.isEmpty()) return remember(QString());
 
     const QFileInfo directInfo(rawTool);
@@ -3927,11 +4068,17 @@ QString leaveDocumentKindLabel(LeaveDocumentKind kind)
     return "non reconnu";
 }
 
+QString attachmentFileHintForLeave(const QString &attachmentPath)
+{
+    QString hint = QFileInfo(attachmentPath).completeBaseName();
+    hint.replace('_', ' ');
+    hint.replace('-', ' ');
+    return hint.simplified();
+}
+
 QString extractAttachmentTextForLocalCheck(const QString &attachmentPath, const QString &attachmentType)
 {
-    QString out = QFileInfo(attachmentPath).completeBaseName();
-    out.replace('_', ' ');
-    out.replace('-', ' ');
+    QString out;
 
     if (attachmentType == "pdf") {
         const QString byTool = extractPdfTextWithExternalTool(attachmentPath);
@@ -3998,6 +4145,28 @@ bool hasDateInRange(const QVector<QDate> &dates, const QDate &startDate, const Q
         if (d >= startDate && d <= endDate) return true;
     }
     return false;
+}
+
+// Returns "MATCH" if certificate [min..max] fully covers request [start..end],
+// "PARTIAL" if there is overlap but certificate doesn't cover full request,
+// "MISMATCH" if no overlap at all, "UNKNOWN" if not enough dates.
+QString assessDateCoverage(const QVector<QDate> &dates, const QDate &requestStart, const QDate &requestEnd)
+{
+    if (dates.isEmpty() || !requestStart.isValid() || !requestEnd.isValid()) return "UNKNOWN";
+    QDate certStart = dates.first();
+    QDate certEnd = dates.first();
+    for (const QDate &d : dates) {
+        if (!d.isValid()) continue;
+        if (d < certStart) certStart = d;
+        if (d > certEnd) certEnd = d;
+    }
+    if (!certStart.isValid() || !certEnd.isValid()) return "UNKNOWN";
+    // No overlap at all
+    if (certEnd < requestStart || certStart > requestEnd) return "MISMATCH";
+    // Certificate period fully covers the requested period
+    if (certStart <= requestStart && certEnd >= requestEnd) return "MATCH";
+    // Overlap but not full coverage
+    return "PARTIAL";
 }
 
 QStringList formatDetectedDateList(const QVector<QDate> &dates)
@@ -4084,6 +4253,57 @@ QStringList jsonValueToStringList(const QJsonValue &value)
     return out;
 }
 
+// Returns true if a DIFFERENT email (not the employee's) is visible in the document text.
+bool documentContainsForeignEmail(const QString &attachmentText, const QString &employeeEmail)
+{
+    const QRegularExpression emailRe(R"([\w\.\-\+]+@[\w\.\-]+\.\w+)");
+    auto it = emailRe.globalMatch(attachmentText);
+    const QString myEmail = employeeEmail.trimmed().toLower();
+    while (it.hasNext()) {
+        const QString found = it.next().captured(0).trimmed().toLower();
+        if (found.isEmpty()) continue;
+        if (found != myEmail) return true;
+    }
+    return false;
+}
+
+// Strict name check: every token (>=3 chars) in the document name must match EXACTLY
+// one of the employee's name tokens. Prevents "mohamede" from matching "mohamed".
+bool strictNameMatches(const QString &docName, const QString &employeeName)
+{
+    const QStringList docTokens = foldTextKey(docName).split(' ', Qt::SkipEmptyParts);
+    const QStringList empTokens = foldTextKey(employeeName).split(' ', Qt::SkipEmptyParts);
+    if (docTokens.isEmpty() || empTokens.isEmpty()) return true; // nothing to compare
+    for (const QString &dt : docTokens) {
+        if (dt.size() < 3) continue; // skip initials or very short tokens
+        bool found = false;
+        for (const QString &et : empTokens) {
+            if (dt == et) { found = true; break; }
+        }
+        if (!found) return false; // alien token -> not the same person
+    }
+    return true;
+}
+
+// Strictly compares AI's extracted name + document text against expected employee identity.
+// Returns true if the identity in the document clearly does NOT match the employee.
+bool strictIdentityMismatch(const EmployeeLeaveValidationContext &context,
+                            const QString &extractedName,
+                            const QString &attachmentText)
+{
+    // Foreign email present in the document: instant mismatch.
+    if (!context.email.trimmed().isEmpty()
+        && documentContainsForeignEmail(attachmentText, context.email)) {
+        return true;
+    }
+
+    // If AI extracted a name, every substantial token in it must exactly match the employee's name.
+    if (!extractedName.trimmed().isEmpty() && !context.employeeName.trimmed().isEmpty()) {
+        if (!strictNameMatches(extractedName, context.employeeName)) return true;
+    }
+    return false;
+}
+
 QString localEmployeeIdentityStatus(const EmployeeLeaveValidationContext &context,
                                     const QString &attachmentText,
                                     QStringList *evidenceOut = nullptr)
@@ -4107,12 +4327,15 @@ QString localEmployeeIdentityStatus(const EmployeeLeaveValidationContext &contex
 
     const QStringList nameTokens = foldTextKey(context.employeeName)
                                        .split(' ', Qt::SkipEmptyParts);
+    // Split document text into individual word tokens for exact matching
+    // (prevents "mohamed" from matching as substring in "mohamede")
+    const QStringList docWordTokens = normalizedText.split(QRegularExpression("[\\s,;:.!?/\\-_]+"), Qt::SkipEmptyParts);
     int matchedTokens = 0;
     int checkedTokens = 0;
     for (const QString &token : nameTokens) {
         if (token.size() < 3) continue;
         ++checkedTokens;
-        if (normalizedText.contains(token)) {
+        if (docWordTokens.contains(token)) {
             ++matchedTokens;
         }
     }
@@ -4139,22 +4362,53 @@ LeaveAiDecision buildLeaveHeuristicDecision(const QString &reason,
                                             int durationDays,
                                             const QString &attachmentPath,
                                             const QString &attachmentType,
-                                            const QString &apiError)
+                                            const QString &apiError,
+                                            const EmployeeLeaveValidationContext &empContext)
 {
     LeaveAiDecision out;
+    const QString fileHint = attachmentFileHintForLeave(attachmentPath);
     const QString attachmentText = extractAttachmentTextForLocalCheck(attachmentPath, attachmentType);
-    const QString mergedText = reason + "\n" + attachmentText;
+    const QString mergedText = reason + "\n" + fileHint + "\n" + attachmentText;
     const QString normalized = foldTextKey(mergedText);
     const LeaveDocumentKind kind = detectLeaveDocumentKind(normalized);
     const bool nonMedicalProof = hasNonMedicalDocumentKeywords(normalized);
     const bool reasonMedical = leaveReasonLooksMedical(reason, attachmentText);
+    const bool canReadDoc = attachmentText.trimmed().size() >= 24;
+
+    // Identity check: compare employee context against document text
+    QStringList identityEvidence;
+    const QString identityStatus = canReadDoc
+        ? localEmployeeIdentityStatus(empContext, attachmentText, &identityEvidence)
+        : "UNKNOWN";
+
+    // Check for identity mismatch: wrong name or wrong email present in document
+    bool identityMismatch = false;
+    if (canReadDoc && identityStatus != "MATCH") {
+        const QString docFolded = foldTextKey(attachmentText);
+        // If a name appears in the doc but doesn't match the expected employee
+        const QStringList nameTokens = foldTextKey(empContext.employeeName).split(' ', Qt::SkipEmptyParts);
+        int matched = 0;
+        for (const QString &tok : nameTokens) {
+            if (tok.size() >= 3 && docFolded.contains(tok)) ++matched;
+        }
+        const bool wrongEmail = !empContext.email.isEmpty()
+            && !attachmentText.contains(empContext.email, Qt::CaseInsensitive)
+            && attachmentText.contains("@", Qt::CaseInsensitive);
+        if (wrongEmail || (matched == 0 && nameTokens.size() > 0 && docFolded.size() > 50)) {
+            identityMismatch = true;
+        }
+    }
 
     const QVector<QDate> dates = extractJustificatifDates(attachmentText);
     const bool hasDocDate = !dates.isEmpty();
     const bool overlap = hasDocDate && startDate.isValid() && endDate.isValid() && hasDateInRange(dates, startDate, endDate);
     const bool weakReason = reason.trimmed().size() < 8;
 
-    if (weakReason) {
+    if (identityMismatch) {
+        out.decision = "NON_JUSTIFIE";
+        out.confidence = 91.0;
+        out.employeeMatch = "MISMATCH";
+    } else if (weakReason) {
         out.decision = "NON_JUSTIFIE";
         out.confidence = 78.0;
     } else if (nonMedicalProof && reasonMedical && hasDocDate && overlap) {
@@ -4164,9 +4418,9 @@ LeaveAiDecision buildLeaveHeuristicDecision(const QString &reason,
         out.decision = "NON_JUSTIFIE";
         out.confidence = 92.0;
     } else if (kind == LeaveDocumentKind::Unknown && reasonMedical && hasDocDate && overlap) {
-        // OCR may miss keywords on noisy scans: accept with lower confidence when reason is clearly medical + date coherence.
-        out.decision = "JUSTIFIE";
-        out.confidence = 69.0;
+        // Can't read doc clearly but reason+dates are coherent — needs admin review
+        out.decision = "INSUFFISANT";
+        out.confidence = 62.0;
     } else if (kind == LeaveDocumentKind::Unknown && reasonMedical) {
         out.decision = "INSUFFISANT";
         out.confidence = 61.0;
@@ -4182,12 +4436,21 @@ LeaveAiDecision buildLeaveHeuristicDecision(const QString &reason,
             out.confidence = 82.0;
         }
     } else if (kind == LeaveDocumentKind::CertificatMedical) {
-        if (overlap) {
-            out.decision = "JUSTIFIE";
-            out.confidence = 84.0;
-        } else {
+        if (!overlap) {
             out.decision = "NON_JUSTIFIE";
             out.confidence = 79.0;
+        } else if (!canReadDoc || identityStatus == "UNKNOWN") {
+            // Dates match but can't verify identity (image OCR failed) — needs admin review
+            out.decision = "INSUFFISANT";
+            out.confidence = 66.0;
+            out.employeeMatch = "MISSING";
+        } else if (identityStatus == "MATCH") {
+            out.decision = "JUSTIFIE";
+            out.confidence = 84.0;
+            out.employeeMatch = "MATCH";
+        } else {
+            out.decision = "INSUFFISANT";
+            out.confidence = 68.0;
         }
     } else if (kind == LeaveDocumentKind::RendezVous) {
         if (!overlap) {
@@ -4227,12 +4490,17 @@ LeaveAiDecision buildLeaveHeuristicDecision(const QString &reason,
                             hasPdfToText ? "OK" : "NON",
                             hasPdfToPpm ? "OK" : "NON");
     }
+    const QString identityNote = identityMismatch
+        ? QString(" Identite NON conforme (email/nom du document ne correspond pas a %1).").arg(empContext.employeeName)
+        : (identityStatus == "MATCH"
+               ? QString(" Identite confirmee (%1).").arg(identityEvidence.join(", "))
+               : (canReadDoc ? " Identite non verifiable dans le document." : " OCR image impossible: identite non verifiable."));
+
     out.summary =
         QString("Mode local actif (%1). Type detecte: %2. Dates: %3. "
-                "Document non medical detecte: %4. Motif medical (raison+doc): %5. "
-                "Coherence avec la periode demandee: %6. Contexte: %7. "
-                "Decision estimee automatiquement; validation admin requise.%8")
-            .arg(attachmentNote, kindLabel, datesPreview, proofLabel, reasonMedicalLabel, overlapLabel, context, toolNote);
+                "Coherence periode: %4. Motif medical: %5. Contexte: %6.%7%8 "
+                "Validation admin requise.")
+            .arg(attachmentNote, kindLabel, datesPreview, overlapLabel, reasonMedicalLabel, context, identityNote, toolNote);
     return out;
 }
 
@@ -4331,7 +4599,7 @@ bool analyzeLeaveRequestWithApi(const EmployeeLeaveValidationContext &context,
         else if (!geminiApiKey.isEmpty()) pickGemini();
         else pickOllama();
     } else {
-        // Default behavior: prioritize OpenAI if configured.
+        // Smart default: prefer any configured cloud key, fallback to local Ollama.
         if (!openAiApiKey.isEmpty()) pickOpenAi();
         else if (!deepSeekApiKey.isEmpty()) pickDeepSeek();
         else if (!geminiApiKey.isEmpty()) pickGemini();
@@ -4356,83 +4624,99 @@ bool analyzeLeaveRequestWithApi(const EmployeeLeaveValidationContext &context,
         return false;
     }
 
+    const QString attachmentFileHint = attachmentFileHintForLeave(attachmentPath);
     QString attachmentText = extractAttachmentTextForLocalCheck(attachmentPath, attachmentType);
     if (attachmentText.size() > 8000) attachmentText = attachmentText.left(8000);
+    const bool hasReadableAttachmentText = attachmentText.trimmed().size() >= 24;
+
+    if (attachmentType == "image" && providerLabel == "Ollama" && !hasReadableAttachmentText) {
+        errorText = "Image justificative sans texte OCR exploitable en mode Ollama (modele texte). "
+                    "Installez tesseract ou utilisez un provider vision (OpenAI/Gemini/DeepSeek).";
+        return false;
+    }
+
     const QVector<QDate> locallyDetectedDates = extractJustificatifDates(attachmentText);
     const QStringList locallyDetectedDateLabels = formatDetectedDateList(locallyDetectedDates);
     QStringList localIdentityEvidence;
     const QString localIdentityStatus = localEmployeeIdentityStatus(context, attachmentText, &localIdentityEvidence);
-    QString localDateStatus = "UNKNOWN";
-    if (!locallyDetectedDates.isEmpty()) {
-        localDateStatus = hasDateInRange(locallyDetectedDates, startDate, endDate) ? "MATCH" : "MISMATCH";
-    }
+    const QString localDateStatus = assessDateCoverage(locallyDetectedDates, startDate, endDate);
     const QString localDocumentType = normalizeLeaveDocumentTypeValue(
-        leaveDocumentKindLabel(detectLeaveDocumentKind(foldTextKey(reason + "\n" + attachmentText))));
+        leaveDocumentKindLabel(detectLeaveDocumentKind(foldTextKey(reason + "\n" + attachmentFileHint + "\n" + attachmentText))));
 
+    // Local pre-checks are best-effort hints only (depend on tesseract/pdftotext).
+    // We label the empty case clearly so the model does NOT treat absence of a
+    // local hit as evidence the document lacks dates/identity — it must rely on
+    // its own reading of the image/PDF when local extraction is unavailable.
     const QString localDatePreview = locallyDetectedDateLabels.isEmpty()
-                                         ? QString("aucune date detectee localement")
+                                         ? QString("(non extraite localement — lis le document toi-meme)")
                                          : locallyDetectedDateLabels.join(", ");
     const QString localIdentityPreview = localIdentityEvidence.isEmpty()
-                                             ? QString("aucune preuve locale")
+                                             ? QString("(non extraite localement — lis le document toi-meme)")
                                              : localIdentityEvidence.join(", ");
     const QString attachmentPreview = attachmentText.trimmed().isEmpty()
                                           ? QString("[Aucun texte OCR/PDF exploitable]")
                                           : attachmentText;
 
     const QString commonContext =
-        QString("Demande d'absence employe:\n"
-                "- Nom attendu: %1\n"
-                "- Email attendu: %2\n"
-                "- Matricule attendu: %3\n"
-                "- CIN attendu: %4\n"
-                "- Specialite: %5\n"
-                "- Raison saisie: %6\n"
-                "- Debut: %7\n"
-                "- Fin: %8\n"
-                "- Duree jours: %9\n"
-                "- Dates detectees localement: %10\n"
-                "- Indice local identite: %11 (%12)\n"
-                "- Type detecte localement: %13\n\n"
-                "Role: assistant RH strict. "
-                "Tu dois verifier TRES STRICTEMENT le justificatif. "
-                "Controle d'abord l'identite de l'employe (nom, email, matricule, CIN si visibles), "
-                "puis les dates du document par rapport a la periode demandee. "
-                "Ensuite determine s'il s'agit d'un rendez-vous, d'un certificat medical, d'un arret, "
-                "ou d'un autre document. "
-                "Si l'identite visible contredit l'employe attendu => NON_JUSTIFIE. "
-                "Si les dates visibles sont hors periode demandee => NON_JUSTIFIE. "
-                "Si le document ne permet pas de verifier clairement le nom ou les dates => INSUFFISANT. "
-                "Un simple rendez-vous medical ne justifie pas plus de 2 jours sauf preuve d'arret/certificat. "
-                "Un certificat medical ou arret nominatif, coherent en dates et pour le bon employe => JUSTIFIE.\n"
-                "Reponds UNIQUEMENT en JSON avec les champs: "
-                "decision, confidence (0..100), summary, document_type, employee_match, date_match, "
-                "extracted_employee_name, extracted_dates, mismatch_flags.\n\n"
-                "Texte OCR/PDF local (peut contenir des erreurs):\n%14")
-            .arg(context.employeeName.isEmpty() ? "-" : context.employeeName)
-            .arg(context.email.isEmpty() ? "-" : context.email)
-            .arg(context.matricule.isEmpty() ? "-" : context.matricule)
-            .arg(context.cin.isEmpty() ? "-" : context.cin)
-            .arg(context.specialite.isEmpty() ? "-" : context.specialite)
-            .arg(reason.trimmed())
-            .arg(startDate.toString("yyyy-MM-dd"))
-            .arg(endDate.toString("yyyy-MM-dd"))
+        QString("=== DEMANDE DE CONGE A VERIFIER ===\n"
+                "EMPLOYE ATTENDU:\n"
+                "  Nom: %1\n"
+                "  Email: %2\n"
+                "  Matricule: %3\n"
+                "  CIN: %4\n"
+                "  Poste: %5\n\n"
+                "PERIODE DEMANDEE:\n"
+                "  Du: %6\n"
+                "  Au: %7\n"
+                "  Duree: %8 jour(s)\n"
+                "  Raison declaree: %9\n\n"
+                "ANALYSE LOCALE DU DOCUMENT:\n"
+                "  Fichier: %14\n"
+                "  Dates detectees: %10\n"
+                "  Identite detectee: %11\n"
+                "  Preuves identite: %12\n"
+                "  Type de document detecte: %13\n\n"
+                "=== TEXTE DU JUSTIFICATIF ===\n%15")
+            .arg(context.employeeName.isEmpty() ? "inconnu" : context.employeeName)
+            .arg(context.email.isEmpty() ? "inconnu" : context.email)
+            .arg(context.matricule.isEmpty() ? "inconnu" : context.matricule)
+            .arg(context.cin.isEmpty() ? "inconnu" : context.cin)
+            .arg(context.specialite.isEmpty() ? "inconnu" : context.specialite)
+            .arg(startDate.toString("dd/MM/yyyy"))
+            .arg(endDate.toString("dd/MM/yyyy"))
             .arg(QString::number(durationDays))
+            .arg(reason.trimmed())
             .arg(localDatePreview)
             .arg(localIdentityStatus)
-            .arg(localIdentityPreview)
+            .arg(localIdentityPreview.isEmpty() ? "aucune" : localIdentityPreview)
             .arg(leaveDocumentTypeDisplayLabel(localDocumentType))
-            .arg(attachmentPreview);
+            .arg(attachmentFileHint.isEmpty() ? "[nom de fichier indisponible]" : attachmentFileHint)
+            .arg(attachmentPreview.trimmed().isEmpty() ? "[Aucun texte exploitable]" : attachmentPreview);
 
     QJsonObject systemMsg{
         {"role", "system"},
         {"content",
-         "Tu es un assistant RH de verification d'absences. "
-         "Tu analyses un justificatif, tu compares l'identite de l'employe, "
-         "les dates du document et la periode de conge demandee, "
-         "et tu reponds strictement en JSON. "
-         "decision doit etre JUSTIFIE, NON_JUSTIFIE ou INSUFFISANT. "
-         "employee_match doit etre MATCH, MISSING ou MISMATCH. "
-         "date_match doit etre MATCH, PARTIAL, MISSING ou MISMATCH."}
+         "Tu es un verificateur RH strict. Reponds UNIQUEMENT en JSON valide, sans texte avant ou apres.\n"
+         "Format obligatoire:\n"
+         "{\"decision\":\"JUSTIFIE\"|\"NON_JUSTIFIE\"|\"INSUFFISANT\","
+         "\"confidence\":0..100,"
+         "\"summary\":\"explication courte\","
+         "\"document_type\":\"arret_maladie\"|\"certificat_medical\"|\"rdv_medical\"|\"autre\"|\"inconnu\","
+         "\"employee_match\":\"MATCH\"|\"MISMATCH\"|\"MISSING\","
+         "\"date_match\":\"MATCH\"|\"PARTIAL\"|\"MISMATCH\"|\"MISSING\","
+         "\"extracted_employee_name\":\"nom trouve ou vide\","
+         "\"extracted_dates\":[\"dates trouvees\"],"
+         "\"mismatch_flags\":[\"problemes detectes\"]}\n\n"
+         "Regles strictes:\n"
+         "- IMPORTANT: les champs 'ANALYSE LOCALE' sont des INDICES OPTIONNELS extraits par un OCR local. "
+         "Si l'analyse locale dit 'non extraite localement', cela ne veut PAS dire que l'info est absente: "
+         "tu dois LIRE le document (image/PDF fourni) toi-meme pour trouver les dates, le nom, le matricule, etc.\n"
+         "- Si le nom/CIN/matricule du document ne correspond pas a l'employe attendu => NON_JUSTIFIE\n"
+         "- Si les dates du document sont hors de la periode demandee => NON_JUSTIFIE\n"
+         "- Si le document est vraiment illisible (image floue, PDF vide, aucun texte visible) "
+         "OU s'il manque vraiment l'information cle => INSUFFISANT (ne JAMAIS rejeter par defaut dans ce cas)\n"
+         "- Un simple RDV medical ne justifie pas plus de 2 jours\n"
+         "- Un arret medical avec dates et nom correct => JUSTIFIE"}
     };
 
     QJsonObject userMsg;
@@ -4489,10 +4773,10 @@ bool analyzeLeaveRequestWithApi(const EmployeeLeaveValidationContext &context,
     QJsonObject payload{
         {"model", model},
         {"temperature", 0.05},
-        {"max_tokens", 420},
+        {"max_tokens", providerLabel == "Ollama" ? 1024 : 512},
         {"messages", QJsonArray{systemMsg, userMsg}}
     };
-    if (providerLabel != "DeepSeek") {
+    if (providerLabel != "DeepSeek" && providerLabel != "Ollama") {
         payload.insert("response_format", QJsonObject{{"type", "json_object"}});
     }
 
@@ -4506,6 +4790,8 @@ bool analyzeLeaveRequestWithApi(const EmployeeLeaveValidationContext &context,
         if (!openAiOrgId.isEmpty()) req.setRawHeader("OpenAI-Organization", openAiOrgId.toUtf8());
     }
 
+    const int timeoutMs = (providerLabel == "Ollama") ? 90000 : 30000;
+
     QNetworkAccessManager nam;
     QNetworkReply *reply = nam.post(req, QJsonDocument(payload).toJson(QJsonDocument::Compact));
 
@@ -4514,7 +4800,7 @@ bool analyzeLeaveRequestWithApi(const EmployeeLeaveValidationContext &context,
     timeout.setSingleShot(true);
     QObject::connect(&timeout, &QTimer::timeout, &loop, &QEventLoop::quit);
     QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-    timeout.start(30000);
+    timeout.start(timeoutMs);
     loop.exec();
 
     if (!timeout.isActive() && !reply->isFinished()) {
@@ -4585,8 +4871,49 @@ bool analyzeLeaveRequestWithApi(const EmployeeLeaveValidationContext &context,
         return false;
     }
 
+    qDebug() << "[LeaveAI] Raw content from" << providerLabel << ":" << content.left(2000);
+
+    // Strip markdown code fences that small models (e.g. qwen) often add
+    auto stripMarkdownJson = [](QString s) -> QString {
+        s = s.trimmed();
+        const QRegularExpression fenceRe(R"(```(?:json)?\s*([\s\S]*?)\s*```)");
+        const QRegularExpressionMatch fm = fenceRe.match(s);
+        if (fm.hasMatch()) return fm.captured(1).trimmed();
+        return s;
+    };
+    content = stripMarkdownJson(content);
+
+    // Extract the first balanced {...} block (handles text before/after the JSON)
+    auto extractBalancedJson = [](const QString &s) -> QString {
+        int start = s.indexOf('{');
+        if (start < 0) return QString();
+        int depth = 0;
+        bool inString = false;
+        bool escape = false;
+        for (int i = start; i < s.size(); ++i) {
+            const QChar c = s.at(i);
+            if (escape) { escape = false; continue; }
+            if (c == '\\') { escape = true; continue; }
+            if (c == '"') { inString = !inString; continue; }
+            if (inString) continue;
+            if (c == '{') ++depth;
+            else if (c == '}') {
+                --depth;
+                if (depth == 0) return s.mid(start, i - start + 1);
+            }
+        }
+        return QString();
+    };
+
     QJsonDocument contentDoc = QJsonDocument::fromJson(content.toUtf8(), &parseErr);
     if (parseErr.error != QJsonParseError::NoError || !contentDoc.isObject()) {
+        const QString extracted = extractBalancedJson(content);
+        if (!extracted.isEmpty()) {
+            contentDoc = QJsonDocument::fromJson(extracted.toUtf8(), &parseErr);
+        }
+    }
+    if (parseErr.error != QJsonParseError::NoError || !contentDoc.isObject()) {
+        // Last-resort: greedy regex
         const QRegularExpression jsonRe(R"(\{[\s\S]*\})");
         const QRegularExpressionMatch m = jsonRe.match(content);
         if (m.hasMatch()) {
@@ -4594,7 +4921,9 @@ bool analyzeLeaveRequestWithApi(const EmployeeLeaveValidationContext &context,
         }
     }
     if (parseErr.error != QJsonParseError::NoError || !contentDoc.isObject()) {
-        errorText = "JSON IA invalide";
+        qWarning() << "[LeaveAI] JSON parse failed. Content was:" << content.left(500);
+        errorText = QString("JSON IA invalide (modele: %1). Extrait: %2")
+                        .arg(providerLabel, content.left(200).replace('\n', ' '));
         return false;
     }
 
@@ -4676,12 +5005,23 @@ bool analyzeLeaveRequestWithApi(const EmployeeLeaveValidationContext &context,
     };
 
     // Reconcile AI output with deterministic local checks to avoid false hard refusals.
+    // Only promote to MATCH if the local check confirms FULL coverage (not partial overlap).
     if (localDateStatus == "MATCH" && (dateMatch == "MISMATCH" || dateMatch == "PARTIAL")) {
         dateMatch = "MATCH";
         removeFlagsContaining("date_out_of_period");
         removeFlagsContaining("hors periode");
         removeFlagsContaining("dates_partielles");
         removeFlagsContaining("partial");
+    }
+    // If local check says PARTIAL, downgrade AI's MATCH to PARTIAL — certificate doesn't cover full request period.
+    if (localDateStatus == "PARTIAL" && dateMatch == "MATCH") {
+        dateMatch = "PARTIAL";
+        addMismatchFlag("dates du justificatif ne couvrent pas toute la periode demandee");
+    }
+    // If local check says MISMATCH, override AI — certificate dates don't overlap at all.
+    if (localDateStatus == "MISMATCH" && dateMatch != "MISMATCH") {
+        dateMatch = "MISMATCH";
+        addMismatchFlag("dates du justificatif hors periode demandee");
     }
     if (employeeMatch == "MISMATCH" && localIdentityStatus == "MATCH") {
         employeeMatch = "MATCH";
@@ -4695,6 +5035,20 @@ bool analyzeLeaveRequestWithApi(const EmployeeLeaveValidationContext &context,
         removeFlagsContaining("nom_incorrect");
         removeFlagsContaining("identite employe incoherente");
         addMismatchFlag("nom employe non verifiable");
+    }
+
+    // STRICT identity check: override AI if name differs from the employee or a foreign email is present.
+    if (strictIdentityMismatch(context, extractedEmployeeName, attachmentText)) {
+        employeeMatch = "MISMATCH";
+        if (!extractedEmployeeName.trimmed().isEmpty()
+            && !context.employeeName.trimmed().isEmpty()) {
+            addMismatchFlag(QString("nom du document (%1) different du nom employe (%2)")
+                                .arg(extractedEmployeeName.trimmed(), context.employeeName.trimmed()));
+        }
+        if (!context.email.trimmed().isEmpty()
+            && documentContainsForeignEmail(attachmentText, context.email)) {
+            addMismatchFlag("email du document different de l'email employe");
+        }
     }
 
     if (employeeMatch == "MISMATCH") {
@@ -4722,6 +5076,38 @@ bool analyzeLeaveRequestWithApi(const EmployeeLeaveValidationContext &context,
         confidence = qMax(confidence, 70.0);
         addMismatchFlag("coherence des dates partielle");
     }
+    if (decision == "NON_JUSTIFIE"
+        && (employeeMatch == "MISSING" || employeeMatch == "UNKNOWN")
+        && (dateMatch == "MISSING" || dateMatch == "UNKNOWN")) {
+        decision = "INSUFFISANT";
+        confidence = qMin(confidence, 76.0);
+        addMismatchFlag("document non lisible: verification admin requise");
+    }
+
+    // Safety net: if AI's only complaints are about "missing info" (couldn't read
+    // the document well enough), never auto-refuse — promote to INSUFFISANT so
+    // the admin can review the attachment manually instead of blocking a valid
+    // certificate just because OCR/vision was unreliable.
+    if (decision == "NON_JUSTIFIE"
+        && employeeMatch != "MISMATCH"
+        && dateMatch != "MISMATCH") {
+        bool onlyMissingInfoComplaints = !mismatchFlags.isEmpty();
+        for (const QString &flag : mismatchFlags) {
+            const QString f = foldTextKey(flag);
+            const bool isMissingInfoFlag =
+                f.contains("absence") || f.contains("introuv") || f.contains("manquant")
+                || f.contains("illisible") || f.contains("insuffisant") || f.contains("non lisible")
+                || f.contains("non verifiable") || f.contains("pas de date")
+                || f.contains("pas d info") || f.contains("missing") || f.contains("unreadable")
+                || f.contains("not enough");
+            if (!isMissingInfoFlag) { onlyMissingInfoComplaints = false; break; }
+        }
+        if (onlyMissingInfoComplaints || mismatchFlags.isEmpty()) {
+            decision = "INSUFFISANT";
+            confidence = qMin(confidence, 70.0);
+            addMismatchFlag("document non lisible: verification admin requise");
+        }
+    }
     if (decision == "JUSTIFIE"
         && documentType == "RENDEZ_VOUS"
         && durationDays > 2) {
@@ -4737,6 +5123,25 @@ bool analyzeLeaveRequestWithApi(const EmployeeLeaveValidationContext &context,
         decision = "INSUFFISANT";
         confidence = qMin(confidence, 76.0);
         addMismatchFlag("identite non verifiable: validation admin requise");
+    }
+
+    // If mismatch_flags contain identity issues, override employeeMatch even if AI said MATCH
+    const auto hasMismatchFlagContaining = [&mismatchFlags](const QString &token) {
+        const QString key = foldTextKey(token);
+        for (const QString &f : mismatchFlags) {
+            if (foldTextKey(f).contains(key)) return true;
+        }
+        return false;
+    };
+    if (employeeMatch == "MATCH") {
+        if (hasMismatchFlagContaining("email") || hasMismatchFlagContaining("nom_incor")
+            || hasMismatchFlagContaining("name_mis") || hasMismatchFlagContaining("identite")
+            || hasMismatchFlagContaining("mismatch")) {
+            employeeMatch = "MISMATCH";
+            decision = "NON_JUSTIFIE";
+            confidence = qMax(confidence, 90.0);
+            addMismatchFlag("identite employe incoherente (flags detectes par IA)");
+        }
     }
 
     if (documentType == "CERTIFICAT_MEDICAL"
@@ -4796,80 +5201,42 @@ bool insertEmployeeLeaveRequestRow(int idEmp,
                                    QString &errorText)
 {
     errorText.clear();
-    if (!ensureEmployeeLeaveTableExists(errorText)) {
+
+    EmployeeHistoryStore::LeaveRecord rec;
+    rec.idEmp          = idEmp;
+    rec.email          = email.trimmed();
+    rec.reasonText     = reasonText.trimmed();
+    rec.startDate      = startDate;
+    rec.endDate        = endDate;
+    rec.durationDays   = durationDays;
+    rec.attachmentPath = attachmentPath;
+    rec.attachmentType = attachmentType;
+    rec.aiDecision     = ai.decision;
+    rec.aiConfidence   = ai.confidence;
+    rec.aiSummary      = ai.summary;
+    rec.status         = "EN_ATTENTE_ADMIN";
+    rec.createdAt      = QDateTime::currentDateTime();
+
+    if (!EmployeeHistoryStore::instance().addLeave(rec, errorText)) {
         return false;
     }
 
-    QSqlQuery insertOracleSeq;
-    insertOracleSeq.prepare(
-        "INSERT INTO EMPLOYEE_LEAVE_REQUEST "
-        "(id_leave, id_emp, email, reason_text, start_date, end_date, duration_days, attachment_path, attachment_type, "
-        "ai_decision, ai_confidence, ai_summary, status, created_at) "
-        "VALUES (EMPLOYEE_LEAVE_REQUEST_SEQ.NEXTVAL, :id_emp, :email, :reason_text, :start_date, :end_date, :duration_days, "
-        ":attachment_path, :attachment_type, :ai_decision, :ai_confidence, :ai_summary, 'EN_ATTENTE_ADMIN', SYSDATE)");
-    insertOracleSeq.bindValue(":id_emp", idEmp);
-    insertOracleSeq.bindValue(":email", email.trimmed());
-    insertOracleSeq.bindValue(":reason_text", reasonText.trimmed());
-    insertOracleSeq.bindValue(":start_date", startDate);
-    insertOracleSeq.bindValue(":end_date", endDate);
-    insertOracleSeq.bindValue(":duration_days", durationDays);
-    insertOracleSeq.bindValue(":attachment_path", attachmentPath);
-    insertOracleSeq.bindValue(":attachment_type", attachmentType);
-    insertOracleSeq.bindValue(":ai_decision", ai.decision);
-    insertOracleSeq.bindValue(":ai_confidence", ai.confidence);
-    insertOracleSeq.bindValue(":ai_summary", ai.summary);
-    if (insertOracleSeq.exec()) {
-        return true;
-    }
+    // Mise a jour de l'etat courant + agregat sur EMPLOYE.
+    QSqlQuery upd;
+    upd.prepare(
+        "UPDATE EMPLOYE SET "
+        "current_leave_status='EN_ATTENTE_ADMIN', "
+        "current_leave_start=:s, current_leave_end=:e, current_leave_reason=:r, "
+        "total_leave_days=COALESCE(total_leave_days,0)+:d "
+        "WHERE id_emp=:id");
+    upd.bindValue(":s", startDate);
+    upd.bindValue(":e", endDate);
+    upd.bindValue(":r", reasonText.left(500));
+    upd.bindValue(":d", durationDays);
+    upd.bindValue(":id", idEmp);
+    upd.exec(); // best-effort
 
-    QSqlQuery insertOracle;
-    insertOracle.prepare(
-        "INSERT INTO EMPLOYEE_LEAVE_REQUEST "
-        "(id_emp, email, reason_text, start_date, end_date, duration_days, attachment_path, attachment_type, "
-        "ai_decision, ai_confidence, ai_summary, status, created_at) "
-        "VALUES (:id_emp, :email, :reason_text, :start_date, :end_date, :duration_days, "
-        ":attachment_path, :attachment_type, :ai_decision, :ai_confidence, :ai_summary, 'EN_ATTENTE_ADMIN', SYSDATE)");
-    insertOracle.bindValue(":id_emp", idEmp);
-    insertOracle.bindValue(":email", email.trimmed());
-    insertOracle.bindValue(":reason_text", reasonText.trimmed());
-    insertOracle.bindValue(":start_date", startDate);
-    insertOracle.bindValue(":end_date", endDate);
-    insertOracle.bindValue(":duration_days", durationDays);
-    insertOracle.bindValue(":attachment_path", attachmentPath);
-    insertOracle.bindValue(":attachment_type", attachmentType);
-    insertOracle.bindValue(":ai_decision", ai.decision);
-    insertOracle.bindValue(":ai_confidence", ai.confidence);
-    insertOracle.bindValue(":ai_summary", ai.summary);
-    if (insertOracle.exec()) {
-        return true;
-    }
-
-    QSqlQuery insertFallback;
-    insertFallback.prepare(
-        "INSERT INTO EMPLOYEE_LEAVE_REQUEST "
-        "(id_emp, email, reason_text, start_date, end_date, duration_days, attachment_path, attachment_type, "
-        "ai_decision, ai_confidence, ai_summary, status, created_at) "
-        "VALUES (:id_emp, :email, :reason_text, :start_date, :end_date, :duration_days, "
-        ":attachment_path, :attachment_type, :ai_decision, :ai_confidence, :ai_summary, 'EN_ATTENTE_ADMIN', CURRENT_TIMESTAMP)");
-    insertFallback.bindValue(":id_emp", idEmp);
-    insertFallback.bindValue(":email", email.trimmed());
-    insertFallback.bindValue(":reason_text", reasonText.trimmed());
-    insertFallback.bindValue(":start_date", startDate.toString("yyyy-MM-dd"));
-    insertFallback.bindValue(":end_date", endDate.toString("yyyy-MM-dd"));
-    insertFallback.bindValue(":duration_days", durationDays);
-    insertFallback.bindValue(":attachment_path", attachmentPath);
-    insertFallback.bindValue(":attachment_type", attachmentType);
-    insertFallback.bindValue(":ai_decision", ai.decision);
-    insertFallback.bindValue(":ai_confidence", ai.confidence);
-    insertFallback.bindValue(":ai_summary", ai.summary);
-    if (insertFallback.exec()) {
-        return true;
-    }
-
-    errorText = insertOracleSeq.lastError().text();
-    if (errorText.trimmed().isEmpty()) errorText = insertOracle.lastError().text();
-    if (errorText.trimmed().isEmpty()) errorText = insertFallback.lastError().text();
-    return false;
+    return true;
 }
 
 bool insertAdminNotificationRow(const QString &targetEmail,
@@ -5017,14 +5384,9 @@ public:
         setModal(true);
         setStyleSheet(
             "QDialog { background: #f8fafc; }"
-            "QFrame#hero { background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #0f2b4c, stop:1 #1d4f91); border-radius:14px; }"
-            "QLabel#heroTitle { color:white; font-size:20px; font-weight:900; }"
-            "QLabel#heroSub { color:#bfdbfe; font-size:12px; font-weight:600; }"
             "QFrame.taskCard { border-radius:10px; border:1px solid #cbd5e1; }"
             "QFrame#cardPending { background:#eff6ff; }"
             "QFrame#cardDone { background:#f0fdf4; }"
-            "QLabel.cardValue { font-size:24px; font-weight:900; color:#0f172a; }"
-            "QLabel.cardLabel { font-size:12px; font-weight:700; color:#475569; }"
             "QTableWidget { background:white; border:1px solid #dbeafe; border-radius:10px; gridline-color:#e2e8f0; }"
             "QHeaderView::section { background:#0f2e57; color:white; font-weight:700; border:none; padding:6px; }"
             "QPushButton#btnRefresh { background:#2563eb; color:white; border:none; border-radius:8px; padding:8px 12px; font-weight:700; }"
@@ -5039,13 +5401,21 @@ public:
 
         auto *hero = new QFrame(this);
         hero->setObjectName("hero");
+        hero->setAttribute(Qt::WA_StyledBackground, true);
+        hero->setStyleSheet(
+            "QFrame#hero { background: qlineargradient(x1:0,y1:0,x2:1,y2:1,"
+            " stop:0 #0f2b4c, stop:1 #1d4f91); border-radius:14px; }");
         auto *heroLayout = new QVBoxLayout(hero);
-        heroLayout->setContentsMargins(14, 12, 14, 12);
-        heroLayout->setSpacing(4);
+        heroLayout->setContentsMargins(18, 14, 18, 14);
+        heroLayout->setSpacing(6);
         auto *heroTitle = new QLabel("Centre personnel des missions", hero);
-        heroTitle->setObjectName("heroTitle");
+        heroTitle->setStyleSheet(
+            "QLabel { color:#ffffff; font-size:20px; font-weight:900;"
+            " background:transparent; }");
         auto *heroSub = new QLabel(QString("Compte: %1").arg(m_email), hero);
-        heroSub->setObjectName("heroSub");
+        heroSub->setStyleSheet(
+            "QLabel { color:#ffffff; font-size:12px; font-weight:600;"
+            " background:transparent; }");
         heroLayout->addWidget(heroTitle);
         heroLayout->addWidget(heroSub);
         root->addWidget(hero);
@@ -5059,9 +5429,11 @@ public:
         auto *pendingLayout = new QVBoxLayout(cardPending);
         pendingLayout->setContentsMargins(12, 10, 12, 10);
         m_lblPendingCount = new QLabel("0", cardPending);
-        m_lblPendingCount->setProperty("class", "cardValue");
+        m_lblPendingCount->setStyleSheet(
+            "QLabel { font-size:24px; font-weight:900; color:#0f172a; background:transparent; }");
         auto *pendingText = new QLabel("Taches en attente", cardPending);
-        pendingText->setProperty("class", "cardLabel");
+        pendingText->setStyleSheet(
+            "QLabel { font-size:12px; font-weight:700; color:#475569; background:transparent; }");
         pendingLayout->addWidget(m_lblPendingCount);
         pendingLayout->addWidget(pendingText);
 
@@ -5071,9 +5443,11 @@ public:
         auto *doneLayout = new QVBoxLayout(cardDone);
         doneLayout->setContentsMargins(12, 10, 12, 10);
         m_lblDoneCount = new QLabel("0", cardDone);
-        m_lblDoneCount->setProperty("class", "cardValue");
+        m_lblDoneCount->setStyleSheet(
+            "QLabel { font-size:24px; font-weight:900; color:#0f172a; background:transparent; }");
         auto *doneText = new QLabel("Taches deja faites", cardDone);
-        doneText->setProperty("class", "cardLabel");
+        doneText->setStyleSheet(
+            "QLabel { font-size:12px; font-weight:700; color:#475569; background:transparent; }");
         doneLayout->addWidget(m_lblDoneCount);
         doneLayout->addWidget(doneText);
 
@@ -5843,9 +6217,6 @@ public:
         setMinimumSize(900, 600);
         setStyleSheet(
             "QDialog { background: #edf4f7; }"
-            "QFrame#heroLeave { background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #0f2b4c, stop:0.55 #1d4f91, stop:1 #3173b7); border-radius:24px; }"
-            "QLabel#heroLeaveTitle { color:#ffffff; font-size:24px; font-weight:900; }"
-            "QLabel#heroLeaveSub { color:#dbeafe; font-size:12px; font-weight:600; }"
             "QFrame#formCard, QFrame#sideCard, QFrame#resultCard { background:#ffffff; border:1px solid #dbe7ef; border-radius:22px; }"
             "QLabel#sectionTitle { color:#0f172a; font-size:16px; font-weight:800; }"
             "QLabel#sectionHint { color:#64748b; font-size:12px; line-height:1.45; }"
@@ -5890,40 +6261,60 @@ public:
         auto *hero = new QFrame(this);
         hero->setObjectName("heroLeave");
         hero->setAttribute(Qt::WA_StyledBackground, true);
+        hero->setStyleSheet(
+            "QFrame#heroLeave {"
+            " background: qlineargradient(x1:0,y1:0,x2:1,y2:1,"
+            " stop:0 #0f2b4c, stop:0.55 #1d4f91, stop:1 #3173b7);"
+            " border-radius:24px; }");
         auto *heroLayout = new QVBoxLayout(hero);
-        heroLayout->setContentsMargins(22, 20, 22, 20);
-        heroLayout->setSpacing(8);
+        heroLayout->setContentsMargins(28, 24, 28, 24);
+        heroLayout->setSpacing(10);
         auto *heroTop = new QHBoxLayout();
         heroTop->setSpacing(12);
 
-        auto *heroBadge = new QLabel("Controle RH guide par IA", hero);
-        heroBadge->setStyleSheet("background:rgba(255,255,255,38); color:#eff6ff; border:1px solid rgba(255,255,255,52); border-radius:999px; padding:6px 12px; font-size:11px; font-weight:800;");
+        auto *heroBadge = new QLabel("CONTROLE RH GUIDE PAR IA", hero);
+        heroBadge->setAttribute(Qt::WA_StyledBackground, true);
+        heroBadge->setStyleSheet(
+            "QLabel { background-color:#ffffff; color:#0f2b4c;"
+            " border-radius:12px; padding:6px 14px;"
+            " font-size:11px; font-weight:900; letter-spacing:1px; }");
 
         auto *heroTitle = new QLabel("Envoyer une demande de conge claire et complete", hero);
-        heroTitle->setObjectName("heroLeaveTitle");
+        heroTitle->setStyleSheet(
+            "QLabel { color:#ffffff; font-size:24px; font-weight:900;"
+            " background:transparent; }");
+        heroTitle->setWordWrap(true);
 
-        QString heroIdentity = QString("%1  |  %2")
+        QString heroIdentity = QString("%1  ·  %2")
                                    .arg(m_employeeContext.employeeName.isEmpty() ? "Employe" : m_employeeContext.employeeName,
                                         m_employeeContext.email.isEmpty() ? m_email : m_employeeContext.email);
         if (!m_employeeContext.matricule.isEmpty()) {
-            heroIdentity += QString("  |  Matricule %1").arg(m_employeeContext.matricule);
+            heroIdentity += QString("  ·  Matricule %1").arg(m_employeeContext.matricule);
         }
 
         auto *heroSub = new QLabel(heroIdentity, hero);
-        heroSub->setObjectName("heroLeaveSub");
+        heroSub->setStyleSheet(
+            "QLabel { color:#ffffff; font-size:13px; font-weight:700;"
+            " background:transparent; }");
+        heroSub->setWordWrap(true);
 
         auto *heroHint = new QLabel(
-            "Le systeme verifie le justificatif, la coherence des dates, l'identite visible et la compatibilite avec la duree demandee.",
+            "Le systeme verifie le justificatif, la coherence des dates, "
+            "l'identite visible et la compatibilite avec la duree demandee.",
             hero);
-        heroHint->setStyleSheet("color:#e2e8f0; font-size:13px; line-height:1.45;");
+        heroHint->setStyleSheet(
+            "QLabel { color:#ffffff; font-size:13px; font-weight:500;"
+            " background:transparent; }");
         heroHint->setWordWrap(true);
 
         heroTop->addWidget(heroBadge, 0, Qt::AlignLeft | Qt::AlignTop);
         heroTop->addStretch();
 
         heroLayout->addLayout(heroTop);
+        heroLayout->addSpacing(4);
         heroLayout->addWidget(heroTitle);
         heroLayout->addWidget(heroSub);
+        heroLayout->addSpacing(2);
         heroLayout->addWidget(heroHint);
         root->addWidget(hero);
 
@@ -6258,7 +6649,7 @@ private:
         const QString nextAction = !hasReason
                                        ? "preciser le motif"
                                        : (!validPeriod ? "corriger la periode"
-                                                       : (!hasAttachment ? "joindre le justificatif" : "lancer l'analyse IA"));
+                                                       : (!hasAttachment ? "joindre le justificatif" : "chercher l agent convenable a votre mission"));
         const QString readyLabel = (hasReason && validPeriod && hasAttachment)
                                        ? "Le dossier est pret pour l'analyse IA."
                                        : "Le dossier est encore incomplet.";
@@ -6460,7 +6851,8 @@ private:
                                             durationDays,
                                             m_attachmentPath,
                                             attachmentType,
-                                            aiError);
+                                            aiError,
+                                            employeeContext);
             usedFallback = true;
         }
 
@@ -6829,7 +7221,7 @@ bool verifyEmployeeFaceForTaskCompletion(const QString &email, QWidget *parent, 
         return false;
     }
 
-    static const double kMinSimilarity = 0.90;
+    static const double kMinSimilarity = 0.85;
     if (similarity < kMinSimilarity) {
         errorText = QString("Visage non reconnu (score=%1, seuil=%2). Rapprochez-vous et reessayez.")
                         .arg(QString::number(similarity, 'f', 3))
@@ -7172,7 +7564,7 @@ QByteArray captureEmployeePhotoFromCamera(QWidget *parent, QString &faceTemplate
     return capturedBytes;
 }
 
-QByteArray chooseEmployeePhotoBytes(QWidget *parent)
+[[maybe_unused]] QByteArray chooseEmployeePhotoBytes(QWidget *parent)
 {
     const QString filePath = QFileDialog::getOpenFileName(
         parent,
@@ -7747,11 +8139,8 @@ bool inferMissionByApi(const QString &missionText,
         else if (!geminiApiKey.isEmpty()) pickGemini();
         else pickOllama();
     } else {
-        // Default behavior: prioritize OpenAI if configured.
-        if (!openAiApiKey.isEmpty()) pickOpenAi();
-        else if (!deepSeekApiKey.isEmpty()) pickDeepSeek();
-        else if (!geminiApiKey.isEmpty()) pickGemini();
-        else pickOllama();
+        // Default: Ollama local (qwen2.5:3b). Set WASTEGUARD_AI_PROVIDER to use a cloud provider.
+        pickOllama();
     }
 
     if (providerLabel.isEmpty()) {
@@ -7775,14 +8164,17 @@ bool inferMissionByApi(const QString &missionText,
     QJsonObject systemMsg{
         {"role", "system"},
         {"content",
-         "Tu es un classifieur de missions RH/maintenance. "
-         "Reponds strictement en JSON avec les champs: "
-            "difficulty (low|medium|high|very_high), specialties (array), confidence (0..1), rationale (court). "
-            "specialties doit privilegier: commandes, clients, stock, produits, intervention, electricite, mecanique, conduite, soudure, it, management."}
+         "Tu es un classifieur de missions. Reponds UNIQUEMENT en JSON valide, sans texte avant ou apres.\n"
+         "Format obligatoire:\n"
+         "{\"difficulty\":\"low\"|\"medium\"|\"high\"|\"very_high\","
+         "\"specialties\":[\"domaines parmi: commandes,clients,stock,produits,intervention,electricite,mecanique,conduite,soudure,it,management\"],"
+         "\"confidence\":0.0..1.0,"
+         "\"rationale\":\"explication en 1 phrase\"}\n\n"
+         "Regles: low=tache simple, medium=expertise moderee, high=expertise avancee, very_high=intervention critique."}
     };
     QJsonObject userMsg{
         {"role", "user"},
-        {"content", QString("Mission: %1").arg(missionText)}
+        {"content", QString("Classifie cette mission:\n%1").arg(missionText)}
     };
 
     QJsonObject payload{
@@ -7790,7 +8182,7 @@ bool inferMissionByApi(const QString &missionText,
         {"temperature", 0.1},
         {"messages", QJsonArray{systemMsg, userMsg}}
     };
-    if (providerLabel != "DeepSeek") {
+    if (providerLabel != "DeepSeek" && providerLabel != "Ollama") {
         payload.insert("response_format", QJsonObject{{"type", "json_object"}});
     }
 
@@ -7804,6 +8196,8 @@ bool inferMissionByApi(const QString &missionText,
         if (!openAiOrgId.isEmpty()) req.setRawHeader("OpenAI-Organization", openAiOrgId.toUtf8());
     }
 
+    const int timeoutMs = (providerLabel == "Ollama") ? 60000 : 10000;
+
     QNetworkAccessManager nam;
     QNetworkReply *reply = nam.post(req, QJsonDocument(payload).toJson(QJsonDocument::Compact));
 
@@ -7812,7 +8206,7 @@ bool inferMissionByApi(const QString &missionText,
     timeout.setSingleShot(true);
     QObject::connect(&timeout, &QTimer::timeout, &loop, &QEventLoop::quit);
     QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-    timeout.start(10000);
+    timeout.start(timeoutMs);
     loop.exec();
 
     if (timeout.isActive() == false && reply->isFinished() == false) {
@@ -7884,7 +8278,44 @@ bool inferMissionByApi(const QString &missionText,
         return false;
     }
 
+    qDebug() << "[MissionAI] Raw content from" << providerLabel << ":" << content.left(2000);
+
+    // Strip markdown code fences that small models (e.g. qwen) often add
+    {
+        const QRegularExpression fenceRe(R"(```(?:json)?\s*([\s\S]*?)\s*```)");
+        const QRegularExpressionMatch fm = fenceRe.match(content);
+        if (fm.hasMatch()) content = fm.captured(1).trimmed();
+    }
+
+    // Extract the first balanced {...} block (handles text before/after the JSON)
+    auto extractBalancedJson = [](const QString &s) -> QString {
+        int start = s.indexOf('{');
+        if (start < 0) return QString();
+        int depth = 0;
+        bool inString = false;
+        bool escape = false;
+        for (int i = start; i < s.size(); ++i) {
+            const QChar c = s.at(i);
+            if (escape) { escape = false; continue; }
+            if (c == '\\') { escape = true; continue; }
+            if (c == '"') { inString = !inString; continue; }
+            if (inString) continue;
+            if (c == '{') ++depth;
+            else if (c == '}') {
+                --depth;
+                if (depth == 0) return s.mid(start, i - start + 1);
+            }
+        }
+        return QString();
+    };
+
     QJsonDocument contentDoc = QJsonDocument::fromJson(content.toUtf8(), &parseErr);
+    if (parseErr.error != QJsonParseError::NoError || !contentDoc.isObject()) {
+        const QString extracted = extractBalancedJson(content);
+        if (!extracted.isEmpty()) {
+            contentDoc = QJsonDocument::fromJson(extracted.toUtf8(), &parseErr);
+        }
+    }
     if (parseErr.error != QJsonParseError::NoError || !contentDoc.isObject()) {
         const QRegularExpression jsonRe(R"(\{[\s\S]*\})");
         const QRegularExpressionMatch m = jsonRe.match(content);
@@ -7893,6 +8324,7 @@ bool inferMissionByApi(const QString &missionText,
         }
     }
     if (parseErr.error != QJsonParseError::NoError || !contentDoc.isObject()) {
+        qWarning() << "[MissionAI] JSON parse failed. Content was:" << content.left(500);
         errorText = "JSON modele invalide";
         return false;
     }
@@ -8401,32 +8833,70 @@ void MainWindow::applyHomogeneousTheme()
     if (!ui) return;
 
     // =================================================================
-    // WasteGuard â€" Design System Tokens
+    // WasteGuard â€" Design System Tokens (sourced from ThemeManager)
     // =================================================================
-    // Backgrounds
-    static const char *BG_APP      = "#f0f2f5";
-    static const char *BG_CARD     = "#ffffff";
-    static const char *BG_CARD_ALT = "#f8fafb";
-    // Borders
-    static const char *BORDER      = "#e8ecf0";
-    static const char *BORDER_FOCUS= "#1e40af";
-    // Text
-    static const char *TEXT_TITLE  = "#1a1a2e";
-    static const char *TEXT_BODY   = "#374151";
-    static const char *TEXT_MUTED  = "#6c757d";
-    static const char *TEXT_WHITE  = "#ffffff";
-    // Primary: navy blue for form buttons / focus
-    static const char *PRIMARY     = "#1e40af";
-    static const char *PRIMARY_DK  = "#1e3a8a";
-    static const char *PRIMARY_LT  = "#dbeafe";
-    static const char *PRIMARY_BORDER = "#bfdbfe";
-    // Sidebar hero
-    static const char *SIDEBAR_BG  = "#1a3a2e";
-    static const char *SIDEBAR_BG2 = "#2d5a42";
-    // Danger
-    static const char *DANGER      = "#e74c3c";
+    const ThemePalette themePal = ThemeManager::instance()->palette();
+    const QString BG_APP_S       = themePal.bgApp;
+    const QString BG_CARD_S      = themePal.bgCard;
+    const QString BG_CARD_ALT_S  = themePal.bgCardAlt;
+    const QString BORDER_S       = themePal.border;
+    const QString BORDER_FOCUS_S = themePal.borderFocus;
+    const QString TEXT_TITLE_S   = themePal.textTitle;
+    const QString TEXT_BODY_S    = themePal.textBody;
+    const QString TEXT_MUTED_S   = themePal.textMuted;
+    const QString TEXT_WHITE_S   = themePal.textWhite;
+    const QString PRIMARY_S      = themePal.primary;
+    const QString PRIMARY_DK_S   = themePal.primaryDk;
+    const QString PRIMARY_LT_S   = themePal.primaryLt;
+    const QString PRIMARY_BORDER_S = themePal.primaryBorder;
+    const QString SIDEBAR_BG_S   = themePal.sidebarBg;
+    const QString SIDEBAR_BG2_S  = themePal.sidebarBg2;
+    const QString SIDEBAR_TEXT_S = themePal.sidebarText;
+    const QString DANGER_S       = themePal.danger;
+    const QString ACCENT_S       = themePal.accent;
+    const QString ACCENT_DK_S    = themePal.accentDk;
+
+    // Back-compat aliases used by existing code below (QByteArrays kept alive
+    // through this function; raw pointers remain valid while the .toUtf8()
+    // temporaries live via the QByteArray locals).
+    const QByteArray BG_APP_BA       = BG_APP_S.toUtf8();
+    const QByteArray BG_CARD_BA      = BG_CARD_S.toUtf8();
+    const QByteArray BG_CARD_ALT_BA  = BG_CARD_ALT_S.toUtf8();
+    const QByteArray BORDER_BA       = BORDER_S.toUtf8();
+    const QByteArray BORDER_FOCUS_BA = BORDER_FOCUS_S.toUtf8();
+    const QByteArray TEXT_TITLE_BA   = TEXT_TITLE_S.toUtf8();
+    const QByteArray TEXT_BODY_BA    = TEXT_BODY_S.toUtf8();
+    const QByteArray TEXT_MUTED_BA   = TEXT_MUTED_S.toUtf8();
+    const QByteArray TEXT_WHITE_BA   = TEXT_WHITE_S.toUtf8();
+    const QByteArray PRIMARY_BA      = PRIMARY_S.toUtf8();
+    const QByteArray PRIMARY_DK_BA   = PRIMARY_DK_S.toUtf8();
+    const QByteArray PRIMARY_LT_BA   = PRIMARY_LT_S.toUtf8();
+    const QByteArray PRIMARY_BORDER_BA = PRIMARY_BORDER_S.toUtf8();
+    const QByteArray SIDEBAR_BG_BA   = SIDEBAR_BG_S.toUtf8();
+    const QByteArray SIDEBAR_BG2_BA  = SIDEBAR_BG2_S.toUtf8();
+    const QByteArray DANGER_BA       = DANGER_S.toUtf8();
+
+    const char *BG_APP         = BG_APP_BA.constData();
+    const char *BG_CARD        = BG_CARD_BA.constData();
+    const char *BG_CARD_ALT    = BG_CARD_ALT_BA.constData();
+    const char *BORDER         = BORDER_BA.constData();
+    const char *BORDER_FOCUS   = BORDER_FOCUS_BA.constData();
+    const char *TEXT_TITLE     = TEXT_TITLE_BA.constData();
+    const char *TEXT_BODY      = TEXT_BODY_BA.constData();
+    const char *TEXT_MUTED     = TEXT_MUTED_BA.constData();
+    const char *TEXT_WHITE     = TEXT_WHITE_BA.constData();
+    const char *PRIMARY        = PRIMARY_BA.constData();
+    const char *PRIMARY_DK     = PRIMARY_DK_BA.constData();
+    const char *PRIMARY_LT     = PRIMARY_LT_BA.constData();
+    const char *PRIMARY_BORDER = PRIMARY_BORDER_BA.constData();
+    const char *SIDEBAR_BG     = SIDEBAR_BG_BA.constData();
+    const char *SIDEBAR_BG2    = SIDEBAR_BG2_BA.constData();
+    const char *DANGER         = DANGER_BA.constData();
 
     Q_UNUSED(DANGER);
+    Q_UNUSED(SIDEBAR_TEXT_S);
+    Q_UNUSED(ACCENT_S);
+    Q_UNUSED(ACCENT_DK_S);
 
     // =================================================================
     // 1. SIDEBAR â€" enforce dark-green theme
@@ -8438,15 +8908,15 @@ void MainWindow::applyHomogeneousTheme()
                 " background-color:%1; border:none;"
                 "}"
                 "QFrame#sidebar QLabel{"
-                " color:#a8d5b5; background:transparent; font-weight:600;"
+                " color:%4; background:transparent; font-weight:600;"
                 "}"
                 "QFrame#sidebar QPushButton{"
                 " background-color:transparent; border:none; border-radius:10px;"
-                " color:#a8d5b5; text-align:left;"
+                " color:%4; text-align:left;"
                 " padding:11px 16px; font-size:11pt; font-weight:600; margin:2px 8px;"
                 "}"
                 "QFrame#sidebar QPushButton:hover{"
-                " background-color:rgba(39,174,96,0.18); color:#ffffff;"
+                " background-color:rgba(255,255,255,0.10); color:#ffffff;"
                 "}"
                 "QFrame#sidebar QPushButton:checked{"
                 " background-color:%2; color:%3; font-weight:700;"
@@ -8459,7 +8929,7 @@ void MainWindow::applyHomogeneousTheme()
                 "QPushButton#btnLogout:hover{"
                 " background:rgba(229,115,115,0.15); color:#ff8a80;"
                 "}"
-            ).arg(SIDEBAR_BG, PRIMARY, TEXT_WHITE)
+            ).arg(SIDEBAR_BG_S, PRIMARY_S, TEXT_WHITE_S, SIDEBAR_TEXT_S)
         );
     }
 
@@ -8509,9 +8979,10 @@ void MainWindow::applyHomogeneousTheme()
         " background-color:%1; color:%2; border:1px solid %3;"
         " border-radius:8px; padding:8px 12px; font-size:13px; min-height:34px;"
         "}"
-        "QLineEdit:focus{ border:2px solid %4; background-color:#f7fdf9; }"
-        "QLineEdit:disabled{ background-color:#f3f4f6; color:#9ca3af; }"
-    ).arg(BG_CARD, TEXT_BODY, BORDER, BORDER_FOCUS);
+        "QLineEdit:focus{ border:2px solid %4; background-color:%5; }"
+        "QLineEdit:disabled{ background-color:%6; color:%7; }"
+    ).arg(BG_CARD, TEXT_BODY, BORDER, BORDER_FOCUS,
+          BG_CARD_ALT, BG_CARD_ALT, TEXT_MUTED);
 
     for (QLineEdit *le : findChildren<QLineEdit*>()) {
         if (!le) continue;
@@ -8528,13 +8999,13 @@ void MainWindow::applyHomogeneousTheme()
         " border-radius:8px; padding:6px 30px 6px 10px;"
         " min-height:34px; font-size:13px;"
         "}"
-        "QComboBox:hover{ border:1px solid %4; background-color:#f7fdf9; }"
+        "QComboBox:hover{ border:1px solid %4; background-color:%5; }"
         "QComboBox:focus{ border:2px solid %4; background-color:%1; }"
         "QComboBox::drop-down{"
         " subcontrol-origin:padding; subcontrol-position:top right;"
         " width:26px; border:none; border-left:1px solid %3;"
         "}"
-    ).arg(BG_CARD, TEXT_BODY, BORDER, BORDER_FOCUS);
+    ).arg(BG_CARD, TEXT_BODY, BORDER, BORDER_FOCUS, BG_CARD_ALT);
 
     const QString comboPopupStyle = QString(
         "QAbstractItemView{"
@@ -8628,7 +9099,7 @@ void MainWindow::applyHomogeneousTheme()
         "}"
         "QTableWidget::item{ padding:10px 8px; border-bottom:1px solid %6; }"
         "QTableWidget::item:selected{ background:%3; color:%4; }"
-        "QTableWidget::item:hover{ background:#eff6ff; }"
+        "QTableWidget::item:hover{ background:%9; }"
         "QHeaderView::section{"
         " background:%5; color:%7; font-weight:700; font-size:11px;"
         " letter-spacing:1px; padding:10px 8px; border:none; border-bottom:2px solid %8;"
@@ -8636,7 +9107,8 @@ void MainWindow::applyHomogeneousTheme()
         "QHeaderView{ background:%5; border:none; }"
         "QTableWidget QTableCornerButton::section{ background:%5; border:none; }"
     ).arg(BG_CARD, TEXT_BODY, PRIMARY_LT, SIDEBAR_BG,
-          BG_CARD_ALT, BORDER, TEXT_MUTED, PRIMARY);
+          BG_CARD_ALT, BORDER, TEXT_MUTED, PRIMARY,
+          PRIMARY_LT  /* %9 table item hover */);
 
     for (QTableWidget *tw : findChildren<QTableWidget*>()) {
         if (!tw) continue;
@@ -8671,22 +9143,22 @@ void MainWindow::applyHomogeneousTheme()
     // =================================================================
     const QString btnPrimaryStyle = QString(
         "QPushButton{"
-        " background-color:#f0c343; color:#2d2100; border:none; border-radius:8px;"
+        " background-color:%1; color:#2d2100; border:none; border-radius:8px;"
         " padding:8px 14px; font-size:14px; font-weight:700; min-height:36px;"
         "}"
-        "QPushButton:hover{ background-color:#e3b232; }"
-        "QPushButton:pressed{ background-color:#d39c1e; }"
+        "QPushButton:hover{ background-color:%2; }"
+        "QPushButton:pressed{ background-color:%2; }"
         "QPushButton:disabled{ background-color:#e5d6a6; color:#6a5a2a; }"
-    );
+    ).arg(ACCENT_S, ACCENT_DK_S);
 
     const QString btnSecondaryStyle = QString(
         "QPushButton{"
-        " background-color:%1; color:#d39c1e; border:1.5px solid #f0c343;"
+        " background-color:%1; color:%3; border:1.5px solid %2;"
         " border-radius:8px; padding:8px 14px; font-size:14px;"
         " font-weight:700; min-height:36px;"
         "}"
-        "QPushButton:hover{ background-color:#f0c343; color:#2d2100; border-color:#f0c343; }"
-    ).arg(BG_CARD);
+        "QPushButton:hover{ background-color:%2; color:#2d2100; border-color:%2; }"
+    ).arg(BG_CARD_S, ACCENT_S, ACCENT_DK_S);
 
     const QString btnDangerStyle = QString(
         "QPushButton{"
@@ -8851,17 +9323,19 @@ void MainWindow::applyHomogeneousTheme()
     }
 
     // =================================================================
-    // 14. QScrollBar
+    // 14. QScrollBar — handled by ThemeManager global QSS; we still do
+    //     per-widget override here for widgets that set their own QSS.
     // =================================================================
-    const QString scrollStyle =
-        "QScrollBar:vertical{ background:#f0f2f5; width:8px; border-radius:4px; margin:0; }"
-        "QScrollBar::handle:vertical{ background:#c0cacf; border-radius:4px; min-height:30px; }"
-        "QScrollBar::handle:vertical:hover{ background:#27ae60; }"
+    const QString scrollStyle = QString(
+        "QScrollBar:vertical{ background:%1; width:8px; border-radius:4px; margin:0; }"
+        "QScrollBar::handle:vertical{ background:%2; border-radius:4px; min-height:30px; }"
+        "QScrollBar::handle:vertical:hover{ background:%3; }"
         "QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical{ height:0px; }"
-        "QScrollBar:horizontal{ background:#f0f2f5; height:8px; border-radius:4px; margin:0; }"
-        "QScrollBar::handle:horizontal{ background:#c0cacf; border-radius:4px; min-width:30px; }"
-        "QScrollBar::handle:horizontal:hover{ background:#27ae60; }"
-        "QScrollBar::add-line:horizontal,QScrollBar::sub-line:horizontal{ width:0px; }";
+        "QScrollBar:horizontal{ background:%1; height:8px; border-radius:4px; margin:0; }"
+        "QScrollBar::handle:horizontal{ background:%2; border-radius:4px; min-width:30px; }"
+        "QScrollBar::handle:horizontal:hover{ background:%3; }"
+        "QScrollBar::add-line:horizontal,QScrollBar::sub-line:horizontal{ width:0px; }"
+    ).arg(BG_APP_S, BORDER_S, PRIMARY_S);
     for (QScrollBar *sb : findChildren<QScrollBar*>()) {
         if (sb) sb->setStyleSheet(scrollStyle);
     }
@@ -8872,12 +9346,10 @@ void MainWindow::applyHomogeneousTheme()
     for (QScrollArea *sa : findChildren<QScrollArea*>()) {
         if (!sa) continue;
         sa->setFrameShape(QFrame::NoFrame);
-        if (!sa->styleSheet().contains(BG_APP)) {
-            sa->setStyleSheet(
-                QString("QScrollArea{ background:%1; border:none; }"
-                        "QScrollArea>QWidget>QWidget{ background:%1; }")
-                    .arg(BG_APP));
-        }
+        sa->setStyleSheet(
+            QString("QScrollArea{ background:%1; border:none; }"
+                    "QScrollArea>QWidget>QWidget{ background:%1; }")
+                .arg(BG_APP_S));
     }
 
     // =================================================================
@@ -8940,6 +9412,40 @@ void MainWindow::applyHomogeneousTheme()
     // 17. RETRACTABLE RIGHT PANELS
     // =================================================================
     ensureRetractableRightPanels();
+
+    // =================================================================
+    // 19. TEXT VISIBILITY — fix dark text colors in dark/custom themes
+    // Only replaces "color: #DARKCOLOR" CSS property values (not bg-color).
+    // This ensures all labels/widgets are readable on dark backgrounds even
+    // on initial startup, before any explicit theme-switch triggers.
+    // =================================================================
+    if (ThemeManager::instance()->mode() != ThemeManager::Default) {
+        struct TextFix { const char *darkHex; const QString *lightHex; };
+        const QVector<TextFix> fixes = {
+            { "#0f2b4c", &TEXT_TITLE_S },
+            { "#1a1a2e", &TEXT_TITLE_S },
+            { "#374151", &TEXT_BODY_S  },
+            { "#6c757d", &TEXT_MUTED_S },
+        };
+        for (QWidget *w : findChildren<QWidget*>()) {
+            if (!w) continue;
+            QString ss = w->styleSheet();
+            if (ss.isEmpty()) continue;
+            bool touched = false;
+            for (const TextFix &f : fixes) {
+                const QString hex(f.darkHex);
+                // Replace "color:#XXXXXX" and "color: #XXXXXX" (case-insensitive)
+                for (const QString &pfx : QStringList{"color:", "color: "}) {
+                    const QString pat = pfx + hex;
+                    if (ss.contains(pat, Qt::CaseInsensitive)) {
+                        ss.replace(pat, pfx + *f.lightHex, Qt::CaseInsensitive);
+                        touched = true;
+                    }
+                }
+            }
+            if (touched) w->setStyleSheet(ss);
+        }
+    }
 
     // =================================================================
     // 18. FINAL REPOLISH
@@ -9659,6 +10165,8 @@ void MainWindow::ensureRetractableRightPanels()
             normalizeRightSidebarShell(panel);
         }
     }
+
+    QTimer::singleShot(0, this, &MainWindow::onFloatingAIButtonPositionUpdate);
 }
 
 
@@ -9715,6 +10223,15 @@ MainWindow::MainWindow(QWidget *parent)
 
     ui->setupUi(this);
 
+    // Bac motion sensor - 60 s sliding hold timer.
+    // On each MOTION:1 edge we (re)start it; on timeout we revert the bac
+    // status from EN_SERVICE back to EN_ATTENTE.
+    m_motionHoldTimer = new QTimer(this);
+    m_motionHoldTimer->setSingleShot(true);
+    m_motionHoldTimer->setInterval(60 * 1000);
+    connect(m_motionHoldTimer, &QTimer::timeout,
+            this, &MainWindow::onMotionHoldExpired);
+
     // Prevent the main QStackedWidget from imposing its maximum sizeHint
     // (which is the max of ALL pages) on the window layout. Using Ignored
     // means the stacked widget fills whatever space the layout gives it,
@@ -9733,8 +10250,26 @@ MainWindow::MainWindow(QWidget *parent)
     if (ui->page_ajouter_client_wrapper) ui->page_ajouter_client_wrapper->setStyleSheet(clientFormStyle);
     if (ui->page_modifier_client_wrapper) ui->page_modifier_client_wrapper->setStyleSheet(clientFormStyle);
 
-    // createFloatingAIButton(); // Disabled as requested
+    createFloatingAIButton();
     m_emailManager = new EmailNotificationManager();
+
+    // Automatic scan for expiring client contracts (startup + periodic)
+    m_clientContractNotifTimer = new QTimer(this);
+    connect(m_clientContractNotifTimer, &QTimer::timeout, this, &MainWindow::checkAndNotifyExpiringContracts);
+    m_clientContractNotifTimer->start(6 * 60 * 60 * 1000); // every 6 hours
+    QTimer::singleShot(15000, this, &MainWindow::checkAndNotifyExpiringContracts);
+
+    // Daily attendance reset: at launch (once per day) and every hour thereafter
+    // so that if the application is left running across midnight, the next morning
+    // also starts with all employees marked absent until they badge in.
+    QTimer::singleShot(2000, this, [this]() {
+        performDailyAttendanceResetIfNeeded();
+    });
+    auto *attendanceTimer = new QTimer(this);
+    connect(attendanceTimer, &QTimer::timeout, this, [this]() {
+        performDailyAttendanceResetIfNeeded();
+    });
+    attendanceTimer->start(60 * 60 * 1000); // hourly re-check (no-op same day)
 
     // Connect Retour button in Client Stats and fix Calendar Visibility
     if (ui->btnRetour_stats_client) {
@@ -10384,6 +10919,9 @@ MainWindow::MainWindow(QWidget *parent)
 
 
 
+    // --- SETTINGS / THEME MODULE ---
+    setupSettingsModule();
+
     // --- COMMANDES INTEGRATION ---
 
     if (QPushButton* btnCmd = this->findChild<QPushButton*>("btnCommandes")) {
@@ -10396,13 +10934,15 @@ MainWindow::MainWindow(QWidget *parent)
             if (!guardModuleAccess("commandes", "Commandes")) return;
 
             if (auto *sw = mainStacked()) {
-
                 if (auto *page = sw->findChild<QWidget*>("pageCmdDashboard", Qt::FindDirectChildrenOnly)) {
-
                     sw->setCurrentWidget(page);
-
+                    if (auto *content = page->findChild<QStackedWidget*>("contentStack")) {
+                        if (auto *listPage = page->findChild<QWidget*>("pageCommandes")) {
+                            content->setCurrentWidget(listPage);
+                            refreshCommandes();
+                        }
+                    }
                 }
-
             }
 
             // --- APPLY UNIFIED SIDEBAR STYLE (Longer Delay for Reliability) ---
@@ -10420,111 +10960,8 @@ MainWindow::MainWindow(QWidget *parent)
 
 
 
-    // Internal Navigation for Commandes
-
-    auto safeConnectCmd = [this](const QString& btnName, const QString& targetPageName){
-
-        QPushButton* btn = findChild<QPushButton*>(btnName); 
-
-        QWidget* target = findChild<QWidget*>(targetPageName);
-
-        if (btn && target && mainStacked()) {
-
-             connect(btn, &QPushButton::clicked, this, [this, target](){
-
-                 mainStacked()->setCurrentWidget(target);
-
-             });
-
-        }
-
-    };
-
-    
-
-    safeConnectCmd("btnTempToModifier", "pageCmdModifier");
-    safeConnectCmd("btnCancel_Mod", "pageCmdDashboard");
-    safeConnectCmd("btnCancel_Mod_3", "pageCmdDashboard");
-
-    // Specific logic for Add Button to clear page
-    if (QPushButton* btnAdd = findChild<QPushButton*>("btnAddDashboard")) {
-        connect(btnAdd, &QPushButton::clicked, this, [this](){
-            if (auto *sw = mainStacked()) {
-                if (auto *page = sw->findChild<QWidget*>("pageCmdAjout", Qt::FindDirectChildrenOnly)) {
-                    sw->setCurrentWidget(page);
-                    // Clear fields
-                    if (ui->sb_qty_add_4) ui->sb_qty_add_4->setValue(0);
-                    if (ui->cb_model_add_4) ui->cb_model_add_4->setCurrentIndex(0);
-                    if (ui->cb_status_add_4) ui->cb_status_add_4->setCurrentIndex(0);
-                    if (ui->dsb_price_add_4) ui->dsb_price_add_4->setValue(0.0);
-                    if (ui->textEdit) ui->textEdit->clear();
-                    populateCommandeBacList();
-                    
-                    QDate now = QDate::currentDate();
-                    if (ui->comboBox_19) ui->comboBox_19->setCurrentText(QString("%1").arg(now.day(), 2, 10, QChar('0')));
-                    if (ui->comboBox_20) ui->comboBox_20->setCurrentText(QString("%1").arg(now.month(), 2, 10, QChar('0')));
-                    if (ui->comboBox_21) ui->comboBox_21->setCurrentText(QString::number(now.year()));
-                    
-                    QDate dLiv = now.addDays(7);
-                    if (ui->comboBox_22) ui->comboBox_22->setCurrentText(QString("%1").arg(dLiv.day(), 2, 10, QChar('0')));
-                    if (ui->comboBox_23) ui->comboBox_23->setCurrentText(QString("%1").arg(dLiv.month(), 2, 10, QChar('0')));
-                    if (ui->comboBox_24) ui->comboBox_24->setCurrentText(QString::number(dLiv.year()));
-                }
-            }
-        });
-    }
-
-
-
-    // Commandes: in modifier page, "Annuler" must return to the Commandes list page.
-
-    auto connectCmdModifierCancelToCommandes = [this](const QString &btnName) {
-
-        QWidget *cmdModPage = findChild<QWidget*>("pageCmdModifier");
-
-        if (!cmdModPage) return;
-
-        QPushButton *btn = cmdModPage->findChild<QPushButton*>(btnName);
-
-        if (!btn) return;
-
-
-
-        connect(btn, &QPushButton::clicked, this, [this]() {
-
-            if (auto *sw = mainStacked()) {
-
-                if (auto *cmdDashboard = sw->findChild<QWidget*>("pageCmdDashboard", Qt::FindDirectChildrenOnly)) {
-
-                    sw->setCurrentWidget(cmdDashboard);
-
-                    if (auto *content = cmdDashboard->findChild<QStackedWidget*>("contentStack")) {
-
-                        if (auto *pageCommandes = cmdDashboard->findChild<QWidget*>("pageCommandes")) {
-
-                            content->setCurrentWidget(pageCommandes);
-
-                        } else {
-
-                            content->setCurrentIndex(1);
-
-                        }
-
-                    }
-
-                }
-
-            }
-
-        });
-
-    };
-
-    connectCmdModifierCancelToCommandes("btnCancel_Mod1");
-
-    connectCmdModifierCancelToCommandes("btnCancel_Mod");
-
-
+    // Modularized navigation setup for Commandes module
+    setupCommandesNavigation();
 
     // Commandes dashboard table: add example row + actions (Modifier / Supprimer)
 
@@ -11089,6 +11526,50 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->btnDelete, &QPushButton::clicked, this, &MainWindow::on_btnSupprimer_clicked);
 
     connect(ui->btnFichePaie, &QPushButton::clicked, this, &MainWindow::on_btnFichePaie_clicked);
+
+    if (ui->btnScanRFID_Ajout && ui->txtRFID_Ajout) {
+        connect(ui->btnScanRFID_Ajout, &QPushButton::clicked, this, [this]() {
+            startRfidCapture(ui->txtRFID_Ajout);
+        });
+    }
+    if (ui->btnScanRFID_Modif && ui->txtRFID_Modif) {
+        connect(ui->btnScanRFID_Modif, &QPushButton::clicked, this, [this]() {
+            startRfidCapture(ui->txtRFID_Modif);
+        });
+    }
+
+    if (ui->txtRFID_Ajout && ui->lblRFIDStatus_Ajout) {
+        connect(ui->txtRFID_Ajout, &QLineEdit::textChanged, this, [this](const QString &t) {
+            const QString trimmed = t.trimmed();
+            if (trimmed.isEmpty()) {
+                ui->lblRFIDStatus_Ajout->setText("Aucun badge scanne. Cliquez sur Scanner badge ou saisissez un identifiant.");
+                ui->lblRFIDStatus_Ajout->setStyleSheet("QLabel { color: #95a5a6; font-size: 11px; font-style: italic; padding-left: 2px; }");
+            } else {
+                ui->lblRFIDStatus_Ajout->setText(QString("Badge pret a etre enregistre : %1").arg(trimmed));
+                ui->lblRFIDStatus_Ajout->setStyleSheet("QLabel { color: #27ae60; font-size: 11px; font-weight: 600; padding-left: 2px; }");
+            }
+        });
+    }
+    if (ui->txtRFID_Modif && ui->lblRFIDStatus_Modif) {
+        connect(ui->txtRFID_Modif, &QLineEdit::textChanged, this, [this](const QString &t) {
+            const QString trimmed = t.trimmed();
+            const QString original = m_currentEmployeeRfidOriginal.trimmed();
+            if (trimmed.isEmpty()) {
+                ui->lblRFIDStatus_Modif->setText("Aucun badge RFID attribue a cet employe.");
+                ui->lblRFIDStatus_Modif->setStyleSheet("QLabel { color: #95a5a6; font-size: 11px; font-style: italic; padding-left: 2px; }");
+            } else if (!original.isEmpty() && trimmed.compare(original, Qt::CaseInsensitive) == 0) {
+                ui->lblRFIDStatus_Modif->setText(QString("✓ Badge deja attribue a cet employe : %1").arg(trimmed));
+                ui->lblRFIDStatus_Modif->setStyleSheet("QLabel { color: #27ae60; font-size: 11px; font-weight: 600; padding-left: 2px; }");
+            } else if (!original.isEmpty()) {
+                ui->lblRFIDStatus_Modif->setText(QString("Remplacement du badge (ancien : %1, nouveau : %2)").arg(original, trimmed));
+                ui->lblRFIDStatus_Modif->setStyleSheet("QLabel { color: #e67e22; font-size: 11px; font-weight: 600; padding-left: 2px; }");
+            } else {
+                ui->lblRFIDStatus_Modif->setText(QString("Nouveau badge a enregistrer : %1").arg(trimmed));
+                ui->lblRFIDStatus_Modif->setStyleSheet("QLabel { color: #27ae60; font-size: 11px; font-weight: 600; padding-left: 2px; }");
+            }
+        });
+    }
+
     if (ui->btnUploadPhoto_Ajout) {
         ui->btnUploadPhoto_Ajout->setText("Ouvrir camera visage");
         connect(ui->btnUploadPhoto_Ajout, &QPushButton::clicked, this, [this]() {
@@ -11123,11 +11604,27 @@ MainWindow::MainWindow(QWidget *parent)
         });
     }
     if (ui->btnUploadPhoto) {
+        ui->btnUploadPhoto->setText("Reinitialiser Face ID");
+        ui->btnUploadPhoto->setToolTip("Capturer un nouveau visage pour remplacer le Face ID actuel de cet employe.");
         connect(ui->btnUploadPhoto, &QPushButton::clicked, this, [this]() {
-            const QByteArray photoData = chooseEmployeePhotoBytes(this);
-            if (photoData.isEmpty()) return;
+            const int ret = QMessageBox::question(this, "Reinitialiser Face ID",
+                "Voulez-vous capturer un nouveau visage pour remplacer le Face ID actuel ?",
+                QMessageBox::Yes | QMessageBox::No);
+            if (ret != QMessageBox::Yes) return;
+
+            QString faceTemplate;
+            QString captureError;
+            const QByteArray photoData = captureEmployeePhotoFromCamera(this, faceTemplate, captureError);
+            if (photoData.isEmpty()) {
+                if (!captureError.isEmpty() && captureError != "Capture annulee.") {
+                    QMessageBox::warning(this, "Camera", captureError);
+                }
+                return;
+            }
             m_employeePhotoModif = photoData;
+            m_employeeFaceTemplateModif = faceTemplate;
             setEmployeePhotoPreview(ui->imageLabel, m_employeePhotoModif);
+            QMessageBox::information(this, "Face ID", "Nouveau visage capture. Cliquez sur Modifier pour sauvegarder.");
         });
     }
     if (ui->txtSearch && !ui->txtSearch->property("empSearchConnected").toBool()) {
@@ -11173,6 +11670,7 @@ MainWindow::MainWindow(QWidget *parent)
             }
 
         }
+        enterPointagePage();
 
     });
 
@@ -11499,6 +11997,11 @@ MainWindow::MainWindow(QWidget *parent)
 MainWindow::~MainWindow()
 
 {
+    if (m_arduino) {
+        m_arduino->close_arduino();
+        delete m_arduino;
+        m_arduino = nullptr;
+    }
 
     delete ui;
 
@@ -11658,7 +12161,97 @@ void MainWindow::installPageAccessGuard()
 
 bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 {
+    if (auto *lbl = qobject_cast<QLabel*>(obj)) {
+        const QString objName = lbl->objectName();
+        const bool isMaintPhotoLabel =
+            (objName == "lblImgPreview_Add"
+             || objName == "lblImgPreview2_Add"
+             || objName == "lblImgPreview_Mod"
+             || objName == "lblImgPreview2_Mod");
+
+        if (isMaintPhotoLabel && event) {
+            if (event->type() == QEvent::DragEnter) {
+                auto *dragEvent = static_cast<QDragEnterEvent*>(event);
+                if (!dragEvent || !dragEvent->mimeData() || !dragEvent->mimeData()->hasUrls()) {
+                    return true;
+                }
+
+                for (const QUrl &url : dragEvent->mimeData()->urls()) {
+                    const QString path = url.toLocalFile().trimmed();
+                    if (!path.isEmpty() && isSupportedMaintenanceImageFile(path)) {
+                        dragEvent->acceptProposedAction();
+                        return true;
+                    }
+                }
+                return true;
+            }
+
+            if (event->type() == QEvent::Drop) {
+                auto *dropEvent = static_cast<QDropEvent*>(event);
+                if (!dropEvent || !dropEvent->mimeData() || !dropEvent->mimeData()->hasUrls()) {
+                    return true;
+                }
+
+                QString pickedPath;
+                for (const QUrl &url : dropEvent->mimeData()->urls()) {
+                    const QString local = url.toLocalFile().trimmed();
+                    if (!local.isEmpty() && isSupportedMaintenanceImageFile(local)) {
+                        pickedPath = local;
+                        break;
+                    }
+                }
+
+                if (pickedPath.isEmpty()) {
+                    QMessageBox::warning(this, "Photo maintenance", "Format non supporte. Utilisez PNG/JPG/JPEG/BMP/WEBP.");
+                    return true;
+                }
+
+                const QString savedPath = persistedMaintenanceImagePath(pickedPath);
+                if (savedPath.trimmed().isEmpty()) {
+                    QMessageBox::warning(this, "Photo maintenance", "Impossible de charger la photo deposee.");
+                    return true;
+                }
+
+                const QString placeholder = lbl->property("maintPlaceholder").toString().isEmpty()
+                                                ? lbl->text()
+                                                : lbl->property("maintPlaceholder").toString();
+                applyMaintenanceImageLabel(lbl, savedPath, placeholder);
+
+                if (objName == "lblImgPreview_Add") {
+                    m_photoAvantPath = savedPath;
+                } else if (objName == "lblImgPreview2_Add") {
+                    m_photoApresPath = savedPath;
+                } else if (objName == "lblImgPreview_Mod") {
+                    const QStringList current = splitMaintenancePhotoPair(m_photoModPath);
+                    m_photoModPath = formatMaintenancePhotoPair(savedPath, current.value(1));
+                } else if (objName == "lblImgPreview2_Mod") {
+                    const QStringList current = splitMaintenancePhotoPair(m_photoModPath);
+                    m_photoModPath = formatMaintenancePhotoPair(current.value(0), savedPath);
+                }
+
+                dropEvent->acceptProposedAction();
+                return true;
+            }
+        }
+    }
+
     if (event && event->type() == QEvent::MouseButtonRelease) {
+        if (auto *frame = qobject_cast<QFrame*>(obj)) {
+            const QString name = frame->objectName();
+            if (name == "themeCardDefault" || name == "themeCardDark" || name == "themeCardCustom") {
+                auto *me = static_cast<QMouseEvent*>(event);
+                if (me->button() == Qt::LeftButton) {
+                    bool ok = false;
+                    int id = frame->property("themeModeId").toInt(&ok);
+                    if (ok) {
+                        ThemeManager::instance()->setMode(static_cast<ThemeManager::Mode>(id));
+                        applyThemeFromManager();
+                        rebuildSettingsCustomColorsList();
+                    }
+                    return true;
+                }
+            }
+        }
         if (auto *lbl = qobject_cast<QLabel*>(obj)) {
             const QString objName = lbl->objectName();
             if (objName == "prod_l5" || objName == "prod_l5_m") {
@@ -11882,6 +12475,9 @@ void MainWindow::setSessionContext(bool isAdmin, const QString &email)
         ensureNavigationAndButtonConsistency();
         installWindowGeometryGuard();
 
+        // Connect Arduino at startup so RFID works on all pages
+        ensureArduinoConnected();
+
         if (!m_isAdminSession) {
             showDashboardHome();
         }
@@ -11941,12 +12537,72 @@ void MainWindow::openEmployeeLeaveDialog()
 
 void MainWindow::openLabibAssistant()
 {
-    if (!m_labibAssistant) {
-        m_labibAssistant = new LabibAssistant(this);
+    const auto applyLabibDockGeometry = [this]() {
+        if (!m_labibDock) return;
+
+        const int windowW = qMax(900, this->width());
+        const int minDockW = 400;
+        const int maxDockW = qMax(minDockW, windowW - 180);
+        const int preferredDockW = qBound(minDockW, static_cast<int>(windowW * 0.32), maxDockW);
+
+        m_labibDock->setMinimumWidth(minDockW);
+        m_labibDock->setMaximumWidth(maxDockW);
+        if (m_labibAssistant) {
+            m_labibAssistant->setMinimumWidth(380);
+            m_labibAssistant->updateGeometry();
+        }
+        resizeDocks({m_labibDock}, {preferredDockW}, Qt::Horizontal);
+    };
+
+    if (!m_labibDock) {
+        m_labibDock = new QDockWidget("Labib AI Assistant", this);
+        m_labibDock->setObjectName("LabibAssistantDock");
+        m_labibDock->setAllowedAreas(Qt::RightDockWidgetArea);
+        m_labibDock->setFeatures(QDockWidget::DockWidgetClosable);
+
+        if (!m_labibAssistant) {
+            m_labibAssistant = new LabibAssistant(m_labibDock);
+        }
+
+        m_labibDock->setWidget(m_labibAssistant);
+        addDockWidget(Qt::RightDockWidgetArea, m_labibDock);
+        applyLabibDockGeometry();
+
+        connect(m_labibAssistant, &LabibAssistant::requestAddClient, this, [this]() {
+            if (ui && ui->btnClient) {
+                ui->btnClient->click();
+            }
+            on_btnNouveau_client_clicked();
+        });
+        connect(m_labibAssistant, &LabibAssistant::requestViewStock, this, [this]() {
+            if (ui && ui->btnStock) {
+                ui->btnStock->click();
+            }
+        });
+        connect(m_labibAssistant, &LabibAssistant::requestCheckOrders, this, [this]() {
+            if (QPushButton *btnCmd = this->findChild<QPushButton*>("btnCommandes")) {
+                btnCmd->click();
+            }
+        });
+
+        connect(m_labibDock, &QDockWidget::visibilityChanged, this, [this](bool) {
+            onFloatingAIButtonPositionUpdate();
+        });
     }
-    m_labibAssistant->show();
-    m_labibAssistant->raise();
-    m_labibAssistant->activateWindow();
+
+    const bool shouldShow = m_labibDock->isHidden();
+    m_labibDock->setVisible(shouldShow);
+    m_labibDock->setFloating(false);
+    if (shouldShow) {
+        applyLabibDockGeometry();
+        QTimer::singleShot(0, this, [this, applyLabibDockGeometry]() {
+            if (m_labibDock && m_labibDock->isVisible()) {
+                applyLabibDockGeometry();
+            }
+        });
+        m_labibDock->raise();
+        m_labibDock->activateWindow();
+    }
 }
 
 void MainWindow::createFloatingAIButton()
@@ -11957,25 +12613,35 @@ void MainWindow::createFloatingAIButton()
     m_floatingAIButton = new QPushButton(this);
     m_floatingAIButton->setFixedSize(60, 60);
     m_floatingAIButton->setText("");
+    m_floatingAIButton->setObjectName("floatingLabibButton");
     m_floatingAIButton->setStyleSheet(
         "QPushButton {"
-        "    background: qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 #2563eb, stop:1 #1d4ed8);"
-        "    border: none;"
+        "    background: qradialgradient(cx:0.35, cy:0.3, radius:1.1, fx:0.35, fy:0.3, stop:0 #1a8cff, stop:1 #0c3469);"
+        "    border: 2px solid #47b4ff;"
         "    border-radius: 30px;"
-        "    color: white;"
-        "    font-weight: bold;"
-        "    font-size: 24px;"
         "    padding: 0px;"
         "}"
         "QPushButton:hover {"
-        "    background: qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 #1d4ed8, stop:1 #1e40af);"
+        "    background: qradialgradient(cx:0.35, cy:0.3, radius:1.1, fx:0.35, fy:0.3, stop:0 #41b0ff, stop:1 #11407a);"
+        "    border: 2px solid #8ed5ff;"
         "}"
         "QPushButton:pressed {"
-        "    background: qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 #1e40af, stop:1 #1e3a8a);"
+        "    background: #0b2b57;"
         "}"
     );
     m_floatingAIButton->setCursor(Qt::PointingHandCursor);
-    m_floatingAIButton->setWindowFlags(Qt::Window | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+    m_floatingAIButton->setToolTip("Labib Assistant");
+
+    const QPixmap logoPixmap(":/login_logo.png");
+    if (!logoPixmap.isNull()) {
+        m_floatingAIButton->setIcon(QIcon(logoPixmap));
+        m_floatingAIButton->setIconSize(QSize(42, 42));
+    } else {
+        m_floatingAIButton->setText("L");
+        m_floatingAIButton->setStyleSheet(
+            m_floatingAIButton->styleSheet() +
+            "QPushButton{color:white;font-weight:900;font-size:22px;}");
+    }
     
     // Connect button to open Labib Assistant
     connect(m_floatingAIButton, &QPushButton::clicked, this, &MainWindow::openLabibAssistant);
@@ -11987,14 +12653,16 @@ void MainWindow::createFloatingAIButton()
 void MainWindow::onFloatingAIButtonPositionUpdate()
 {
     if (!m_floatingAIButton) return;
-    
-    QScreen *screen = QGuiApplication::primaryScreen();
-    if (!screen) return;
-    
-    QRect screenGeometry = screen->geometry();
-    int x = screenGeometry.right() - 80;      // 20px from right edge
-    int y = screenGeometry.bottom() - 100;    // 40px from bottom edge
-    
+
+    if (m_labibDock && m_labibDock->isVisible()) {
+        m_floatingAIButton->hide();
+        return;
+    }
+
+    const int margin = 18;
+    const int x = qMax(margin, width() - m_floatingAIButton->width() - margin);
+    const int y = qMax(margin, height() - m_floatingAIButton->height() - margin);
+
     m_floatingAIButton->move(x, y);
     m_floatingAIButton->show();
     m_floatingAIButton->raise();
@@ -12031,11 +12699,22 @@ void MainWindow::refreshEmployes()
         QString email = model->data(model->index(i, 4)).toString().trimmed();
         QString specialite = model->data(model->index(i, 5)).toString();
         QString dispoDb = model->data(model->index(i, 6)).toString().trimmed();
-        QByteArray photoData;
+        int salaireDb = 1200;
         if (model->columnCount() > 7) {
-            const QVariant photoVar = model->data(model->index(i, 7));
-            if (photoVar.isValid() && !photoVar.isNull()) {
-                photoData = photoVar.toByteArray();
+            bool salaireOk = false;
+            const double salaireRaw = model->data(model->index(i, 7)).toDouble(&salaireOk);
+            if (salaireOk) {
+                salaireDb = qMax(0, qRound(salaireRaw));
+            }
+        }
+        QByteArray photoData;
+        QString rfidDb;
+        // afficher() selects: id_emp, matricule, cin, nom, email, specialite,
+        // disponibilite, salaire, rfid. The RFID column is at index 8.
+        if (model->columnCount() > 8) {
+            const QVariant rfidVar = model->data(model->index(i, 8));
+            if (rfidVar.isValid() && !rfidVar.isNull()) {
+                rfidDb = rfidVar.toString().trimmed();
             }
         }
 
@@ -12048,9 +12727,10 @@ void MainWindow::refreshEmployes()
         matItem->setData(EMP_ROLE_ID, id_emp);
         matItem->setData(EMP_ROLE_EMAIL, email);
         matItem->setData(EMP_ROLE_CIN, cin);
-        matItem->setData(EMP_ROLE_SALAIRE, 1200);
+        matItem->setData(EMP_ROLE_SALAIRE, salaireDb);
         matItem->setData(EMP_ROLE_PERF, 0);
         matItem->setData(EMP_ROLE_PHOTO, photoData);
+        matItem->setData(EMP_ROLE_RFID, rfidDb);
 
         ui->tableEmployes->setItem(row, EMP_COL_MATRICULE, matItem);
         auto *nameItem = new QTableWidgetItem(nom);
@@ -12060,7 +12740,7 @@ void MainWindow::refreshEmployes()
         }
         ui->tableEmployes->setItem(row, EMP_COL_NOM, nameItem);
         ui->tableEmployes->setItem(row, EMP_COL_SPECIALITE, new QTableWidgetItem(specialite));
-        ui->tableEmployes->setItem(row, EMP_COL_SALAIRE, new QTableWidgetItem(QString("%1 TND").arg(1200)));
+        ui->tableEmployes->setItem(row, EMP_COL_SALAIRE, new QTableWidgetItem(QString("%1 TND").arg(salaireDb)));
         ui->tableEmployes->setItem(row, EMP_COL_EMAIL, new QTableWidgetItem(email));
         ui->tableEmployes->setItem(row, EMP_COL_CIN, new QTableWidgetItem(cin));
         ui->tableEmployes->setItem(row, EMP_COL_DISPONIBILITE, new QTableWidgetItem(dispoUi));
@@ -12069,6 +12749,7 @@ void MainWindow::refreshEmployes()
     }
 
     applyEmployeSortAndFilter();
+    refreshEmployeTopKpiLabels(this);
 
     delete model;
 }
@@ -12303,6 +12984,7 @@ void MainWindow::applyEmployeSortAndFilter()
     }
 
     updateEmployeSidebarStats();
+    refreshEmployeTopKpiLabels(this);
 
     if (m_isEmpCardView) {
         m_empCurrentPage = 0;
@@ -12332,6 +13014,7 @@ void MainWindow::on_btnNouveau_clicked()
     m_employeePhotoAjout.clear();
     m_employeeFaceTemplateAjout.clear();
     setEmployeePhotoPreview(ui->imageLabel_2, m_employeePhotoAjout);
+    if (ui->txtRFID_Ajout) ui->txtRFID_Ajout->clear();
 
 
 
@@ -12388,6 +13071,7 @@ void MainWindow::on_btnAnnuler_Ajout_clicked()
     m_employeePhotoAjout.clear();
     m_employeeFaceTemplateAjout.clear();
     setEmployeePhotoPreview(ui->imageLabel_2, m_employeePhotoAjout);
+    if (ui->txtRFID_Ajout) ui->txtRFID_Ajout->clear();
 
     showEmployesPage();
 
@@ -12581,6 +13265,22 @@ void MainWindow::on_btnAjouter_clicked()
         return;
     }
 
+    const QString rfidAjout = ui->txtRFID_Ajout ? ui->txtRFID_Ajout->text().trimmed() : QString();
+
+    if (!rfidAjout.isEmpty()) {
+        int existingId = -1;
+        if (Etmp.findIdByRfid(rfidAjout, existingId) && existingId > 0) {
+            QMessageBox::warning(this, "Ajout",
+                QString("Le badge RFID \"%1\" est deja attribue a un autre employe (ID %2). "
+                        "Veuillez en choisir un autre.").arg(rfidAjout).arg(existingId));
+            if (ui->txtRFID_Ajout) {
+                ui->txtRFID_Ajout->setFocus();
+                ui->txtRFID_Ajout->selectAll();
+            }
+            return;
+        }
+    }
+
     Etmp.setIdEmp(0);
     Etmp.setMatricule(matricule);
     Etmp.setCin(cin);
@@ -12588,7 +13288,9 @@ void MainWindow::on_btnAjouter_clicked()
     Etmp.setEmail(email);
     Etmp.setSpecialite(specialite);
     Etmp.setDisponibilite(disponibiliteDb);
+    Etmp.setSalaire(salaireAjout);
     Etmp.setPhoto(m_employeePhotoAjout);
+    Etmp.setRfid(rfidAjout);
     if (!Etmp.ajouter()) {
         showFriendlySqlError(this, "ajouter l'employe", Etmp.lastError());
         return;
@@ -12634,6 +13336,7 @@ void MainWindow::on_btnAjouter_clicked()
             salaryItem->setText(QString("%1 TND").arg(salaireAjout));
         }
     }
+    refreshEmployeTopKpiLabels(this);
 
 
 
@@ -12642,6 +13345,8 @@ void MainWindow::on_btnAjouter_clicked()
     if (ui->txtEmailAjout) ui->txtEmailAjout->clear();
 
     if (ui->txtCIN_Ajout) ui->txtCIN_Ajout->clear();
+
+    if (ui->txtRFID_Ajout) ui->txtRFID_Ajout->clear();
 
     if (ui->cbSpecialite_Ajout && ui->cbSpecialite_Ajout->count() > 0) ui->cbSpecialite_Ajout->setCurrentIndex(0);
 
@@ -12885,13 +13590,28 @@ void MainWindow::on_btnModifier_clicked()
 
 
         m_employeePhotoModif.clear();
+        m_employeeFaceTemplateModif.clear();
+        m_currentEmployeeRfidOriginal.clear();
         setEmployeePhotoPreview(ui->imageLabel, m_employeePhotoModif);
+        if (ui->txtRFID_Modif) ui->txtRFID_Modif->clear();
 
         if (auto *matItem = ui->tableEmployes->item(row, EMP_COL_MATRICULE)) {
 
             const QString email = matItem->data(EMP_ROLE_EMAIL).toString().trimmed();
 
             const QString cin = matItem->data(EMP_ROLE_CIN).toString().trimmed();
+            QString rfidVal = matItem->data(EMP_ROLE_RFID).toString().trimmed();
+            const int idEmpForRfid = matItem->data(EMP_ROLE_ID).toInt();
+            if (idEmpForRfid > 0) {
+                QSqlQuery rfidQ;
+                rfidQ.prepare("SELECT rfid FROM EMPLOYE WHERE id_emp = :id");
+                rfidQ.bindValue(":id", idEmpForRfid);
+                if (rfidQ.exec() && rfidQ.next()) {
+                    const QString fresh = rfidQ.value(0).toString().trimmed();
+                    rfidVal = fresh;
+                    matItem->setData(EMP_ROLE_RFID, fresh);
+                }
+            }
             m_employeePhotoModif = matItem->data(EMP_ROLE_PHOTO).toByteArray();
             setEmployeePhotoPreview(ui->imageLabel, m_employeePhotoModif);
 
@@ -12902,6 +13622,18 @@ void MainWindow::on_btnModifier_clicked()
             if (ui->txtEmailModif) ui->txtEmailModif->setText(email);
 
             if (ui->txtCIN_Modif) ui->txtCIN_Modif->setText(cin);
+
+            m_currentEmployeeRfidOriginal = rfidVal;
+            if (ui->txtRFID_Modif) ui->txtRFID_Modif->setText(rfidVal);
+            if (ui->lblRFIDStatus_Modif) {
+                if (rfidVal.isEmpty()) {
+                    ui->lblRFIDStatus_Modif->setText("Aucun badge RFID attribue a cet employe.");
+                    ui->lblRFIDStatus_Modif->setStyleSheet("QLabel { color: #95a5a6; font-size: 11px; font-style: italic; padding-left: 2px; }");
+                } else {
+                    ui->lblRFIDStatus_Modif->setText(QString("✓ Badge deja attribue a cet employe : %1").arg(rfidVal));
+                    ui->lblRFIDStatus_Modif->setStyleSheet("QLabel { color: #27ae60; font-size: 11px; font-weight: 600; padding-left: 2px; }");
+                }
+            }
 
 
 
@@ -12929,7 +13661,9 @@ void MainWindow::on_btnModifier_clicked()
 
         currentEmployeRow = -1;
         m_employeePhotoModif.clear();
+        m_currentEmployeeRfidOriginal.clear();
         setEmployeePhotoPreview(ui->imageLabel, m_employeePhotoModif);
+        if (ui->txtRFID_Modif) ui->txtRFID_Modif->clear();
 
     }
 
@@ -13053,6 +13787,7 @@ void MainWindow::on_btnSave_clicked()
     const QString statut = ui->cbStatut ? ui->cbStatut->currentText().trimmed() : QString();
     const QString email = ui->txtEmailModif ? ui->txtEmailModif->text().trimmed() : QString();
     const QString cin = ui->txtCIN_Modif ? ui->txtCIN_Modif->text().trimmed() : QString();
+    const QString rfidModif = ui->txtRFID_Modif ? ui->txtRFID_Modif->text().trimmed() : QString();
     const int salaire = ui->sliderSalaire_Modif ? ui->sliderSalaire_Modif->value() : 1200;
 
     if (nom.isEmpty()) {
@@ -13114,6 +13849,20 @@ void MainWindow::on_btnSave_clicked()
         return;
     }
 
+    if (!rfidModif.isEmpty()) {
+        int ownerId = -1;
+        if (Etmp.findIdByRfid(rfidModif, ownerId) && ownerId > 0 && ownerId != idEmp) {
+            QMessageBox::warning(this, "Modification",
+                QString("Le badge RFID \"%1\" est deja attribue a un autre employe (ID %2). "
+                        "Veuillez en choisir un autre.").arg(rfidModif).arg(ownerId));
+            if (ui->txtRFID_Modif) {
+                ui->txtRFID_Modif->setFocus();
+                ui->txtRFID_Modif->selectAll();
+            }
+            return;
+        }
+    }
+
     const QString disponibiliteDb = toDbDisponibilite(statut);
     QString dispoSchemaError;
     if (!ensureEmployeDisponibiliteStatusesReady(dispoSchemaError)) {
@@ -13132,10 +13881,27 @@ void MainWindow::on_btnSave_clicked()
     Etmp.setEmail(email);
     Etmp.setSpecialite(specialite);
     Etmp.setDisponibilite(disponibiliteDb);
+    Etmp.setSalaire(salaire);
     Etmp.setPhoto(photoToSave);
+    Etmp.setRfid(rfidModif);
     if (!Etmp.modifier()) {
         showFriendlySqlError(this, "modifier l'employe", Etmp.lastError());
         return;
+    }
+
+    if (!m_employeeFaceTemplateModif.trimmed().isEmpty()) {
+        ensureEmployeFaceColumnsExist();
+        QSqlQuery faceQuery;
+        faceQuery.prepare(
+            "UPDATE EMPLOYE "
+            "SET face_template=:tpl, face_template_updated_at=SYSDATE, face_enabled=1 "
+            "WHERE id_emp=:id");
+        faceQuery.bindValue(":tpl", m_employeeFaceTemplateModif);
+        faceQuery.bindValue(":id", idEmp);
+        if (!faceQuery.exec()) {
+            qWarning() << "Face template update failed:" << faceQuery.lastError().text();
+        }
+        m_employeeFaceTemplateModif.clear();
     }
 
     refreshEmployes();
@@ -13166,6 +13932,7 @@ void MainWindow::on_btnSave_clicked()
     } else {
         currentEmployeRow = -1;
     }
+    refreshEmployeTopKpiLabels(this);
 
     m_employeePhotoModif = photoToSave;
     setEmployeePhotoPreview(ui->imageLabel, m_employeePhotoModif);
@@ -13802,13 +14569,699 @@ void MainWindow::on_btnAnalyser_clicked()
 
 void MainWindow::on_btnSimulerBadge_clicked()
 {
-    // Simulation logic for pointage badge removed to avoid hardcoded names.
-    // Instead of static data, show generic acceptance status or connect to database/RFID.
-    ui->lblStatutRFID->setText(QString::fromUcs4(U"\u2705") + " BADGE ACCEPTE");
-    ui->lblStatutRFID->setStyleSheet("background-color: #2ecc71; color: white; font-size: 24px; font-weight: bold; border-radius: 10px; padding: 20px; border: 2px solid #27ae60;");
+    // Demo fallback when no hardware is connected: ask for a tag and process it
+    // as if it came from the RFID reader.
+    bool ok = false;
+    const QString tag = QInputDialog::getText(
+        this, "Simulation badge",
+        "Entrez un identifiant RFID a simuler:",
+        QLineEdit::Normal, QString(), &ok).trimmed();
+    if (!ok || tag.isEmpty()) return;
+    handleRfidTag(tag);
 }
 
+void MainWindow::enterPointagePage()
+{
+    // Initialise the table headers (in case the UI was designed with 4 cols
+    // but we prefer to display date/time/tag/name/status).
+    if (ui->tablePointage && ui->tablePointage->columnCount() < 4) {
+        ui->tablePointage->setColumnCount(4);
+        ui->tablePointage->setHorizontalHeaderLabels(
+            QStringList() << "Heure" << "ID Badge" << "Employe" << "Statut");
+    }
+    if (ui->lblStatutRFID) {
+        ui->lblStatutRFID->setText("EN ATTENTE DE BADGE...");
+        ui->lblStatutRFID->setStyleSheet(
+            "background-color: #f1c40f; color: black; font-size: 24px; "
+            "font-weight: bold; border-radius: 10px; padding: 20px; "
+            "border: 2px solid #d4ac0d;");
+    }
+    performDailyAttendanceResetIfNeeded();
+    ensureArduinoConnected();
+}
 
+void MainWindow::ensureArduinoConnected()
+{
+    if (!m_arduino) {
+        m_arduino = new Arduino();
+    }
+    QSerialPort *serial = m_arduino->getserial();
+    if (!serial) return;
+
+    if (!serial->isOpen()) {
+        const int rc = m_arduino->connect_arduino();
+        if (rc != 0) {
+            if (ui->lblStatutRFID) {
+                ui->lblStatutRFID->setText("LECTEUR RFID NON DETECTE - mode simulation");
+                ui->lblStatutRFID->setStyleSheet(
+                    "background-color: #e67e22; color: white; font-size: 20px; "
+                    "font-weight: bold; border-radius: 10px; padding: 20px; "
+                    "border: 2px solid #d35400;");
+            }
+            qDebug() << "ensureArduinoConnected: connect_arduino rc=" << rc;
+            return;
+        }
+    }
+
+    // Wire the readyRead signal only once.
+    static const char *kConnectedProp = "rfidReadyReadConnected";
+    if (!serial->property(kConnectedProp).toBool()) {
+        connect(serial, &QSerialPort::readyRead,
+                this, &MainWindow::onRfidSerialDataReady,
+                Qt::UniqueConnection);
+        serial->setProperty(kConnectedProp, true);
+    }
+}
+
+void MainWindow::performDailyAttendanceResetIfNeeded()
+{
+    QSettings settings("WasteGuard", "WasteGuard");
+    const QString key = "pointage/lastResetDate";
+    const QString today = QDate::currentDate().toString(Qt::ISODate);
+    const QString lastReset = settings.value(key).toString();
+    if (lastReset == today) {
+        return;
+    }
+
+    if (!Etmp.resetDailyAttendance()) {
+        qWarning() << "Daily attendance reset failed:" << Etmp.lastError();
+        // Do not update the flag so we retry next time.
+        return;
+    }
+
+    settings.setValue(key, today);
+
+    // Clear today's pointage log and refresh the employee table to reflect
+    // the new absent status.
+    if (ui->tablePointage) {
+        ui->tablePointage->setRowCount(0);
+    }
+    refreshEmployes();
+}
+
+void MainWindow::onRfidSerialDataReady()
+{
+    if (!m_arduino) return;
+    QSerialPort *serial = m_arduino->getserial();
+    if (!serial) return;
+
+    m_rfidSerialBuffer.append(serial->readAll());
+
+    // Lines from the Arduino sketch end with '\n'. Process each full line.
+    while (true) {
+        const int nl = m_rfidSerialBuffer.indexOf('\n');
+        if (nl < 0) break;
+        QByteArray line = m_rfidSerialBuffer.left(nl);
+        m_rfidSerialBuffer.remove(0, nl + 1);
+
+        const QString text = QString::fromLatin1(line).trimmed();
+        if (text.isEmpty()) continue;
+
+        // Capteur de mouvement (PIR cable sur A0). Le sketch envoie
+        // "MOTION:1" sur edge montant, "MOTION:0" sur edge descendant.
+        // Ici, chaque MOTION:1 (re)demarre un timer de 60 s. Tant que le
+        // timer tourne, le bac reste EN_SERVICE; au timeout, retour a
+        // EN_ATTENTE. Les MOTION:0 du sketch sont informatifs.
+        static const QString kMotionPrefix = "MOTION:";
+        if (text.startsWith(kMotionPrefix, Qt::CaseInsensitive)) {
+            const QString val = text.mid(kMotionPrefix.length()).trimmed();
+            const bool active = (val == "1" || val.compare("ON",   Qt::CaseInsensitive) == 0
+                                            || val.compare("HIGH", Qt::CaseInsensitive) == 0);
+            if (active) {
+                // Trigger AI script
+                if (!m_aiProcess) {
+                    m_aiProcess = new QProcess(this);
+                    connect(m_aiProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                            this, &MainWindow::onAiProcessFinished);
+                }
+                if (m_aiProcess->state() == QProcess::NotRunning) {
+                    QString pythonExe = "python";
+
+                    // Prevent Python from inheriting wrong environment paths from Qt
+                    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+                    env.remove("PYTHONHOME");
+                    env.remove("PYTHONPATH");
+                    m_aiProcess->setProcessEnvironment(env);
+
+                    // Locate the script relative to the source code directory using __FILE__
+                    QString srcPath = QFileInfo(__FILE__).absolutePath();
+                    QString scriptPath = srcPath + "/classify_single.py";
+                    
+                    if (!QFile::exists(scriptPath)) {
+                        qWarning() << "[AI] WARNING: classify_single.py not found at" << scriptPath;
+                        // Fallback
+                        scriptPath = "classify_single.py";
+                    }
+                    m_aiProcess->start(pythonExe, QStringList() << scriptPath);
+                    qDebug() << "[AI] Started classify_single.py with executable:" << pythonExe;
+
+                    if (ui->lblStatutRFID) {
+                        ui->lblStatutRFID->setText(QString::fromUcs4(U"\U0001F50E") + " Analyse IA en cours...");
+                        ui->lblStatutRFID->setStyleSheet(
+                            "background-color: #9b59b6; color: white; font-size: 24px; "
+                            "font-weight: bold; border-radius: 10px; padding: 20px; "
+                            "border: 2px solid #8e44ad;");
+                    }
+                }
+
+                if (m_motionTargetBacId <= 0) {
+                    // No bac selected in the dialog -> ignore the pulse.
+                    qDebug() << "[Motion] pulse ignored (no bac selected)";
+                } else {
+                    if (!m_bacMotionActive) {
+                        m_bacMotionActive = true;
+                        applyBacMotionDbState(true, m_motionTargetBacId);
+                        emit bacMotionStateChanged(true);
+                        qDebug() << "[Motion] Bac" << m_motionTargetBacId
+                                 << "-> ACTIVE (60 s hold start)";
+                    } else {
+                        qDebug() << "[Motion] pulse -> hold restarted on bac"
+                                 << m_motionTargetBacId;
+                    }
+                    if (m_motionHoldTimer) m_motionHoldTimer->start();
+                }
+            }
+            // MOTION:0 ignore on purpose - the timer drives the revert.
+            continue;
+        }
+
+        // ──── Repair Mode messages from Arduino ────
+        static const QString kRepairActive = "REPAIR_MODE:ACTIVE";
+        static const QString kRepairClosed = "REPAIR_MODE:CLOSED";
+        static const QString kRepairArmed  = "REPAIR_ARMED:";
+        if (text == kRepairActive) {
+            qDebug() << "[Repair] Arduino confirmed REPAIR_MODE:ACTIVE";
+            openRepairDialog();
+            continue;
+        }
+        if (text == kRepairClosed) {
+            qDebug() << "[Repair] Arduino confirmed REPAIR_MODE:CLOSED";
+            continue;
+        }
+        if (text.startsWith(kRepairArmed, Qt::CaseInsensitive)) {
+            qDebug() << "[Repair] Arduino armed for:" << text.mid(kRepairArmed.length());
+            continue;
+        }
+        if (text == "REPAIR_ARMED:TIMEOUT") {
+            qDebug() << "[Repair] Arduino arm timeout";
+            m_repairModeActive = false;
+            if (ui->lblStatutRFID) {
+                ui->lblStatutRFID->setText("EN ATTENTE DE BADGE...");
+                ui->lblStatutRFID->setStyleSheet(
+                    "background-color: #f1c40f; color: black; font-size: 24px; "
+                    "font-weight: bold; border-radius: 10px; padding: 20px; "
+                    "border: 2px solid #d4ac0d;");
+            }
+            continue;
+        }
+
+        static const QString kRfidPrefix = "RFID_TAG:";
+        if (!text.startsWith(kRfidPrefix, Qt::CaseInsensitive)) {
+            qDebug() << "RFID serial (ignored):" << text;
+            continue;
+        }
+        const QString tag = text.mid(kRfidPrefix.length()).trimmed();
+        if (tag.isEmpty()) continue;
+
+        // If the user is currently registering a badge for an employee,
+        // redirect the scan to the target field instead of the pointage flow.
+        if (m_rfidScanTarget) {
+            m_rfidScanTarget->setText(tag.toUpper());
+            stopRfidCapture();
+            continue;
+        }
+
+        handleRfidTag(tag);
+    }
+}
+
+void MainWindow::applyBacMotionDbState(bool active, int idBac)
+{
+    if (idBac <= 0) return;
+    // Flip BAC_INTEL.STATUT_BAC for ONE bac only, between EN_ATTENTE and
+    // EN_SERVICE. Rows in EN_PANNE / A_VIDER are guarded by the WHERE so
+    // a motion event never overwrites them.
+    QSqlQuery q;
+    if (active) {
+        q.prepare("UPDATE BAC_INTEL SET STATUT_BAC = 'EN_SERVICE' "
+                  "WHERE ID_BAC = :id AND STATUT_BAC = 'EN_ATTENTE'");
+    } else {
+        q.prepare("UPDATE BAC_INTEL SET STATUT_BAC = 'EN_ATTENTE' "
+                  "WHERE ID_BAC = :id AND STATUT_BAC = 'EN_SERVICE'");
+    }
+    q.bindValue(":id", idBac);
+    if (!q.exec()) {
+        qWarning() << "[Motion] STATUT_BAC update failed for bac" << idBac
+                   << ":" << q.lastError().text();
+        return;
+    }
+    qDebug() << "[Motion] Bac" << idBac << "->"
+             << (active ? "EN_SERVICE" : "EN_ATTENTE")
+             << "(rows:" << q.numRowsAffected() << ")";
+}
+
+void MainWindow::onMotionHoldExpired()
+{
+    if (!m_bacMotionActive) return;
+    m_bacMotionActive = false;
+    applyBacMotionDbState(false, m_motionTargetBacId);
+    emit bacMotionStateChanged(false);
+    qDebug() << "[Motion] 60 s hold expired -> bac"
+             << m_motionTargetBacId << "back to EN_ATTENTE";
+}
+
+void MainWindow::onAiProcessFinished(int exitCode, QProcess::ExitStatus status)
+{
+    if (!m_aiProcess) return;
+    if (exitCode != 0 || status == QProcess::CrashExit) {
+        qWarning() << "[AI] Process crashed or returned error:" << exitCode;
+        QString errStr = QString::fromUtf8(m_aiProcess->readAllStandardError()).trimmed();
+        qWarning() << "[AI] StdErr:" << errStr;
+
+        if (ui->lblStatutRFID) {
+            ui->lblStatutRFID->setText(QString::fromUcs4(U"\U0001F6A8") + " Erreur IA:\n" + errStr);
+            ui->lblStatutRFID->setStyleSheet(
+                "background-color: #e74c3c; color: white; font-size: 16px; "
+                "font-weight: bold; border-radius: 10px; padding: 20px; "
+                "border: 2px solid #c0392b;");
+        }
+        return;
+    }
+
+    QByteArray output = m_aiProcess->readAllStandardOutput();
+    QString result = QString::fromUtf8(output).trimmed();
+    qDebug() << "[AI] Script output:" << result;
+
+    QStringList lines = result.split('\n');
+    QString material;
+    for (const QString& line : lines) {
+        if (line.trimmed().startsWith("AI_RESULT:")) {
+            material = line.trimmed().mid(10);
+            break;
+        }
+    }
+
+    if (!material.isEmpty() && m_arduino) {
+        QString cmd = "AI:" + material + "\n";
+        m_arduino->write_to_arduino(cmd.toUtf8());
+        qDebug() << "[AI] Sent to Arduino:" << cmd.trimmed();
+
+        if (ui->lblStatutRFID) {
+            ui->lblStatutRFID->setText(QString::fromUcs4(U"\U0001F916") + " Materiel detecte:\n" + material);
+            ui->lblStatutRFID->setStyleSheet(
+                "background-color: #3498db; color: white; font-size: 24px; "
+                "font-weight: bold; border-radius: 10px; padding: 20px; "
+                "border: 2px solid #2980b9;");
+        }
+    } else {
+        if (ui->lblStatutRFID) {
+            ui->lblStatutRFID->setText(QString::fromUcs4(U"\U0001F914") + " IA terminee mais aucune reponse valide.");
+            ui->lblStatutRFID->setStyleSheet(
+                "background-color: #e67e22; color: white; font-size: 20px; "
+                "font-weight: bold; border-radius: 10px; padding: 20px; "
+                "border: 2px solid #d35400;");
+        }
+    }
+}
+
+void MainWindow::setMotionTargetBac(int idBac)
+{
+    if (idBac == m_motionTargetBacId) return;
+
+    // If we were holding the previous bac in EN_SERVICE, drop it back
+    // to EN_ATTENTE right away - we don't want a stale "active" status
+    // sitting on a bac the user is no longer monitoring.
+    if (m_bacMotionActive && m_motionTargetBacId > 0) {
+        applyBacMotionDbState(false, m_motionTargetBacId);
+    }
+    m_motionTargetBacId = idBac;
+
+    // Reset the hold; the new bac will only flip to EN_SERVICE on the
+    // next PIR edge.
+    if (m_motionHoldTimer && m_motionHoldTimer->isActive()) {
+        m_motionHoldTimer->stop();
+    }
+    if (m_bacMotionActive) {
+        m_bacMotionActive = false;
+        emit bacMotionStateChanged(false);
+    }
+    qDebug() << "[Motion] target bac ->" << idBac;
+}
+
+void MainWindow::startRfidCapture(QLineEdit *targetField)
+{
+    if (!targetField) return;
+
+    ensureArduinoConnected();
+    m_rfidScanTarget = targetField;
+
+    if (m_rfidScanDialog) {
+        m_rfidScanDialog->deleteLater();
+        m_rfidScanDialog = nullptr;
+    }
+
+    m_rfidScanDialog = new QDialog(this);
+    m_rfidScanDialog->setWindowTitle("Scanner badge RFID");
+    m_rfidScanDialog->setModal(true);
+    m_rfidScanDialog->setMinimumWidth(420);
+
+    auto *layout = new QVBoxLayout(m_rfidScanDialog);
+    auto *info = new QLabel(
+        QString::fromUcs4(U"\U0001F4E1") +
+        "  Veuillez passer le badge sur le lecteur...",
+        m_rfidScanDialog);
+    info->setAlignment(Qt::AlignCenter);
+    info->setStyleSheet("font-size: 14px; padding: 20px;");
+    layout->addWidget(info);
+
+    auto *portLbl = new QLabel(m_rfidScanDialog);
+    portLbl->setAlignment(Qt::AlignCenter);
+    portLbl->setStyleSheet("font-size: 12px; color: #555;");
+    layout->addWidget(portLbl);
+
+    auto *warn = new QLabel(m_rfidScanDialog);
+    warn->setAlignment(Qt::AlignCenter);
+    warn->setStyleSheet("color: #c0392b; font-weight: bold;");
+    warn->setWordWrap(true);
+    layout->addWidget(warn);
+
+    auto refreshStatus = [this, portLbl, warn]() {
+        const QString port = m_arduino ? m_arduino->getarduino_port_name() : QString();
+        const bool open = m_arduino && m_arduino->getserial() && m_arduino->getserial()->isOpen();
+        if (open) {
+            portLbl->setText(QString("Port: %1 (9600 bauds)").arg(port));
+            warn->setText(QString());
+            warn->hide();
+        } else {
+            portLbl->setText(port.isEmpty() ? "Port: aucun detecte" : QString("Port: %1 (echec ouverture)").arg(port));
+            warn->setText("Lecteur RFID non detecte. Branchez l'Arduino, fermez le moniteur "
+                          "serie (IDE Arduino / Qt Creator) puis cliquez sur \"Reessayer\".");
+            warn->show();
+        }
+    };
+    refreshStatus();
+
+    auto *btnRow = new QHBoxLayout();
+    auto *retryBtn = new QPushButton("Reessayer", m_rfidScanDialog);
+    auto *manualBtn = new QPushButton("Saisie manuelle...", m_rfidScanDialog);
+    auto *cancelBtn = new QPushButton("Annuler", m_rfidScanDialog);
+    btnRow->addWidget(retryBtn);
+    btnRow->addWidget(manualBtn);
+    btnRow->addStretch();
+    btnRow->addWidget(cancelBtn);
+    layout->addLayout(btnRow);
+
+    connect(retryBtn, &QPushButton::clicked, this, [this, refreshStatus]() {
+        if (m_arduino) {
+            m_arduino->close_arduino();
+        }
+        ensureArduinoConnected();
+        refreshStatus();
+    });
+    connect(manualBtn, &QPushButton::clicked, this, [this]() {
+        bool ok = false;
+        const QString tag = QInputDialog::getText(
+            m_rfidScanDialog, "Saisie manuelle",
+            "Entrez l'identifiant RFID:", QLineEdit::Normal, QString(), &ok).trimmed();
+        if (ok && !tag.isEmpty() && m_rfidScanTarget) {
+            m_rfidScanTarget->setText(tag.toUpper());
+            stopRfidCapture();
+        }
+    });
+    connect(cancelBtn, &QPushButton::clicked, m_rfidScanDialog, &QDialog::reject);
+
+    // If the user cancels the dialog, clear the scan target so that
+    // subsequent RFID reads go back to pointage handling.
+    connect(m_rfidScanDialog, &QDialog::finished, this, [this](int) {
+        m_rfidScanTarget = nullptr;
+        if (m_rfidScanDialog) {
+            m_rfidScanDialog->deleteLater();
+            m_rfidScanDialog = nullptr;
+        }
+    });
+
+    m_rfidScanDialog->show();
+}
+
+void MainWindow::stopRfidCapture()
+{
+    m_rfidScanTarget = nullptr;
+    if (m_rfidScanDialog) {
+        m_rfidScanDialog->accept();
+    }
+}
+
+void MainWindow::handleRfidTag(const QString &rfidTag)
+{
+    const QString normalized = rfidTag.trimmed().toUpper();
+    if (normalized.isEmpty()) return;
+
+    int empId = -1;
+    if (!Etmp.findIdByRfid(normalized, empId)) {
+        if (ui->lblStatutRFID) {
+            ui->lblStatutRFID->setText(QString::fromUcs4(U"\u274c") +
+                                       " BADGE INCONNU: " + normalized);
+            ui->lblStatutRFID->setStyleSheet(
+                "background-color: #e74c3c; color: white; font-size: 24px; "
+                "font-weight: bold; border-radius: 10px; padding: 20px; "
+                "border: 2px solid #c0392b;");
+        }
+        appendPointageLog(normalized, "(inconnu)", "REFUSE");
+        return;
+    }
+
+    // Resolve employee name and specialite from the cached table.
+    QString nomEmp;
+    QString specialite;
+    if (ui->tableEmployes) {
+        for (int r = 0; r < ui->tableEmployes->rowCount(); ++r) {
+            auto *matItem = ui->tableEmployes->item(r, EMP_COL_MATRICULE);
+            if (matItem && matItem->data(EMP_ROLE_ID).toInt() == empId) {
+                if (auto *nameItem = ui->tableEmployes->item(r, EMP_COL_NOM)) {
+                    nomEmp = nameItem->text().trimmed();
+                }
+                if (auto *specItem = ui->tableEmployes->item(r, EMP_COL_SPECIALITE)) {
+                    specialite = specItem->text().trimmed();
+                }
+                break;
+            }
+        }
+    }
+    if (nomEmp.isEmpty()) nomEmp = QString("ID %1").arg(empId);
+
+    // If specialite not found in table cache, query DB directly
+    if (specialite.isEmpty()) {
+        QSqlQuery sq;
+        sq.prepare("SELECT SPECIALITE FROM EMPLOYE WHERE ID_EMP = :id");
+        sq.bindValue(":id", empId);
+        if (sq.exec() && sq.next()) {
+            specialite = sq.value(0).toString().trimmed();
+        }
+    }
+
+    // Do pointage (normal attendance flow — entry/exit toggle)
+    const Employe::PointageResult result = Etmp.pointById(empId);
+
+    if (result == Employe::PointageError) {
+        showFriendlySqlError(this, "enregistrer le pointage", Etmp.lastError());
+        return;
+    }
+
+    // Compute cumulative hours after the pointage action
+    const double hoursWorked = Etmp.computeTodayHours(empId);
+    int totalSeconds = static_cast<int>(hoursWorked * 3600.0);
+    int h = totalSeconds / 3600;
+    int m = (totalSeconds % 3600) / 60;
+    int s = totalSeconds % 60;
+    
+    QString hoursStr;
+    if (h > 0) {
+        hoursStr = QString("%1h %2m %3s").arg(h).arg(m, 2, 10, QChar('0')).arg(s, 2, 10, QChar('0'));
+    } else if (m > 0) {
+        hoursStr = QString("%1m %2s").arg(m).arg(s, 2, 10, QChar('0'));
+    } else {
+        hoursStr = QString("%1s").arg(s);
+    }
+    
+    const QString hoursDisplay = QString("%1 / 8h").arg(hoursStr);
+    const bool objectifAtteint = (hoursWorked >= 8.0);
+
+    refreshEmployes();
+
+    // Check if technician — if yes, arm repair mode on Arduino
+    const bool isTechnicien = specialite.contains("technicien", Qt::CaseInsensitive)
+                           || specialite.contains("maintenance", Qt::CaseInsensitive);
+
+    if (isTechnicien && result == Employe::PointageEntree) {
+        // Technician clocked IN: show technician message + arm repair mode
+        if (ui->lblStatutRFID) {
+            ui->lblStatutRFID->setText(QString::fromUcs4(U"\U0001F527") +
+                                       " " + nomEmp + " - TECHNICIEN DETECTE\n"
+                                       "Appuyez sur le bouton pour mode reparation\n"
+                                       + hoursDisplay);
+            ui->lblStatutRFID->setStyleSheet(
+                "background-color: #d97706; color: white; font-size: 20px; "
+                "font-weight: bold; border-radius: 10px; padding: 20px; "
+                "border: 2px solid #b45309;");
+        }
+        appendPointageLog(normalized, nomEmp, "ENTREE + TECHNICIEN", hoursDisplay);
+        handleTechnicianRfid(empId, nomEmp);
+        return;
+    }
+
+    if (result == Employe::PointageEntree) {
+        // Normal employee clocked IN
+        if (ui->lblStatutRFID) {
+            ui->lblStatutRFID->setText(QString::fromUcs4(U"\u2705") +
+                                       " " + nomEmp + " - POINTAGE ENTREE\n" +
+                                       hoursDisplay);
+            ui->lblStatutRFID->setStyleSheet(
+                "background-color: #2ecc71; color: white; font-size: 24px; "
+                "font-weight: bold; border-radius: 10px; padding: 20px; "
+                "border: 2px solid #27ae60;");
+        }
+        appendPointageLog(normalized, nomEmp, "ENTREE", hoursDisplay);
+    } else {
+        // Employee clocked OUT (PointageSortie)
+        const QString sortieLabel = objectifAtteint
+            ? QString::fromUcs4(U"\U0001F44D") + " " + nomEmp + " - SORTIE (8h atteint)\n" + hoursDisplay
+            : QString::fromUcs4(U"\U0001F6AA") + " " + nomEmp + " - SORTIE\n" + hoursDisplay;
+        if (ui->lblStatutRFID) {
+            ui->lblStatutRFID->setText(sortieLabel);
+            ui->lblStatutRFID->setStyleSheet(
+                objectifAtteint
+                ? "background-color: #2ecc71; color: white; font-size: 24px; "
+                  "font-weight: bold; border-radius: 10px; padding: 20px; "
+                  "border: 2px solid #27ae60;"
+                : "background-color: #e67e22; color: white; font-size: 24px; "
+                  "font-weight: bold; border-radius: 10px; padding: 20px; "
+                  "border: 2px solid #d35400;");
+        }
+        appendPointageLog(normalized, nomEmp, "SORTIE", hoursDisplay);
+
+        // If technician clocking out, also handle repair context
+        if (isTechnicien) {
+            handleTechnicianRfid(empId, nomEmp);
+        }
+    }
+}
+
+void MainWindow::appendPointageLog(const QString &rfidTag,
+                                   const QString &employeName,
+                                   const QString &status)
+{
+    appendPointageLog(rfidTag, employeName, status, QString());
+}
+
+void MainWindow::appendPointageLog(const QString &rfidTag,
+                                   const QString &employeName,
+                                   const QString &status,
+                                   const QString &hoursDisplay)
+{
+    if (!ui->tablePointage) return;
+
+    // Ensure table has 5 columns (Heure, Badge, Nom, Statut, Heures)
+    if (ui->tablePointage->columnCount() < 5) {
+        ui->tablePointage->setColumnCount(5);
+        ui->tablePointage->setHorizontalHeaderLabels(
+            QStringList() << "Heure" << "Badge" << "Nom" << "Statut" << "Heures");
+    }
+
+    const int row = ui->tablePointage->rowCount();
+    ui->tablePointage->insertRow(row);
+    ui->tablePointage->setItem(row, 0,
+        new QTableWidgetItem(QTime::currentTime().toString("HH:mm:ss")));
+    ui->tablePointage->setItem(row, 1, new QTableWidgetItem(rfidTag));
+    ui->tablePointage->setItem(row, 2, new QTableWidgetItem(employeName));
+    ui->tablePointage->setItem(row, 3, new QTableWidgetItem(status));
+    ui->tablePointage->setItem(row, 4,
+        new QTableWidgetItem(hoursDisplay.isEmpty() ? "-" : hoursDisplay));
+}
+
+// ──────── REPAIR MODE METHODS ────────
+
+void MainWindow::handleTechnicianRfid(int empId, const QString &empName)
+{
+    m_repairTechnicianId = empId;
+    m_repairTechnicianName = empName;
+
+    // Send the arm command to Arduino
+    if (m_arduino && m_arduino->getserial() && m_arduino->getserial()->isOpen()) {
+        QString cmd = "R:TECHNICIEN:" + empName + "\n";
+        m_arduino->write_to_arduino(cmd.toUtf8());
+        qDebug() << "[Repair] Sent to Arduino:" << cmd.trimmed();
+    } else {
+        qWarning() << "[Repair] Arduino not connected — opening repair dialog directly";
+        // If no Arduino connected, open dialog directly (simulation mode)
+        QTimer::singleShot(500, this, [this]() {
+            openRepairDialog();
+        });
+    }
+}
+
+void MainWindow::openRepairDialog()
+{
+    if (m_repairModeActive) {
+        qDebug() << "[Repair] Dialog already open";
+        return;
+    }
+    m_repairModeActive = true;
+
+    if (ui->lblStatutRFID) {
+        ui->lblStatutRFID->setText(QString::fromUcs4(U"\U0001F527") +
+                                   " MODE REPARATION ACTIF — " + m_repairTechnicianName);
+        ui->lblStatutRFID->setStyleSheet(
+            "background-color: #059669; color: white; font-size: 22px; "
+            "font-weight: bold; border-radius: 10px; padding: 20px; "
+            "border: 2px solid #047857;");
+    }
+
+    RepairDialog *dialog = new RepairDialog(m_repairTechnicianName, m_repairTechnicianId, this);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+
+    connect(dialog, &RepairDialog::repairSaved, this, [this]() {
+        qDebug() << "[Repair] Repair saved — refreshing tables";
+        refreshInterventions();
+        setupStockTableData();
+    });
+
+    connect(dialog, &RepairDialog::repairClosed, this, [this]() {
+        closeRepairMode();
+    });
+
+    connect(dialog, &QDialog::finished, this, [this](int) {
+        // Safety fallback: always close repair mode when dialog closes
+        if (m_repairModeActive) {
+            closeRepairMode();
+        }
+    });
+
+    dialog->show();
+    dialog->raise();
+    dialog->activateWindow();
+}
+
+void MainWindow::closeRepairMode()
+{
+    m_repairModeActive = false;
+    m_repairTechnicianName.clear();
+    m_repairTechnicianId = -1;
+
+    // Send close command to Arduino (servos return to neutral)
+    if (m_arduino && m_arduino->getserial() && m_arduino->getserial()->isOpen()) {
+        m_arduino->write_to_arduino("R:CLOSE\n");
+        qDebug() << "[Repair] Sent R:CLOSE to Arduino";
+    }
+
+    // Reset status label
+    if (ui->lblStatutRFID) {
+        ui->lblStatutRFID->setText("EN ATTENTE DE BADGE...");
+        ui->lblStatutRFID->setStyleSheet(
+            "background-color: #f1c40f; color: black; font-size: 24px; "
+            "font-weight: bold; border-radius: 10px; padding: 20px; "
+            "border: 2px solid #d4ac0d;");
+    }
+}
 
 void MainWindow::on_btnFichePaie_clicked()
 
@@ -15511,45 +16964,6 @@ void MainWindow::applyUnifiedTopBarStyle()
 
     // Commandes dashboard top bar: put add button before user block.
 
-    if (auto *cmdAddDash = findChild<QWidget*>("btnAddDashboard")) {
-
-        if (auto *cmdUserDash = findChild<QWidget*>("user_1")) {
-
-            if (auto *targetLayout = qobject_cast<QHBoxLayout*>(cmdUserDash->parentWidget() ? cmdUserDash->parentWidget()->layout() : nullptr)) {
-
-                if (auto *oldLayout = cmdAddDash->parentWidget() ? cmdAddDash->parentWidget()->layout() : nullptr)
-
-                    oldLayout->removeWidget(cmdAddDash);
-
-                int userIdx = targetLayout->indexOf(cmdUserDash);
-
-                if (userIdx >= 0) targetLayout->insertWidget(userIdx, cmdAddDash);
-
-            }
-
-        }
-
-    }
-
-    if (auto *cmdAddAjout = findChild<QWidget*>("btnAddProduct_2")) {
-
-        if (auto *cmdUserAjoutWidget = findChild<QWidget*>("user_5")) {
-
-            if (auto *targetLayout = qobject_cast<QHBoxLayout*>(cmdUserAjoutWidget->parentWidget() ? cmdUserAjoutWidget->parentWidget()->layout() : nullptr)) {
-
-                if (auto *oldLayout = cmdAddAjout->parentWidget() ? cmdAddAjout->parentWidget()->layout() : nullptr)
-
-                    oldLayout->removeWidget(cmdAddAjout);
-
-                int userIdx = targetLayout->indexOf(cmdUserAjoutWidget);
-
-                if (userIdx >= 0) targetLayout->insertWidget(userIdx, cmdAddAjout);
-
-            }
-
-        }
-
-    }
 
     if (auto *cmdUserDash = findChild<QLabel*>("user_1")) {
 
@@ -15680,6 +17094,42 @@ void MainWindow::applyUnifiedTopBarStyle()
         gapAjout->setMaximumSize(2, 64);
 
     }
+    if (auto *cmdUserModWidget = findChild<QWidget*>("user_3")) {
+        cmdUserModWidget->setStyleSheet("background-color: #ffffff; border: none; border-bottom: 1px solid #dce1e6; padding: 0 6px;");
+        cmdUserModWidget->setMinimumHeight(64);
+        cmdUserModWidget->setMaximumHeight(64);
+    }
+    if (auto *cmdUserMod = findChild<QLabel*>("user_3")) {
+        cmdUserMod->setTextFormat(Qt::RichText);
+        cmdUserMod->setText("<span style=\"color:#0f2b4c;font-size:14px;font-weight:700;\">Admin System</span><br/><span style=\"color:#1ba976;font-size:12px;\">Chef d'Atelier</span>");
+        cmdUserMod->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        cmdUserMod->setStyleSheet("background-color: #ffffff; border: none; border-bottom: 1px solid #dce1e6; padding: 0 6px;");
+        cmdUserMod->setMinimumHeight(64);
+        cmdUserMod->setMaximumHeight(64);
+    }
+    if (auto *cmdTitleMod = findChild<QLabel*>("lb_3")) {
+        cmdTitleMod->setStyleSheet("color: #1f2d3d; font-size: 18px; font-weight: 700; background-color: #ffffff; border: none; border-bottom: 1px solid #dce1e6; padding: 0 6px;");
+        cmdTitleMod->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+        cmdTitleMod->setMinimumHeight(64);
+        cmdTitleMod->setMaximumHeight(64);
+    }
+    if (auto *layoutMod = findChild<QHBoxLayout*>("horizontalLayout_3")) {
+        layoutMod->setContentsMargins(16, 0, 10, 0);
+        layoutMod->setSpacing(4);
+    }
+    if (auto *fillMod = findChild<QFrame*>("topFill_3")) {
+        fillMod->setStyleSheet("background-color: #ffffff; border: none; border-bottom: 1px solid #dce1e6;");
+        fillMod->setMinimumHeight(64);
+        fillMod->setMaximumHeight(64);
+    }
+    if (auto *gapMod = findChild<QFrame*>("topGap_3")) {
+        gapMod->setStyleSheet("background-color: #ffffff; border: none; border-bottom: 1px solid #dce1e6;");
+        gapMod->setMinimumSize(2, 64);
+        gapMod->setMaximumSize(2, 64);
+    }
+    if (auto *notif3 = findChild<QPushButton*>("btnnotif_3")) notif3->hide();
+    if (auto *profil3 = findChild<QPushButton*>("btnprofil_3")) profil3->hide();
+
 
     if (auto *notif1 = findChild<QPushButton*>("btnnotif_1")) notif1->hide();
 
@@ -15688,6 +17138,8 @@ void MainWindow::applyUnifiedTopBarStyle()
     if (auto *notif5 = findChild<QPushButton*>("btnnotif_5")) notif5->hide();
 
     if (auto *profil5 = findChild<QPushButton*>("btnprofil_5")) profil5->hide();
+    
+    if (auto *btnAdd2 = findChild<QPushButton*>("btnAddProduct_2")) btnAdd2->hide();
 
     if (auto *clientPage = findChild<QWidget*>("pageClient")) {
 
@@ -15979,7 +17431,9 @@ void MainWindow::applyUnifiedTopBarStyle()
 
                  QStringLiteral("prod_btn3DModel"),
 
-                 QStringLiteral("prod_btnPdf")
+                 QStringLiteral("prod_btnPdf"),
+
+                 QStringLiteral("prod_btnBacStatus")
 
              }) {
 
@@ -16681,6 +18135,27 @@ if (auto *b = root->findChild<QPushButton*>("prod_btnMap3D")) {
         connect(b, &QPushButton::clicked, this, &MainWindow::on_prod_btnPdf_clicked, Qt::UniqueConnection);
     }
 
+    if (auto *b = root->findChild<QPushButton*>("prod_btnBacStatus")) {
+        b->setText("Etat des Bacs");
+        b->setCursor(Qt::PointingHandCursor);
+        b->setStyleSheet(
+            "QPushButton {"
+            "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1,"
+            "    stop:0 #047857, stop:1 #10b981);"
+            "  color: white; border: 1px solid #34d399;"
+            "  border-radius: 10px; padding: 12px 16px;"
+            "  font-size: 14px; font-weight: 700;"
+            "}"
+            "QPushButton:hover {"
+            "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1,"
+            "    stop:0 #065f46, stop:1 #059669);"
+            "  border-color: #6ee7b7;"
+            "}"
+        );
+        QObject::disconnect(b, &QPushButton::clicked, this, &MainWindow::on_prod_btnBacStatus_clicked);
+        connect(b, &QPushButton::clicked, this, &MainWindow::on_prod_btnBacStatus_clicked, Qt::UniqueConnection);
+    }
+
     // Force title labels to include slider values, hide separate value labels if any
     auto hideValueLabel = [root](const char *name) {
         if (QLabel *lbl = root->findChild<QLabel*>(name)) {
@@ -17081,7 +18556,7 @@ if (auto *b = root->findChild<QPushButton*>("prod_btnMap3D")) {
             // Fetch meaningful business KPIs
             int bacTotal = 0, bacRupture = 0, stockTotal = 0;
             double capaciteTotale = 0.0, valInventaire = 0.0, prixMoyen = 0.0;
-            { QSqlQuery q; if (q.exec("SELECT COUNT(*), NVL(SUM(CAPACITE),0), NVL(SUM(STOCK),0), NVL(SUM(PRIX*STOCK),0), NVL(AVG(PRIX),0) FROM BAC_INTEL") && q.next()) {
+            { QSqlQuery q; if (q.exec("SELECT COUNT(*), NVL(SUM(NVL(ROUND(remplissage),0)),0), NVL(SUM(NVL(stock,0)),0), NVL(SUM(NVL(prix,0)*NVL(stock,0)),0), NVL(AVG(NVL(prix,0)),0) FROM BAC_INTEL") && q.next()) {
                 bacTotal = q.value(0).toInt();
                 capaciteTotale = q.value(1).toDouble();
                 stockTotal = q.value(2).toInt();
@@ -17103,7 +18578,9 @@ if (auto *b = root->findChild<QPushButton*>("prod_btnMap3D")) {
 
                 auto makeKpi = [this](const QString &title, const QString &valueStr,
                                        const QString &subtitle, const QString &iconChar,
-                                       const QString &iconBg, const QString &valueColor) -> QFrame* {
+                                       const QString &iconBg, const QString &valueColor,
+                                       const QString &valueObjName = QString(),
+                                       const QString &subtitleObjName = QString()) -> QFrame* {
                     auto *card = new QFrame();
                     card->setAttribute(Qt::WA_StyledBackground, true);
                     card->setStyleSheet("QFrame{background:#ffffff;border-radius:12px;border:1px solid #e8ecf0;}");
@@ -17115,8 +18592,10 @@ if (auto *b = root->findChild<QPushButton*>("prod_btnMap3D")) {
                     t->setStyleSheet("font-size:10px;font-weight:700;color:#6c757d;letter-spacing:1px;background:transparent;border:none;");
                     auto *v = new QLabel(valueStr);
                     v->setStyleSheet(QString("font-size:26px;font-weight:800;color:%1;background:transparent;border:none;").arg(valueColor));
+                    if (!valueObjName.isEmpty()) v->setObjectName(valueObjName);
                     auto *s = new QLabel(subtitle);
                     s->setStyleSheet("font-size:11px;color:#6c757d;background:transparent;border:none;");
+                    if (!subtitleObjName.isEmpty()) s->setObjectName(subtitleObjName);
                     tv->addWidget(t); tv->addWidget(v); tv->addWidget(s);
                     h->addLayout(tv, 1);
                     auto *ic = new QLabel(iconChar);
@@ -17129,18 +18608,24 @@ if (auto *b = root->findChild<QPushButton*>("prod_btnMap3D")) {
                 kpiRow->addWidget(makeKpi("CAPACITE PARC",
                                            QString("%1 L").arg(QString::number(capaciteTotale, 'f', 0)),
                                            "Volume total",
-                                           "\xF0\x9F\x97\x91", "#e8f5e9", "#27ae60"));
+                                           "\xF0\x9F\x97\x91", "#e8f5e9", "#27ae60",
+                                           "prod_kpi_capacity_value"));
                 kpiRow->addWidget(makeKpi("STOCK TOTAL", QString::number(stockTotal),
                                            "Unites en stock",
-                                           "\xF0\x9F\x93\xA6", "#e3f2fd", "#27ae60"));
+                                           "\xF0\x9F\x93\xA6", "#e3f2fd", "#27ae60",
+                                           "prod_kpi_stock_value"));
                 kpiRow->addWidget(makeKpi("RUPTURES", QString::number(bacRupture),
                                            bacRupture > 0 ? "Action requise" : "Tout est OK",
                                            "\xE2\x9A\xA0\xEF\xB8\x8F", "#fff3e0",
-                                           bacRupture > 0 ? "#e74c3c" : "#27ae60"));
+                                           bacRupture > 0 ? "#e74c3c" : "#27ae60",
+                                           "prod_kpi_rupture_value",
+                                           "prod_kpi_rupture_subtitle"));
                 kpiRow->addWidget(makeKpi("VALEUR INVENTAIRE",
                                            QString("%1 TND").arg(QString::number(valInventaire, 'f', 0)),
                                            QString("Prix moyen: %1 TND").arg(QString::number(prixMoyen, 'f', 1)),
-                                           "\xF0\x9F\x92\xB0", "#fce4ec", "#1a3a2e"));
+                                           "\xF0\x9F\x92\xB0", "#fce4ec", "#1a3a2e",
+                                           "prod_kpi_inventory_value",
+                                           "prod_kpi_inventory_subtitle"));
 
                 tableLayout->insertWidget(0, kpiContainer);
             }
@@ -17173,7 +18658,7 @@ if (auto *b = root->findChild<QPushButton*>("prod_btnMap3D")) {
 
                 auto *oldLayout = sidebar->layout();
                 QList<QPushButton*> keepBtns;
-                for (const char *bn : {"prod_btnOpenStats","prod_btnMap3D","prod_btnVideo3D","prod_btn3DModel","prod_btnPdf"}) {
+                for (const char *bn : {"prod_btnOpenStats","prod_btnMap3D","prod_btnVideo3D","prod_btn3DModel","prod_btnPdf","prod_btnBacStatus"}) {
                     if (auto *b = sidebar->findChild<QPushButton*>(bn)) { b->setParent(nullptr); keepBtns.append(b); }
                 }
                 QFrame *statsPreview = sidebar->findChild<QFrame*>("prod_statsPreview");
@@ -17234,10 +18719,12 @@ if (auto *b = root->findChild<QPushButton*>("prod_btnMap3D")) {
                 heroV->addWidget(gaugeLbl);
 
                 auto *gaugePct = new QLabel(QString("%1%").arg(tauxRemplissage));
+                gaugePct->setObjectName("prod_heroGaugePct");
                 gaugePct->setStyleSheet("color:#ffffff;font-size:36px;font-weight:800;background:transparent;border:none;");
                 heroV->addWidget(gaugePct);
 
                 auto *gauge = new QProgressBar();
+                gauge->setObjectName("prod_heroGaugeBar");
                 gauge->setRange(0, 100);
                 gauge->setValue(tauxRemplissage);
                 gauge->setTextVisible(false);
@@ -17252,6 +18739,7 @@ if (auto *b = root->findChild<QPushButton*>("prod_btnMap3D")) {
                     QString("%1 / %2 L utilises")
                         .arg(QString::number(stockTotal))
                         .arg(QString::number(capaciteTotale, 'f', 0)));
+                gaugeFoot->setObjectName("prod_heroGaugeFoot");
                 gaugeFoot->setStyleSheet("color:#a8d5b5;font-size:10px;background:transparent;border:none;");
                 heroV->addWidget(gaugeFoot);
 
@@ -17275,7 +18763,18 @@ if (auto *b = root->findChild<QPushButton*>("prod_btnMap3D")) {
                 QPushButton *bMap   = pickBtn("prod_btnMap3D");
                 QPushButton *bVideo = pickBtn("prod_btnVideo3D");
                 QPushButton *bModel = pickBtn("prod_btn3DModel");
-                QPushButton *bPdf   = pickBtn("prod_btnPdf");
+                QPushButton *bPdf      = pickBtn("prod_btnPdf");
+                QPushButton *bBacState = pickBtn("prod_btnBacStatus");
+                if (!bBacState) {
+                    // .ui may be stale (uic not regenerated); create the button at runtime.
+                    bBacState = new QPushButton(QStringLiteral("Etat des Bacs"), sidebar);
+                    bBacState->setObjectName("prod_btnBacStatus");
+                    QObject::disconnect(bBacState, &QPushButton::clicked,
+                                        this, &MainWindow::on_prod_btnBacStatus_clicked);
+                    connect(bBacState, &QPushButton::clicked,
+                            this, &MainWindow::on_prod_btnBacStatus_clicked,
+                            Qt::UniqueConnection);
+                }
 
                 auto styleActionBtn = [](QPushButton *b) {
                     if (!b) return;
@@ -17312,6 +18811,26 @@ if (auto *b = root->findChild<QPushButton*>("prod_btnMap3D")) {
                     scrollV->addWidget(bPdf);
                 }
 
+                // ETAT DES BACS - full width, gradient style under PDF export
+                if (bBacState) {
+                    bBacState->setParent(nullptr);
+                    bBacState->setMinimumHeight(46);
+                    bBacState->setCursor(Qt::PointingHandCursor);
+                    bBacState->setText(QString::fromUtf8("\xF0\x9F\x97\x91\xEF\xB8\x8F  Etat des Bacs"));
+                    bBacState->setStyleSheet(
+                        "QPushButton{"
+                        "  background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #047857,stop:1 #10b981);"
+                        "  color:#ffffff;border:none;border-radius:10px;"
+                        "  padding:10px 14px;font-weight:800;font-size:13px;"
+                        "  text-align:center;letter-spacing:0.3px;"
+                        "}"
+                        "QPushButton:hover{"
+                        "  background:qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 #065f46,stop:1 #059669);"
+                        "}"
+                    );
+                    scrollV->addWidget(bBacState);
+                }
+
                 // STATS PREVIEW (gradient block with progress bars) - REPLACED BY HERO, SKIP
                 if (statsPreview) {
                     statsPreview->deleteLater();
@@ -17340,6 +18859,8 @@ if (auto *b = root->findChild<QPushButton*>("prod_btnMap3D")) {
                 scrollArea->setWidget(scrollContent);
                 sbV->addWidget(scrollArea);
             }
+
+            refreshProduitDashboardSummary();
         });
     }
 
@@ -17586,6 +19107,82 @@ void MainWindow::goStatistiques()
 
 }
 
+void MainWindow::refreshProduitDashboardSummary()
+{
+    QWidget *root = produitRoot();
+    if (!root) return;
+
+    int bacTotal = 0;
+    int bacRupture = 0;
+    int stockTotal = 0;
+    double capaciteTotale = 0.0;
+    double valInventaire = 0.0;
+    double prixMoyen = 0.0;
+
+    QSqlQuery qMain;
+    if (qMain.exec("SELECT COUNT(*), "
+                   "NVL(SUM(NVL(ROUND(remplissage),0)),0), "
+                   "NVL(SUM(NVL(stock,0)),0), "
+                   "NVL(SUM(NVL(prix,0)*NVL(stock,0)),0), "
+                   "NVL(AVG(NVL(prix,0)),0) "
+                   "FROM BAC_INTEL") && qMain.next()) {
+        bacTotal = qMain.value(0).toInt();
+        capaciteTotale = qMain.value(1).toDouble();
+        stockTotal = qMain.value(2).toInt();
+        valInventaire = qMain.value(3).toDouble();
+        prixMoyen = qMain.value(4).toDouble();
+    } else {
+        qWarning() << "[Produit Dashboard] KPI query failed:" << qMain.lastError().text();
+    }
+
+    QSqlQuery qRupture;
+    if (qRupture.exec("SELECT COUNT(*) FROM BAC_INTEL WHERE NVL(stock,0) = 0") && qRupture.next()) {
+        bacRupture = qRupture.value(0).toInt();
+    } else {
+        qWarning() << "[Produit Dashboard] Rupture query failed:" << qRupture.lastError().text();
+    }
+
+    const int tauxRemplissage =
+        (capaciteTotale > 0.0)
+            ? qBound(0, int((double(stockTotal) / capaciteTotale) * 100.0), 100)
+            : 0;
+
+    if (auto *lbl = root->findChild<QLabel*>("prod_kpi_capacity_value")) {
+        lbl->setText(QString("%1 L").arg(QString::number(capaciteTotale, 'f', 0)));
+    }
+    if (auto *lbl = root->findChild<QLabel*>("prod_kpi_stock_value")) {
+        lbl->setText(QString::number(stockTotal));
+    }
+    if (auto *lbl = root->findChild<QLabel*>("prod_kpi_rupture_value")) {
+        lbl->setText(QString::number(bacRupture));
+        lbl->setStyleSheet(QString("font-size:26px;font-weight:800;color:%1;background:transparent;border:none;")
+                               .arg(bacRupture > 0 ? "#e74c3c" : "#27ae60"));
+    }
+    if (auto *lbl = root->findChild<QLabel*>("prod_kpi_rupture_subtitle")) {
+        lbl->setText(bacRupture > 0 ? "Action requise" : "Tout est OK");
+    }
+    if (auto *lbl = root->findChild<QLabel*>("prod_kpi_inventory_value")) {
+        lbl->setText(QString("%1 TND").arg(QString::number(valInventaire, 'f', 0)));
+    }
+    if (auto *lbl = root->findChild<QLabel*>("prod_kpi_inventory_subtitle")) {
+        lbl->setText(QString("Prix moyen: %1 TND").arg(QString::number(prixMoyen, 'f', 1)));
+    }
+    if (auto *badge = root->findChild<QLabel*>("prod_titleCountBadge")) {
+        badge->setText(QString("%1 total").arg(bacTotal));
+    }
+    if (auto *lbl = root->findChild<QLabel*>("prod_heroGaugePct")) {
+        lbl->setText(QString("%1%").arg(tauxRemplissage));
+    }
+    if (auto *bar = root->findChild<QProgressBar*>("prod_heroGaugeBar")) {
+        bar->setValue(tauxRemplissage);
+    }
+    if (auto *lbl = root->findChild<QLabel*>("prod_heroGaugeFoot")) {
+        lbl->setText(QString("%1 / %2 L utilises")
+                         .arg(QString::number(stockTotal))
+                         .arg(QString::number(capaciteTotale, 'f', 0)));
+    }
+}
+
 
 
 // ---------- Produit module table ----------
@@ -17674,6 +19271,7 @@ void MainWindow::refreshProduitTable()
 
     delete model;
     refreshActionButtons();
+    refreshProduitDashboardSummary();
 }
 
 void MainWindow::addExampleRow()
@@ -18095,7 +19693,7 @@ QTableWidget#tableMaintenance::item { padding:10px; border-bottom:1px solid #f0f
 QTableWidget#tableMaintenance::item:selected { background:#e8f5e9; color:#1a3a2e; }
 QTableWidget#tableMaintenance::item:hover { background:#f0f7f4; }
 QTableWidget#tableMaintenance QHeaderView::section {
-    background:#f8fafb; color:#6c757d; font-weight:700; padding:12px;
+    background:#ffffff; color:#374151; font-weight:700; padding:12px;
     border:none; border-bottom:2px solid #27ae60; font-size:11px; letter-spacing:1px;
 }
 
@@ -18119,6 +19717,7 @@ QFrame#rightSidebar { background: transparent; border: none; }
             { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM INTERVENTION WHERE UPPER(NVL(STATUT,'')) LIKE '%COURS%'") && q.next()) enCours = q.value(0).toInt(); }
             { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM INTERVENTION WHERE UPPER(NVL(STATUT,'')) LIKE '%ATTENTE%'") && q.next()) enAttente = q.value(0).toInt(); }
             { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM INTERVENTION WHERE UPPER(NVL(PRIORITE,'')) LIKE '%URGENT%'") && q.next()) urgentes = q.value(0).toInt(); }
+Q_UNUSED(urgentes);
 
             auto makeKpi = [this](const QString &title, const QString &val,
                                    const QString &sub, const char *icon,
@@ -18272,9 +19871,9 @@ QFrame#rightSidebar { background: transparent; border: none; }
             auto *actLay = new QHBoxLayout(actWrap);
             actLay->setContentsMargins(10, 6, 10, 6);
             actLay->setSpacing(0);
-            auto *actLbl = new QLabel(QString::fromUtf8("\xE2\x9A\xA1 Actions Rapides"));
-            actLbl->setStyleSheet("font-size:11px;font-weight:800;color:#ffffff;letter-spacing:1px;background:transparent;border:none;");
-            actLay->addWidget(actLbl, 1, Qt::AlignVCenter | Qt::AlignLeft);
+            auto *actLblEmploye = new QLabel(QString::fromUtf8("\xE2\x9A\xA1 Actions Rapides"));
+            actLblEmploye->setStyleSheet("font-size:11px;font-weight:800;color:#ffffff;letter-spacing:1px;background:transparent;border:none;");
+            actLay->addWidget(actLblEmploye, 1, Qt::AlignVCenter | Qt::AlignLeft);
             maintScrollV->addWidget(actWrap);
 
             QPushButton *btnMaintPdf = maintPage->findChild<QPushButton*>("btnPdf");
@@ -18413,6 +20012,12 @@ QFrame#rightSidebar { background: transparent; border: none; }
         table->setColumnHidden(14, true);
         table->setColumnHidden(15, true);
         
+        // Install custom delegate for row coloring based on STATUT
+        if (!m_maintenanceDelegate) {
+            m_maintenanceDelegate = new MaintenanceStatusDelegate(this);
+        }
+        table->setItemDelegate(m_maintenanceDelegate);
+        
         refreshInterventions();
     }
 
@@ -18432,6 +20037,7 @@ QFrame#rightSidebar { background: transparent; border: none; }
     auto initPhotoLabel = [this](QLabel *lbl) {
         if (!lbl) return;
         lbl->setCursor(Qt::PointingHandCursor);
+        lbl->setAcceptDrops(true);
         if (!lbl->property("maintPlaceholder").isValid()) {
             lbl->setProperty("maintPlaceholder", lbl->text());
         }
@@ -18481,6 +20087,11 @@ QFrame#rightSidebar { background: transparent; border: none; }
     QSqlQuery qPatch;
     qPatch.exec("ALTER TABLE INTERVENTION DROP CONSTRAINT SYS_C007359");
     qPatch.exec("ALTER TABLE INTERVENTION ADD CONSTRAINT SYS_C007359 CHECK (STATUT IN ('EN_COURS', 'EN_ATTENTE', 'TERMINEE', 'ANNULEE'))");
+
+    // Patch COMMANDE STATUT constraint to match the application's 4 allowed values
+    QSqlQuery qCmdPatch;
+    qCmdPatch.exec("ALTER TABLE COMMANDE DROP CONSTRAINT CHK_STATUT");
+    qCmdPatch.exec("ALTER TABLE COMMANDE ADD CONSTRAINT CHK_STATUT CHECK (STATUT IN ('EN_PREPARATION', 'LIVREE', 'LIVRAISON_EN_COURS', 'ANNULEE'))");
 }
 
 QString MainWindow::getMaintSortCriteria(QComboBox* cb)
@@ -18494,7 +20105,7 @@ QString MainWindow::getMaintSortCriteria(QComboBox* cb)
     
     bool isCout = text.contains("cout");
     if (isCout) {
-        if (text.contains("decroissant") || text.contains("d\xc3\xa9" "croissant") || text.contains("desc")) 
+        if (text.contains("decroissant") || text.contains("desc"))
             return "cout DESC";
         if (text.contains("croissant") || text.contains("asc")) 
             return "cout ASC";
@@ -18600,7 +20211,7 @@ void MainWindow::on_btnSave_Add_clicked() {
     }
     i.setReference(autoRef);
     i.setDateInter(selectedDateAdd);
-    i.setStatut(ui->comboStatutAdd->currentText());
+    QString statusValueAdd = ui->comboStatutAdd ? ui->comboStatutAdd->currentText().trimmed() : QString("EN_ATTENTE");
     i.setCout(ui->spinCoutAdd->value());
     if (QDoubleSpinBox *spinMoAdd = findChild<QDoubleSpinBox*>("spinMainOeuvreAdd")) {
         i.setMainOeuvre(spinMoAdd->value());
@@ -18622,15 +20233,36 @@ void MainWindow::on_btnSave_Add_clicked() {
     i.setType(typeValue);
     i.setTechnicien(techNames.join(", "));
     i.setAdresse(ui->editAddrAdd->text().trimmed());
-    i.setDescript(ui->txtDescAdd->toPlainText().trimmed());
-    i.setPhotoAvant(m_photoAvantPath.trimmed());
-    i.setPhotoApres(m_photoApresPath.trimmed());
+    const QString photoAvantAdd = m_photoAvantPath.trimmed();
+    const QString photoApresAdd = m_photoApresPath.trimmed();
+    const MaintenanceImageAiResult photoAiAdd = analyzeMaintenanceBeforeAfterImages(photoAvantAdd, photoApresAdd);
+    if (!photoAiAdd.suggestedStatus.isEmpty()
+        && photoAiAdd.suggestedStatus == "EN_COURS"
+        && statusValueAdd.compare("EN_ATTENTE", Qt::CaseInsensitive) == 0) {
+        statusValueAdd = "EN_COURS";
+    }
+    i.setStatut(statusValueAdd);
+
+    QString descValueAdd = ui->txtDescAdd->toPlainText().trimmed();
+    if (!photoAiAdd.noteLine.isEmpty()) {
+        descValueAdd = upsertMaintenanceImageAiNote(descValueAdd, photoAiAdd.noteLine);
+    }
+    i.setDescript(descValueAdd);
+    i.setPhotoAvant(photoAvantAdd);
+    i.setPhotoApres(photoApresAdd);
     i.setIdBac(idBac);
     // ID_EMP no longer stored in INTERVENTION (handled by EFFECTUATION)
 
     if (i.ajouter()) {
         bool effOk = true;
         QString effErr;
+        
+        // Safety: clear any stale EFFECTUATION rows for this intervention
+        QSqlQuery qClean;
+        qClean.prepare("DELETE FROM EFFECTUATION WHERE ID_INTER = :id_inter");
+        qClean.bindValue(":id_inter", i.getIdInter());
+        qClean.exec(); // ignore errors (table may be empty)
+        
         QSqlQuery qEff;
         qEff.prepare("INSERT INTO EFFECTUATION (ID_INTER, ID_EMP) VALUES (:id_inter, :id_emp)");
         for (int idEmp : techIds) {
@@ -18648,9 +20280,13 @@ void MainWindow::on_btnSave_Add_clicked() {
             return;
         }
 
-        m_maintInterventionPhotos[i.getIdInter()] = qMakePair(m_photoAvantPath.trimmed(), m_photoApresPath.trimmed());
+        m_maintInterventionPhotos[i.getIdInter()] = qMakePair(photoAvantAdd, photoApresAdd);
 
-        QMessageBox::information(this, "Succ\xC3\xA8s", "Intervention ajout\xC3\xA9\x65 avec succ\xC3\xA8s.");
+        QString successMessage = "Intervention ajoutee avec succes.";
+        if (!photoAiAdd.userSummary.trimmed().isEmpty()) {
+            successMessage += "\n" + photoAiAdd.userSummary;
+        }
+        QMessageBox::information(this, "Succes", successMessage);
         refreshInterventions();
         ui->stackedWidget_Maintenance->setCurrentWidget(ui->page_Maint_Dash);
         
@@ -18702,7 +20338,7 @@ void MainWindow::on_btnSave_Mod_clicked() {
     i.setIdInter(m_lastMaintId);
     i.setReference(ui->editRefMod->text().trimmed());
     i.setDateInter(selectedDateMod);
-    i.setStatut(ui->comboStatutMod->currentText());
+    QString statusValueMod = ui->comboStatutMod ? ui->comboStatutMod->currentText().trimmed() : QString("EN_COURS");
     i.setCout(ui->spinCoutMod->value());
     if (QDoubleSpinBox *spinMoMod = findChild<QDoubleSpinBox*>("spinMainOeuvreMod")) {
         i.setMainOeuvre(spinMoMod->value());
@@ -18745,7 +20381,6 @@ void MainWindow::on_btnSave_Mod_clicked() {
         i.setTechnicien(ui->editTechMod->text().trimmed());
     }
     i.setAdresse(ui->editAddrMod->text().trimmed());
-    i.setDescript(ui->txtDescMod->toPlainText().trimmed());
     
     if (QComboBox *cbBacMod = findChild<QComboBox*>("cbBacMod")) {
         const int idBac = cbBacMod->currentData(Qt::UserRole).toInt();
@@ -18757,6 +20392,7 @@ void MainWindow::on_btnSave_Mod_clicked() {
     }
     i.setIdBac(m_lastMaintBacId);
     // ID_EMP no longer stored in INTERVENTION (handled by EFFECTUATION)
+    MaintenanceImageAiResult photoAiModInfo;
 
     if (!m_photoModPath.trimmed().isEmpty()) {
         const QStringList files = splitMaintenancePhotoPair(m_photoModPath);
@@ -18771,6 +20407,33 @@ void MainWindow::on_btnSave_Mod_clicked() {
         const QPair<QString, QString> finalPaths = m_maintInterventionPhotos.value(m_lastMaintId);
         i.setPhotoAvant(finalPaths.first.trimmed());
         i.setPhotoApres(finalPaths.second.trimmed());
+
+        photoAiModInfo = analyzeMaintenanceBeforeAfterImages(finalPaths.first.trimmed(),
+                                                             finalPaths.second.trimmed());
+        if (!photoAiModInfo.suggestedStatus.isEmpty()) {
+            if (photoAiModInfo.suggestedStatus == "TERMINEE"
+                && statusValueMod.compare("ANNULEE", Qt::CaseInsensitive) != 0) {
+                statusValueMod = "TERMINEE";
+            } else if (photoAiModInfo.suggestedStatus == "EN_COURS"
+                       && statusValueMod.compare("TERMINEE", Qt::CaseInsensitive) == 0) {
+                statusValueMod = "EN_COURS";
+            }
+        }
+        i.setStatut(statusValueMod);
+
+        QString descValueMod = ui->txtDescMod->toPlainText().trimmed();
+        if (!photoAiModInfo.noteLine.isEmpty()) {
+            descValueMod = upsertMaintenanceImageAiNote(descValueMod, photoAiModInfo.noteLine);
+        }
+        i.setDescript(descValueMod);
+
+        const QString photoSummaryMod = photoAiModInfo.userSummary;
+        if (!photoSummaryMod.trimmed().isEmpty()) {
+            ui->txtDescMod->setPlainText(descValueMod);
+        }
+        if (!statusValueMod.trimmed().isEmpty() && ui->comboStatutMod) {
+            ui->comboStatutMod->setCurrentText(statusValueMod);
+        }
     }
 
     if (i.modifier()) {
@@ -18804,7 +20467,11 @@ void MainWindow::on_btnSave_Mod_clicked() {
             }
         }
 
-        QMessageBox::information(this, "Succes", "Intervention modifiee.");
+        QString successMessage = "Intervention modifiee.";
+        if (!photoAiModInfo.userSummary.trimmed().isEmpty()) {
+            successMessage += "\n" + photoAiModInfo.userSummary;
+        }
+        QMessageBox::information(this, "Succes", successMessage);
         refreshInterventions();
         ui->stackedWidget_Maintenance->setCurrentWidget(ui->page_Maint_Dash);
         m_photoModPath.clear();
@@ -19851,6 +21518,7 @@ QSlider::sub-page:horizontal { background:#3b82f6; border-radius:4px; }
                 totalItems = q.value(0).toInt(); valTotal = q.value(1).toDouble(); prixMoyen = q.value(2).toDouble(); } }
             { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM MATIERE_PREMIERE WHERE NVL(QUANTITE,0)=0") && q.next()) rupture = q.value(0).toInt(); }
             { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM MATIERE_PREMIERE WHERE NVL(QUANTITE,0) <= NVL(SEUIL_CRITIQUE,0) AND NVL(QUANTITE,0)>0") && q.next()) alertes = q.value(0).toInt(); }
+Q_UNUSED(prixMoyen);
 
             auto makeKpi = [this](const QString &title, const QString &val,
                                    const QString &sub, const char *icon,
@@ -20011,9 +21679,9 @@ QSlider::sub-page:horizontal { background:#3b82f6; border-radius:4px; }
             auto *actLay = new QHBoxLayout(actWrap);
             actLay->setContentsMargins(10, 6, 10, 6);
             actLay->setSpacing(0);
-            auto *actLbl = new QLabel(QString::fromUtf8("\xE2\x9A\xA1 Actions Rapides"));
-            actLbl->setStyleSheet("font-size:11px;font-weight:800;color:#ffffff;letter-spacing:1px;background:transparent;border:none;");
-            actLay->addWidget(actLbl, 1, Qt::AlignVCenter | Qt::AlignLeft);
+            auto *actLblStock = new QLabel(QString::fromUtf8("\xE2\x9A\xA1 Actions Rapides"));
+            actLblStock->setStyleSheet("font-size:11px;font-weight:800;color:#ffffff;letter-spacing:1px;background:transparent;border:none;");
+            actLay->addWidget(actLblStock, 1, Qt::AlignVCenter | Qt::AlignLeft);
             stockScrollV->addWidget(actWrap);
 
             for (auto *b : actionBtns) {
@@ -21037,8 +22705,10 @@ void MainWindow::on_btn_annuler_client_clicked() {
 
 void MainWindow::on_btn_ajouter_client_clicked() {
 
+    updateClientFormValidationState();
+
     if (!validateClientForm(false)) {
-        QMessageBox::warning(this, "Saisie invalide", "Verifiez Matricule, Nom, Email et Numero Telephone.");
+        QMessageBox::warning(this, "Saisie invalide", "Corrigez les champs en rouge avant d'enregistrer.");
         return;
     }
 
@@ -21081,6 +22751,32 @@ void MainWindow::on_btn_ajouter_client_clicked() {
                   ui->input_date_expiration_ajouter->date().toString("yyyy-MM-dd"),
 
                   ui->input_paiement_ajouter->currentText().trimmed());
+
+    // Real-time warning email: send immediately if contract expires within 1 month.
+    const QDate expirationDate = ui->input_date_expiration_ajouter->date();
+    const int daysLeft = QDate::currentDate().daysTo(expirationDate);
+    if (daysLeft >= 0 && daysLeft <= 30) {
+        const bool sent = sendContractExpirationEmail(
+            ui->input_email_ajouter->text().trimmed(),
+            ui->input_nom_ajouter->text().trimmed(),
+            expirationDate.toString("yyyy-MM-dd"),
+            ui->input_contrat_ajouter->currentText().trimmed());
+
+        if (!sent) {
+            QMessageBox::warning(
+                this,
+                "Notification email",
+                "Client ajoute, mais l'email d'alerte contrat (moins de 30 jours) n'a pas pu etre envoye.\n"
+                "Verifiez la configuration SMTP (WASTEGUARD_SMTP_EMAIL / WASTEGUARD_SMTP_APP_PASSWORD)."
+            );
+        } else {
+            QSettings settings("WasteGuard", "WasteGuard");
+            const QString notifKey = QString("contractExpiryNotice/sent/%1/%2")
+                                         .arg(ui->input_email_ajouter->text().trimmed().toLower(),
+                                              expirationDate.toString("yyyy-MM-dd"));
+            settings.setValue(notifKey, true);
+        }
+    }
 
     QMessageBox::information(this, "Succes", "Client ajoute avec succes.");
 
@@ -21412,173 +23108,113 @@ void MainWindow::forceApplySidebarStyles()
 {
     if (!ui) return;
 
-    // Premium Styles - Simplified for maximum reliability
+    // Read colors from ThemeManager so this function works in all theme modes.
+    const ThemePalette tp = ThemeManager::instance()->palette();
 
-    QString btnStyle = 
-
+    // Right-panel sidebar buttons — use sidebar palette colors
+    const QString btnStyle = QString(
         "QPushButton {"
-
-        "  background: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1, stop:0 #1a3a2e, stop:1 #2d5a42);"
-
-        "  color: #ffffff;"
-
+        "  background: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1,"
+        "    stop:0 %1, stop:1 %2);"
+        "  color: %3;"
         "  border-radius: 12px;"
-
         "  padding: 12px;"
-
         "  font-weight: bold;"
-
         "  font-size: 13px;"
-
-        "  border: 1px solid #2d5a42;"
-
+        "  border: 1px solid %2;"
         "  min-height: 40px;"
-
         "}"
-
         "QPushButton:hover {"
-
-        "  background: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1, stop:0 #2d5a42, stop:1 #3a6f54);"
-
+        "  background: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1,"
+        "    stop:0 %2, stop:1 %4);"
         "}"
-
         "QPushButton:pressed {"
+        "  background: %1;"
+        "}"
+    ).arg(tp.sidebarBg, tp.sidebarBg2, tp.textWhite, tp.primary);
 
-        "  background: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1, stop:0 #163225, stop:1 #1f4735);"
-
-        "}";
-
-
-
-    QString sideStyle = 
-
+    // Right panel frame/card style — use bgCard + border
+    const QString sideStyle = QString(
         "QFrame {"
-
-        "  background-color: #ffffff;"
-
+        "  background-color: %1;"
         "  border-radius: 20px;"
+        "  border: 1px solid %2;"
+        "}"
+    ).arg(tp.bgCard, tp.border);
 
-        "  border: 1px solid #e2e8f0;"
-
-        "}";
-
-
-
-    QString labelStyle =
-
+    const QString labelStyle =
         "QLabel {"
-
         "  background: transparent;"
-
         "  border: none;"
-
         "}";
 
-
-
-    QString cardStyle = 
-
+    const QString cardStyle = QString(
         "QFrame {"
-
-        "  background-color: #ffffff;"
-
-        "  border: 1px solid #edf2f7;"
-
+        "  background-color: %1;"
+        "  border: 1px solid %2;"
         "  border-radius: 12px;"
+        "}"
+    ).arg(tp.bgCard, tp.border);
 
-        "}";
-
-
-
-    QStringList sidebarNames = {"rightSidebar", "rightSidebar_Commande", "stockRightSidebar", "prod_rightSidebar", "sidePanel_Employe", "sidePanel_Client", "sideDashboard", "sideAjout", "sideMod", "sidepanel"};
-
-    
+    const QStringList sidebarNames = {
+        "rightSidebar", "rightSidebar_Commande", "stockRightSidebar",
+        "prod_rightSidebar", "sidePanel_Employe", "sidePanel_Client",
+        "sideDashboard", "sideAjout", "sideMod", "sidepanel"
+    };
 
     for (const QString &name : sidebarNames) {
 
-        QList<QWidget*> panels = this->findChildren<QWidget*>(name);
+        const QList<QWidget*> panels = this->findChildren<QWidget*>(name);
 
         for (QWidget *panel : panels) {
 
-            // 1. STYLE THE PANEL ITSELF
-
+            // 1. Style the panel itself
             panel->setStyleSheet(sideStyle);
-
             panel->setAttribute(Qt::WA_StyledBackground, true);
 
-
-
-            // 2. STYLE ALL BUTTONS INSIDE (DIRECTLY)
-
-            QList<QPushButton*> buttons = panel->findChildren<QPushButton*>();
-
+            // 2. Style all buttons inside
+            const QList<QPushButton*> buttons = panel->findChildren<QPushButton*>();
             for (QPushButton *btn : buttons) {
-
                 btn->setStyleSheet(btnStyle);
-
                 btn->setCursor(Qt::PointingHandCursor);
-
             }
 
-
-
-            // 3. STYLE ALL LABELS INSIDE (DIRECTLY)
-
-            QList<QLabel*> labels = panel->findChildren<QLabel*>();
-
+            // 3. Style labels — only set bg/border, preserve existing text color
+            const QList<QLabel*> labels = panel->findChildren<QLabel*>();
             for (QLabel *lbl : labels) {
-
                 if (!lbl) continue;
                 const QString existing = lbl->styleSheet();
-                if (existing.contains("color:", Qt::CaseInsensitive)) {
-                    continue;
+                if (!existing.contains("color:", Qt::CaseInsensitive)) {
+                    lbl->setStyleSheet(existing + QString(
+                        " background: transparent; border: none; color: %1;"
+                    ).arg(tp.textBody));
+                } else {
+                    lbl->setStyleSheet(existing + " background: transparent; border: none;");
                 }
-                lbl->setStyleSheet(existing + " background: transparent; border: none;");
-
             }
 
-
-
-            // 4. STYLE ALL CARDS INSIDE (DIRECTLY)
-
-            QList<QFrame*> cards = panel->findChildren<QFrame*>();
-
+            // 4. Style stat/card child frames
+            const QList<QFrame*> cards = panel->findChildren<QFrame*>();
             for (QFrame *card : cards) {
-
-                if (card->objectName().startsWith("stat") || card->objectName().startsWith("st_")) {
-
+                if (card->objectName().startsWith("stat") ||
+                    card->objectName().startsWith("st_")) {
                     card->setStyleSheet(cardStyle);
-
                 }
-
             }
-
         }
-
     }
 
-
-
     // --- CATCH-ALL FOR GLOBAL BUTTONS BY NAME ---
-
-    QStringList globalBtnNames = {
-
+    const QStringList globalBtnNames = {
         "btnPdf", "btnPdf_Cmd", "btnExport", "btnOrder", "btnFichePaie",
-
         "btnGoStats_Stock", "btnGoStats_Maint", "btnGoStats_Client", "btnGoStats_Cmd"
-
     };
 
     for (const QString &btnName : globalBtnNames) {
-
         if (QPushButton *btn = this->findChild<QPushButton*>(btnName)) {
-
             btn->setStyleSheet(btnStyle);
-
             btn->setCursor(Qt::PointingHandCursor);
-
         }
-
     }
 
     // Force update sidebar state to fix any overrides
@@ -21640,6 +23276,7 @@ void MainWindow::updateSidebarState()
     const QString emoStats = QString::fromUcs4(U"\U0001F4CA") + vs;
     const QString emoMaint = QString::fromUcs4(U"\U0001F527") + vs;
     const QString emoCmd = QString::fromUcs4(U"\U0001F4DD") + vs;
+    const QString emoSettings = QString(QChar(0x2699)) + vs;
     const QString emoLogout = QString::fromUcs4(U"\U0001F6AA") + vs;
 
     if (ui->btnAccueil && ui->btnAccueil->isVisible()) buttons.append({ui->btnAccueil, emoHome + " Accueil", emoHome});
@@ -21663,6 +23300,11 @@ void MainWindow::updateSidebarState()
     if (QPushButton* btnCmd = this->findChild<QPushButton*>("btnCommandes")) {
         if (btnCmd->isVisible()) {
             buttons.append({btnCmd, emoCmd + " Commandes", emoCmd});
+        }
+    }
+    if (QPushButton *btnParam = this->findChild<QPushButton*>("btnParametres")) {
+        if (btnParam->isVisible()) {
+            buttons.append({btnParam, emoSettings + " Parametres", emoSettings});
         }
     }
     if (QPushButton *btnLogout = this->findChild<QPushButton*>("btnLogout")) {
@@ -21708,6 +23350,9 @@ void MainWindow::updateSidebarState()
     if (QPushButton* btnToggle = ui->sidebar->findChild<QPushButton*>("btnToggleSidebar")) {
         btnToggle->setText(QString::fromUtf8(m_sidebarExpanded ? "\xE2\x97\x80" : "\xE2\x96\xB6"));
     }
+
+    QTimer::singleShot(0, this, &MainWindow::onFloatingAIButtonPositionUpdate);
+    QTimer::singleShot(320, this, &MainWindow::onFloatingAIButtonPositionUpdate);
 }
 
 // ---------- Card View Implementation ----------
@@ -22210,17 +23855,12 @@ QPushButton#btnGoPointage:hover, QPushButton#btnGoStats:hover {
 
             int total = 0, dispo = 0, mission = 0;
             double salTotal = 0.0;
-            { QSqlQuery q; if (q.exec("SELECT COUNT(*), "
-                "NVL(SUM(CASE WHEN UPPER(NVL(DISPONIBILITE,'')) LIKE 'DISPONIBLE%' THEN 1 ELSE 0 END),0), "
-                "NVL(SUM(CASE WHEN UPPER(NVL(DISPONIBILITE,'')) LIKE '%MISSION%' THEN 1 ELSE 0 END),0), "
-                "NVL(SUM(NVL(SALAIRE,0)),0) FROM EMPLOYE") && q.next()) {
-                total = q.value(0).toInt(); dispo = q.value(1).toInt();
-                mission = q.value(2).toInt(); salTotal = q.value(3).toDouble();
-            } }
+            computeEmployeDashboardKpis(ui->tableEmployes, total, dispo, mission, salTotal);
 
             auto makeKpi = [this](const QString &title, const QString &val,
                                    const QString &sub, const char *icon,
-                                   const QString &iconBg, const QString &col) -> QFrame* {
+                                   const QString &iconBg, const QString &col,
+                                   const char *valueObjectName = nullptr) -> QFrame* {
                 auto *card = new QFrame();
                 card->setAttribute(Qt::WA_StyledBackground, true);
                 card->setStyleSheet("QFrame{background:#ffffff;border-radius:12px;border:1px solid #e8ecf0;}");
@@ -22229,6 +23869,9 @@ QPushButton#btnGoPointage:hover, QPushButton#btnGoStats:hover {
                 auto *tv = new QVBoxLayout(); tv->setSpacing(3);
                 auto *t = new QLabel(title); t->setStyleSheet("font-size:10px;font-weight:700;color:#6c757d;letter-spacing:1px;background:transparent;border:none;");
                 auto *v = new QLabel(val);    v->setStyleSheet(QString("font-size:26px;font-weight:800;color:%1;background:transparent;border:none;").arg(col));
+                if (valueObjectName && *valueObjectName) {
+                    v->setObjectName(QString::fromLatin1(valueObjectName));
+                }
                 auto *s = new QLabel(sub);    s->setStyleSheet("font-size:11px;color:#6c757d;background:transparent;border:none;");
                 tv->addWidget(t); tv->addWidget(v); tv->addWidget(s);
                 h->addLayout(tv, 1);
@@ -22241,11 +23884,12 @@ QPushButton#btnGoPointage:hover, QPushButton#btnGoStats:hover {
             auto *kpiContainer = new QFrame(); kpiContainer->setObjectName("emp_kpiRow");
             kpiContainer->setStyleSheet("QFrame{background:transparent;border:none;}");
             auto *row = new QHBoxLayout(kpiContainer); row->setContentsMargins(0,8,0,8); row->setSpacing(14);
-            row->addWidget(makeKpi("TOTAL EMPLOYES",  QString::number(total),   "Personnel total",   "\xF0\x9F\x91\xA5", "#e3f2fd", "#1e40af"));
-            row->addWidget(makeKpi("DISPONIBLES",     QString::number(dispo),   "Prets a intervenir","\xE2\x9C\x85",     "#e8f5e9", "#27ae60"));
-            row->addWidget(makeKpi("EN MISSION",      QString::number(mission), "Actuellement actifs","\xF0\x9F\x94\xA7","#fff3e0", mission>0?"#f39c12":"#27ae60"));
-            row->addWidget(makeKpi("MASSE SALARIALE", QString("%1 TND").arg(QString::number(salTotal,'f',0)), "Charges totales", "\xF0\x9F\x92\xB0", "#fce4ec", "#1a3a2e"));
+            row->addWidget(makeKpi("TOTAL EMPLOYES",  QString::number(total),   "Personnel total",   "\xF0\x9F\x91\xA5", "#e3f2fd", "#1e40af", "emp_kpi_total_value"));
+            row->addWidget(makeKpi("DISPONIBLES",     QString::number(dispo),   "Prets a intervenir","\xE2\x9C\x85",     "#e8f5e9", "#27ae60", "emp_kpi_dispo_value"));
+            row->addWidget(makeKpi("EN MISSION",      QString::number(mission), "Actuellement actifs","\xF0\x9F\x94\xA7","#fff3e0", mission>0?"#f39c12":"#27ae60", "emp_kpi_mission_value"));
+            row->addWidget(makeKpi("MASSE SALARIALE", QString("%1 TND").arg(QString::number(salTotal,'f',0)), "Charges totales", "\xF0\x9F\x92\xB0", "#fce4ec", "#1a3a2e", "emp_kpi_salary_value"));
             vl->insertWidget(1, kpiContainer);
+            refreshEmployeTopKpiLabels(this);
         });
 
         QTimer::singleShot(200, this, [this, empPage]() {
@@ -22258,7 +23902,7 @@ QPushButton#btnGoPointage:hover, QPushButton#btnGoStats:hover {
             { QSqlQuery q; if (q.exec("SELECT "
                     "COUNT(*),"
                     "NVL(SUM(CASE WHEN UPPER(NVL(DISPONIBILITE,''))LIKE 'DISPONIBLE%' THEN 1 ELSE 0 END),0),"
-                    "NVL(SUM(CASE WHEN UPPER(NVL(DISPONIBILITE,''))LIKE '%MISSION%' THEN 1 ELSE 0 END),0),"
+                    "NVL(SUM(CASE WHEN UPPER(NVL(DISPONIBILITE,''))LIKE '%INTERVENTION%' OR UPPER(NVL(DISPONIBILITE,''))LIKE '%MISSION%' THEN 1 ELSE 0 END),0),"
                     "NVL(SUM(CASE WHEN UPPER(NVL(DISPONIBILITE,''))LIKE '%CONGE%' OR UPPER(NVL(DISPONIBILITE,''))LIKE '%ABSENT%' THEN 1 ELSE 0 END),0)"
                     " FROM EMPLOYE") && q.next()) {
                 total = q.value(0).toInt(); dispo = q.value(1).toInt();
@@ -22395,9 +24039,9 @@ QPushButton#btnGoPointage:hover, QPushButton#btnGoStats:hover {
             auto *actLay = new QHBoxLayout(actWrap);
             actLay->setContentsMargins(10, 6, 10, 6);
             actLay->setSpacing(0);
-            auto *actLbl = new QLabel(QString::fromUtf8("\xE2\x9A\xA1 Actions Rapides"));
-            actLbl->setStyleSheet("font-size:11px;font-weight:800;color:#ffffff;letter-spacing:1px;background:transparent;border:none;");
-            actLay->addWidget(actLbl, 1, Qt::AlignVCenter | Qt::AlignLeft);
+            auto *actLblClient = new QLabel(QString::fromUtf8("\xE2\x9A\xA1 Actions Rapides"));
+            actLblClient->setStyleSheet("font-size:11px;font-weight:800;color:#ffffff;letter-spacing:1px;background:transparent;border:none;");
+            actLay->addWidget(actLblClient, 1, Qt::AlignVCenter | Qt::AlignLeft);
             scrollV->addWidget(actWrap);
 
             for (auto *b : actionBtns) {
@@ -23350,7 +24994,30 @@ QPushButton#btn_annuler_ajouter:hover, QPushButton#btn_annuler_modifier:hover { 
             row->addWidget(makeKpi("CONTRATS ACTIFS", QString::number(mensuel+annuel),"Mensuel + Annuel",  "\xF0\x9F\x93\x8B", "#e8f5e9", "#27ae60"));
             row->addWidget(makeKpi("EXPIRENT BIENTOT",QString::number(expSoon),      "Dans 30 jours",      "\xE2\x9A\xA0\xEF\xB8\x8F", "#fff3e0", expSoon>0?"#f39c12":"#27ae60"));
             row->addWidget(makeKpi("EN RETARD",       QString::number(enRetard),     "Paiements en retard","\xF0\x9F\x92\xB8", "#fce4ec", enRetard>0?"#e74c3c":"#27ae60"));
-            vl->insertWidget(1, kpiContainer);
+            bool inserted = false;
+            if (auto *mainV = pageRepertoire->findChild<QVBoxLayout*>("verticalLayout_repertoire")) {
+                int tableBlockIndex = -1;
+                for (int i = 0; i < mainV->count(); ++i) {
+                    QLayoutItem *it = mainV->itemAt(i);
+                    if (it && it->layout() == hTable) {
+                        tableBlockIndex = i;
+                        break;
+                    }
+                }
+                if (tableBlockIndex >= 0) {
+                    // Keep KPI cards directly above the client table block.
+                    mainV->insertWidget(tableBlockIndex, kpiContainer);
+                    inserted = true;
+                }
+            }
+            if (!inserted) {
+                int insertAt = vl->count();
+                if (table) {
+                    int tableIndex = vl->indexOf(table);
+                    if (tableIndex >= 0) insertAt = tableIndex;
+                }
+                vl->insertWidget(insertAt, kpiContainer);
+            }
         });
 
         QTimer::singleShot(200, this, [this]() {
@@ -23482,9 +25149,9 @@ QPushButton#btn_annuler_ajouter:hover, QPushButton#btn_annuler_modifier:hover { 
             auto *actLay = new QHBoxLayout(actWrap);
             actLay->setContentsMargins(10, 6, 10, 6);
             actLay->setSpacing(0);
-            auto *actLbl = new QLabel(QString::fromUtf8("\xE2\x9A\xA1 Actions Rapides"));
-            actLbl->setStyleSheet("font-size:11px;font-weight:800;color:#ffffff;letter-spacing:1px;background:transparent;border:none;");
-            actLay->addWidget(actLbl, 1, Qt::AlignVCenter | Qt::AlignLeft);
+            auto *actLblProd = new QLabel(QString::fromUtf8("\xE2\x9A\xA1 Actions Rapides"));
+            actLblProd->setStyleSheet("font-size:11px;font-weight:800;color:#ffffff;letter-spacing:1px;background:transparent;border:none;");
+            actLay->addWidget(actLblProd, 1, Qt::AlignVCenter | Qt::AlignLeft);
             clientScrollV->addWidget(actWrap);
 
             for (auto *b : actionBtns) {
@@ -24764,6 +26431,7 @@ QFrame#rightSidebar_Commande { background: transparent; border: none; }
             { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM COMMANDE WHERE UPPER(NVL(STATUS,'')) LIKE '%ATTENTE%' OR UPPER(NVL(STATUS,'')) LIKE '%COURS%'") && q.next()) enAttente = q.value(0).toInt(); }
             { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM COMMANDE WHERE UPPER(NVL(STATUS,'')) LIKE '%LIVR%'") && q.next()) livrees = q.value(0).toInt(); }
             { QSqlQuery q; if (q.exec("SELECT COUNT(*) FROM COMMANDE WHERE UPPER(NVL(PRIORITE,'')) LIKE '%URGENT%' OR UPPER(NVL(PRIORITE,''))='HAUTE'") && q.next()) urgentes = q.value(0).toInt(); }
+Q_UNUSED(urgentes);
 
             auto makeKpi = [this](const QString &title, const QString &val,
                                    const QString &sub, const char *icon,
@@ -24858,21 +26526,35 @@ QFrame#rightSidebar_Commande { background: transparent; border: none; }
             double panier = totalCmd > 0 ? caTotal / totalCmd : 0.0;
             miniRow2->addWidget(makeMini("Panier moy.", QString::number(panier,'f',0), "#3498db"));
 
-            auto *actLbl = new QLabel(QString::fromUtf8("\xE2\x9A\xA1 Actions Rapides"));
-            actLbl->setStyleSheet(
-                "font-size:11px;font-weight:800;color:#ffffff;letter-spacing:1px;"
-                "background:#1f4d3a;border:1px solid #2a6a51;border-radius:8px;padding:8px 10px;"
+            auto *actLblCmd = new QLabel(QString::fromUtf8("\xE2\x9A\xA1 Actions Rapides"));
+            actLblCmd->setAttribute(Qt::WA_StyledBackground, true);
+            actLblCmd->setStyleSheet(
+                "QLabel {"
+                " font-size:11px; font-weight:800; color:#ffffff; letter-spacing:1px;"
+                " background-color:#1f4d3a; border:1px solid #2a6a51;"
+                " border-radius:8px; padding:8px 12px;"
+                "}"
             );
 
             QList<QPushButton*> actionBtns;
-            for (const char *n : {"btnPdf_Cmd","btnGoStats_Cmd"}) {
+            // Create/Connect Calendrier button if needed
+            if (!cmdPage->findChild<QPushButton*>("btnCalendar_Cmd")) {
+                QPushButton* btnCal = new QPushButton("📅 Calendrier", cmdPage);
+                btnCal->setObjectName("btnCalendar_Cmd");
+                connect(btnCal, &QPushButton::clicked, this, [this]() { showCalendarView(); });
+            }
+
+            for (const char *n : {"btnPdf_Cmd","btnGoStats_Cmd","btnCalendar_Cmd"}) {
                 if (auto *b = cmdPage->findChild<QPushButton*>(n)) {
                     b->setParent(nullptr);
                     b->show();
                     b->setStyleSheet(
-                        "QPushButton{background-color:#f0f7f4;color:#1a3a2e;border:1px solid #d4e8dc;"
-                        "border-radius:10px;padding:12px 16px;font-weight:700;font-size:13px;text-align:center;}"
-                        "QPushButton:hover{background-color:#27ae60;color:#ffffff;border-color:#27ae60;}");
+            "QPushButton { "
+            "  background-color: #1f4d3a; color: #ffffff; border: 1px solid #2a6a51; "
+            "  border-radius: 10px; padding: 12px 16px; font-weight: 800; font-size: 13px; "
+            "} "
+            "QPushButton:hover { background-color: #27ae60; border-color: #27ae60; }"
+        );
                     actionBtns.append(b);
                 }
             }
@@ -24913,7 +26595,7 @@ QFrame#rightSidebar_Commande { background: transparent; border: none; }
             cmdScrollV->addWidget(hero);
             cmdScrollV->addLayout(miniRow1);
             cmdScrollV->addLayout(miniRow2);
-            cmdScrollV->addWidget(actLbl);
+            cmdScrollV->addWidget(actLblCmd);
             cmdScrollV->addSpacing(6);
             for (auto *b : actionBtns) {
                 if (!b) continue;
@@ -25069,9 +26751,23 @@ QFrame#rightSidebar_Commande { background: transparent; border: none; }
 
     QHBoxLayout *hl1 = findChild<QHBoxLayout*>("horizontalLayout");
     if (ui->textEdit && hl1) {
+        // Remove any existing QQuickWidget to ensure only one map is present
+        for (int i = 0; i < hl1->count(); ++i) {
+            if (auto *w = hl1->itemAt(i)->widget()) {
+                if (w->inherits("QQuickWidget")) {
+                    w->deleteLater();
+                    hl1->removeWidget(w);
+                    i--;
+                }
+            }
+        }
         ui->textEdit->hide();
         m_mapAddOrder = new QQuickWidget(ui->textEdit->parentWidget());
+        m_mapAddOrder->rootContext()->setContextProperty("mainWindow", this);
         m_mapAddOrder->setSource(QUrl(QStringLiteral("qrc:/assets/MapWidget.qml")));
+        if (m_mapAddOrder->rootObject()) {
+            m_mapAddOrder->rootObject()->setProperty("gpsEnabled", true);
+        }
         if (m_mapAddOrder->status() == QQuickWidget::Error) {
             QString errStr;
             for (const auto &err : m_mapAddOrder->errors()) errStr += err.toString() + "\n";
@@ -25085,9 +26781,23 @@ QFrame#rightSidebar_Commande { background: transparent; border: none; }
     
     QHBoxLayout *hl12 = findChild<QHBoxLayout*>("horizontalLayout_12");
     if (ui->textEdit_2 && hl12) {
+        // Remove any existing QQuickWidget to ensure only one map is present
+        for (int i = 0; i < hl12->count(); ++i) {
+            if (auto *w = hl12->itemAt(i)->widget()) {
+                if (w->inherits("QQuickWidget")) {
+                    w->deleteLater();
+                    hl12->removeWidget(w);
+                    i--;
+                }
+            }
+        }
         ui->textEdit_2->hide();
         m_mapModOrder = new QQuickWidget(ui->textEdit_2->parentWidget());
+        m_mapModOrder->rootContext()->setContextProperty("mainWindow", this);
         m_mapModOrder->setSource(QUrl(QStringLiteral("qrc:/assets/MapWidget.qml")));
+        if (m_mapModOrder->rootObject()) {
+            m_mapModOrder->rootObject()->setProperty("gpsEnabled", false);
+        }
         if (m_mapModOrder->status() == QQuickWidget::Error) {
             QString errStr;
             for (const auto &err : m_mapModOrder->errors()) errStr += err.toString() + "\n";
@@ -25098,16 +26808,240 @@ QFrame#rightSidebar_Commande { background: transparent; border: none; }
         m_mapModOrder->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         hl12->addWidget(m_mapModOrder);
     }
+
+    // Force default to pageCommandes
+    if (auto *cmdPage = findChild<QWidget*>("pageCmdDashboard")) {
+        if (auto *content = cmdPage->findChild<QStackedWidget*>("contentStack")) {
+            if (auto *listPage = cmdPage->findChild<QWidget*>("pageCommandes")) {
+                content->setCurrentWidget(listPage);
+            }
+        }
+    }
 }
+
+void MainWindow::showCalendarView()
+{
+    QStackedWidget *content = nullptr;
+    if (auto *cmdPage = findChild<QWidget*>("pageCmdDashboard")) {
+        content = cmdPage->findChild<QStackedWidget*>("contentStack");
+    }
+    if (!content) return;
+
+    QWidget *pageCalendar = findChild<QWidget*>("pageCalendar");
+    if (!pageCalendar) {
+        pageCalendar = new QWidget();
+        pageCalendar->setObjectName("pageCalendar");
+        QVBoxLayout *layout = new QVBoxLayout(pageCalendar);
+        layout->setContentsMargins(20, 20, 20, 20);
+        layout->setSpacing(15);
+
+        // Header
+        QHBoxLayout *header = new QHBoxLayout();
+        QLabel *title = new QLabel("📅 Calendrier des Livraisons");
+        title->setStyleSheet("font-size: 20px; font-weight: bold; color: #1a1a2e;");
+        QPushButton *btnPlanifier = new QPushButton("+ Planifier");
+        btnPlanifier->setCursor(Qt::PointingHandCursor);
+        btnPlanifier->setStyleSheet(
+            "QPushButton { background: #27ae60; border: none; border-radius: 8px; "
+            "padding: 8px 16px; font-weight: bold; color: white; margin-right: 10px; }"
+            "QPushButton:hover { background: #219150; }"
+        );
+
+        QPushButton *btnBack = new QPushButton("← Retour");
+        btnBack->setCursor(Qt::PointingHandCursor);
+        btnBack->setStyleSheet(
+            "QPushButton { background: #ffffff; border: 1px solid #dcdde1; border-radius: 8px; "
+            "padding: 8px 16px; font-weight: bold; color: #1a1a2e; }"
+            "QPushButton:hover { background: #f8f9fa; border-color: #27ae60; }"
+        );
+        
+        header->addWidget(title);
+        header->addStretch();
+        header->addWidget(btnPlanifier);
+        header->addWidget(btnBack);
+        layout->addLayout(header);
+
+        // Calendar Widget
+        DotCalendar *calendar = new DotCalendar();
+        calendar->setObjectName("cmdCalendarWidget");
+        calendar->setGridVisible(true);
+        calendar->setVerticalHeaderFormat(QCalendarWidget::NoVerticalHeader);
+        calendar->setMinimumHeight(450);
+        calendar->setStyleSheet(
+            "QCalendarWidget QWidget { background-color: #ffffff; border-radius: 15px; }"
+            "QCalendarWidget QToolButton { color: #1a1a2e; font-weight: bold; background: transparent; height: 40px; }"
+            "QCalendarWidget QAbstractItemView:enabled { color: #1a1a2e; selection-background-color: #27ae60; selection-color: white; font-size: 14px; }"
+            "QCalendarWidget #qt_calendar_navigationbar { background-color: #f8f9fa; border-bottom: 1px solid #e8ecf0; border-top-left-radius: 15px; border-top-right-radius: 15px; }"
+        );
+        layout->addWidget(calendar);
+
+        connect(btnPlanifier, &QPushButton::clicked, this, [this, calendar]() {
+        if (QWidget *pageAjout = findChild<QWidget*>("pageCmdAjout")) {
+            QStackedWidget *sw = mainStacked();
+            if (sw) {
+                sw->setCurrentWidget(pageAjout);
+                
+                QDate selected = calendar->selectedDate();
+
+                // 1. Pre-fill Dates (Order Date = Selected, Delivery Date = Selected as placeholder)
+                if (ui->comboBox_19) ui->comboBox_19->setCurrentText(QString("%1").arg(selected.day(), 2, 10, QChar('0')));
+                if (ui->comboBox_20) ui->comboBox_20->setCurrentText(QString("%1").arg(selected.month(), 2, 10, QChar('0')));
+                if (ui->comboBox_21) ui->comboBox_21->setCurrentText(QString::number(selected.year()));
+
+                if (ui->comboBox_22) ui->comboBox_22->setCurrentText(QString("%1").arg(selected.day(), 2, 10, QChar('0')));
+                if (ui->comboBox_23) ui->comboBox_23->setCurrentText(QString("%1").arg(selected.month(), 2, 10, QChar('0')));
+                if (ui->comboBox_24) ui->comboBox_24->setCurrentText(QString::number(selected.year()));
+
+                // 2. Set Status and Priority defaults
+                if (ui->cb_status_add_4) {
+                    ui->cb_status_add_4->setCurrentText("EN_PREPARATION");
+                    ui->cb_status_add_4->hide();
+                }
+                if (ui->comboPrioAdd) {
+                    ui->comboPrioAdd->setCurrentText("NORMALE");
+                    ui->comboPrioAdd->hide();
+                }
+
+                // 3. Hide Delivery Date fields and all related labels for a simplified "Planning" view
+                if (ui->comboBox_22) ui->comboBox_22->hide();
+                if (ui->comboBox_23) ui->comboBox_23->hide();
+                if (ui->comboBox_24) ui->comboBox_24->hide();
+                
+                // Aggressive cleaning of labels and extra fields
+                for (auto* lbl : pageAjout->findChildren<QLabel*>()) {
+                    QString t = lbl->text().toLower();
+                    // Hide labels for priority, status, and delivery
+                    if (t.contains("priorit") || t.contains("statut") || t.contains("livraison")) {
+                        lbl->hide();
+                    }
+                    // Hide the repeated "Jour", "Mois", "Annee" labels for the delivery date row
+                    if (t == "jour" || t == "mois" || t == "annee") {
+                        if (lbl->y() > 320) lbl->hide(); 
+                    }
+                }
+
+                // 4. Trigger starting location automatically
+                QTimer::singleShot(600, this, [this]() {
+                    fetchMyPosition();
+                });
+            }
+        }
+    });
+        // Details Table
+        QLabel *detailsTitle = new QLabel("Détails pour la date sélectionnée :");
+        detailsTitle->setStyleSheet("font-weight: bold; color: #1a1a2e; margin-top: 10px;");
+        layout->addWidget(detailsTitle);
+
+        QTableWidget *detailsTable = new QTableWidget();
+        detailsTable->setObjectName("calendarDetailsTable");
+        detailsTable->setColumnCount(4);
+        detailsTable->setHorizontalHeaderLabels({"Référence", "Client", "Statut", "Montant"});
+        detailsTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+        detailsTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+        detailsTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+        detailsTable->setAlternatingRowColors(true);
+        detailsTable->setStyleSheet(
+            "QTableWidget { background: white; border: 1px solid #e8ecf0; border-radius: 8px; gridline-color: #f0f2f5; }"
+            "QHeaderView::section { background-color: #f8f9fa; padding: 8px; border: none; font-weight: bold; color: #6c757d; }"
+        );
+        layout->addWidget(detailsTable);
+
+        content->addWidget(pageCalendar);
+
+        connect(btnBack, &QPushButton::clicked, this, [this, content]() {
+            if (QWidget *pageList = findChild<QWidget*>("pageCommandes")) {
+                content->setCurrentWidget(pageList);
+                refreshCommandes();
+            }
+        });
+
+        connect(calendar, &DotCalendar::selectionChanged, this, [this, calendar, detailsTable]() {
+            QDate selected = calendar->selectedDate();
+            
+            // Fill details table for the selected date
+            detailsTable->setRowCount(0);
+            QSqlQuery query;
+            // Use TO_CHAR for Oracle date comparison, and join with cl.NOM
+            query.prepare("SELECT c.REFER, cl.NOM, c.STATUT, c.PRIX_TOTAL "
+                          "FROM COMMANDE c "
+                          "JOIN CLIENT cl ON c.ID_CLIENT = cl.ID_CLIENT "
+                          "WHERE TO_CHAR(c.DATE_LIVRAISON, 'YYYY-MM-DD') = :date");
+            query.bindValue(":date", selected.toString("yyyy-MM-dd"));
+            
+            if (query.exec()) {
+                while (query.next()) {
+                    int row = detailsTable->rowCount();
+                    detailsTable->insertRow(row);
+                    detailsTable->setItem(row, 0, new QTableWidgetItem(query.value(0).toString()));
+                    detailsTable->setItem(row, 1, new QTableWidgetItem(query.value(1).toString()));
+                    detailsTable->setItem(row, 2, new QTableWidgetItem(query.value(2).toString()));
+                    detailsTable->setItem(row, 3, new QTableWidgetItem(query.value(3).toString() + " DT"));
+                }
+            } else {
+                qDebug() << "[CALENDAR] Query error:" << query.lastError().text();
+            }
+        });
+    }
+
+    content->setCurrentWidget(pageCalendar);
+    checkScheduledDeliveries(); // Run auto-update logic
+    refreshCalendarEvents();
+}
+
+void MainWindow::refreshCalendarEvents()
+{
+    DotCalendar *calendar = findChild<DotCalendar*>("cmdCalendarWidget");
+    if (!calendar) return;
+
+    calendar->clearDayDots();
+
+    QSqlQuery query("SELECT DATE_LIVRAISON, STATUT FROM COMMANDE");
+    QMap<QDate, QList<QColor>> dayDots;
+
+    while (query.next()) {
+        QDate date = query.value(0).toDate();
+        if (!date.isValid()) continue;
+        
+        QString statut = query.value(1).toString().toUpper();
+        QColor c;
+        if (statut.contains("PREPARA")) 
+            c = QColor(255, 235, 59); // Yellow
+        else if (statut.contains("COURS") || statut.contains("LIVRAISON")) 
+            c = QColor(255, 152, 0); // Orange
+        else if (statut.contains("LIVRE")) 
+            c = QColor(76, 175, 80);  // Green
+        else if (statut.contains("ANNUL")) 
+            c = QColor(244, 67, 54);  // Red
+            
+        if (c.isValid()) {
+            dayDots[date].append(c);
+        }
+    }
+
+    for (auto it = dayDots.begin(); it != dayDots.end(); ++it) {
+        calendar->setDayDots(it.key(), it.value());
+    }
+}
+
+void MainWindow::checkScheduledDeliveries()
+{
+    // Automatic transition: EN_PREPARATION -> LIVRAISON_EN_COURS when system date reaches DATE_COMMANDE
+    QSqlQuery updateQuery;
+    updateQuery.exec("UPDATE COMMANDE SET STATUT = 'LIVRAISON_EN_COURS' "
+                     "WHERE STATUT = 'EN_PREPARATION' "
+                     "AND DATE_COMMANDE <= CURRENT_DATE");
+}
+
 
 QString MainWindow::getCmdSortCriteria(QComboBox* cb)
 {
     if (!cb) return "c.id_commande ASC";
     QString text = cb->currentText().toLower();
     
-    if (text.contains("ref") || text.contains("r\xef\xbf\xbd" "f")) return "c.refer ASC";
+    if (text.contains("ref")) return "c.refer ASC";
     if (text.contains("prix") || text.contains("co\xc3\xbb" "t") || text.contains("cout")) {
-        if (text.contains("decroissant") || text.contains("d\xc3\xa9" "croissant") || text.contains("d\xef\xbf\xbd" "c") || text.contains("desc")) return "c.prix_total DESC";
+        if (text.contains("decroissant")) return "c.prix_total DESC";
+        if (text.contains("desc")) return "c.prix_total DESC";
         if (text.contains("croissant") || text.contains("asc")) return "c.prix_total ASC";
         return "c.prix_total DESC"; // Fallback to DESC if no modifier is given
     }
@@ -25153,8 +27087,22 @@ void MainWindow::loadCmdFromTableToForm(QTableWidget* t, int row)
     if (ui->dsb_price_add_2) ui->dsb_price_add_2->setValue(prix);
     if (ui->textEdit_2) ui->textEdit_2->setPlainText(adr == "---" ? "" : adr);
     if (m_mapModOrder && m_mapModOrder->rootObject()) {
+        QString startAddr = t->item(row, 0)->data(Qt::UserRole + 2).toString();
+        double sLat = 0.0;
+        double sLon = 0.0;
+        if (!startAddr.isEmpty() && startAddr != "---") {
+            QStringList parts = startAddr.split(",");
+            if (parts.size() == 2) {
+                sLat = parts[0].trimmed().toDouble();
+                sLon = parts[1].trimmed().toDouble();
+            }
+        }
+        
+        m_mapModOrder->rootObject()->setProperty("isInitialSet", true);
         QMetaObject::invokeMethod(m_mapModOrder->rootObject(), "setInitialLocation",
-            Q_ARG(QVariant, 36.8065), Q_ARG(QVariant, 10.1815), Q_ARG(QVariant, adr == "---" ? "" : adr));
+            Q_ARG(QVariant, sLat), Q_ARG(QVariant, sLon), Q_ARG(QVariant, adr == "---" ? "" : adr));
+        QMetaObject::invokeMethod(m_mapModOrder->rootObject(), "setPathHistory",
+            Q_ARG(QVariant, t->item(row, 0)->data(Qt::UserRole + 3).toString()));
     }
 
     populateCommandeBacListMod(idCmd);
@@ -25192,18 +27140,58 @@ void MainWindow::installCmdActions(int row)
     if (row < 0 || row >= ui->tableDashboard->rowCount()) return;
     QWidget *cell = new QWidget(ui->tableDashboard);
     auto *layout = new QHBoxLayout(cell);
-    layout->setContentsMargins(8, 8, 8, 8);
-    layout->setSpacing(8);
+    layout->setContentsMargins(4, 0, 4, 0);
+    layout->setSpacing(4);
     layout->setAlignment(Qt::AlignCenter);
-    auto *btnEdit = new QPushButton("Modifier", cell);
-    auto *btnDelete = new QPushButton("Supprimer", cell);
-    styleTableActionButton(btnEdit);
-    styleTableActionButton(btnDelete);
+
+    // Yellow track button — compact pill style
+    QString stat = ui->tableDashboard->item(row, 3)->text().toLower();
+    bool isDelivered = stat.contains("livr");
+    QPushButton *btnTrack = new QPushButton(isDelivered ? "Trajet effectué" : "Suivre la livraison", cell);
+    btnTrack->setObjectName("btnTrack");
+    btnTrack->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
+    btnTrack->setStyleSheet(
+        "QPushButton { background-color: #f0c343; color: #2d2100; border-radius: 6px;"
+        " padding: 2px 6px; font-weight: 700; font-size: 9px; border: none; }"
+        "QPushButton:hover { background-color: #e3b232; }"
+    );
+    btnTrack->setFixedHeight(22);
+    btnTrack->setCursor(Qt::PointingHandCursor);
+    btnTrack->setProperty("row", row);
+
+    // Icon-only circular buttons matching the exact emoji style requested
+    auto makeEmojiBtn = [&](const QString &icon, const QString &bgHover, const QString &textColor, const QString &borderColor, const QString &tooltip) -> QPushButton* {
+        auto *btn = new QPushButton(icon, cell);
+        btn->setFixedSize(36, 36);
+        QFont iconFont("Segoe UI Emoji", 16);
+        btn->setFont(iconFont);
+        btn->setToolTip(tooltip);
+        btn->setStyleSheet(QString(
+            "QPushButton {"
+            " background-color: transparent;"
+            " color: %2;"
+            " border: 1px solid %3;"
+            " border-radius: 18px;"
+            " text-align: center;"
+            " padding: 0;"
+            " margin: 0;"
+            "}"
+            "QPushButton:hover { background-color: %1; border-color: %2; }"
+            "QPushButton:pressed { background-color: rgba(0,0,0, 0.1); }"
+        ).arg(bgHover, textColor, borderColor));
+        btn->setCursor(Qt::PointingHandCursor);
+        return btn;
+    };
+
+    auto *btnEdit   = makeEmojiBtn(QString::fromUtf8("\xF0\x9F\x93\x9D"), "rgba(4, 120, 87, 0.1)", "#047857", "#a7f3d0", "Modifier");
+    auto *btnDelete = makeEmojiBtn(QString::fromUtf8("\xE2\x9D\x8C"), "rgba(185, 28, 28, 0.1)", "#b91c1c", "#fca5a5", "Supprimer");
+    
     btnEdit->setProperty("row", row);
-    btnDelete->setProperty("row", row);
+    btnDelete->setProperty("row", row);;
+
+    layout->addWidget(btnTrack);
     layout->addWidget(btnEdit);
     layout->addWidget(btnDelete);
-    ui->tableDashboard->setRowHeight(row, qMax(ui->tableDashboard->rowHeight(row), 62));
     ui->tableDashboard->setCellWidget(row, 8, cell);
     connect(btnEdit, &QPushButton::clicked, this, [this, btnEdit]() {
         const int currentRow = btnEdit->property("row").toInt();
@@ -25229,6 +27217,64 @@ void MainWindow::installCmdActions(int row)
         ui->tableDashboard->removeRow(currentRow);
         reindexCmdActions();
     });
+
+    if (btnTrack) {
+        connect(btnTrack, &QPushButton::clicked, this, [this, btnTrack]() {
+            const int currentRow = btnTrack->property("row").toInt();
+            if (!ui->tableDashboard || currentRow < 0 || currentRow >= ui->tableDashboard->rowCount()) return;
+            
+            QString startAddr = ui->tableDashboard->item(currentRow, 0)->data(Qt::UserRole + 2).toString();
+            QString pathHist  = ui->tableDashboard->item(currentRow, 0)->data(Qt::UserRole + 3).toString();
+            QString adr       = ui->tableDashboard->item(currentRow, 4)->text();
+            QString stat      = ui->tableDashboard->item(currentRow, 3)->text().toLower();
+            
+            QWidget* page = new QWidget();
+            QVBoxLayout* l = new QVBoxLayout(page);
+            l->setContentsMargins(20, 20, 20, 20);
+            
+            QPushButton* btnBack = new QPushButton("← Retour au Dashboard", page);
+            btnBack->setStyleSheet("QPushButton { background: #34495e; color: white; font-size: 16px; padding: 12px; border-radius: 8px; font-weight: bold; border: none; } QPushButton:hover { background: #2c3e50; }");
+            btnBack->setCursor(Qt::PointingHandCursor);
+            l->addWidget(btnBack);
+            
+            QQuickWidget* mapWidget = new QQuickWidget(QUrl("qrc:/assets/MapWidget.qml"), page);
+            mapWidget->rootContext()->setContextProperty("mainWindow", this);
+            mapWidget->setResizeMode(QQuickWidget::SizeRootObjectToView);
+            mapWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+            l->addWidget(mapWidget);
+            
+            double sLat = 0.0, sLon = 0.0;
+            if (!startAddr.isEmpty() && startAddr != "---") {
+                QStringList parts = startAddr.split(",");
+                if (parts.size() == 2) {
+                    sLat = parts[0].trimmed().toDouble();
+                    sLon = parts[1].trimmed().toDouble();
+                }
+            }
+            
+            if (mapWidget->rootObject()) {
+                mapWidget->rootObject()->setProperty("isReadOnly", true);
+                mapWidget->rootObject()->setProperty("showLocButton", false);
+                mapWidget->rootObject()->setProperty("showHistory", true);
+                mapWidget->rootObject()->setProperty("showOptimalRoute", !stat.contains("livr"));
+                QMetaObject::invokeMethod(mapWidget->rootObject(), "setInitialLocation",
+                    Q_ARG(QVariant, sLat), Q_ARG(QVariant, sLon), Q_ARG(QVariant, adr == "---" ? "" : adr));
+                QMetaObject::invokeMethod(mapWidget->rootObject(), "setPathHistory",
+                    Q_ARG(QVariant, pathHist));
+            }
+            
+            mainStacked()->addWidget(page);
+            mainStacked()->setCurrentWidget(page);
+            connect(btnBack, &QPushButton::clicked, [this, page]() {
+                if (auto *sw = mainStacked()) {
+                    if (auto *dash = sw->findChild<QWidget*>("pageCmdDashboard", Qt::FindDirectChildrenOnly)) {
+                        sw->setCurrentWidget(dash);
+                    }
+                }
+                page->deleteLater();
+            });
+        });
+    }
 }
 
 void MainWindow::reindexCmdActions2()
@@ -25248,24 +27294,124 @@ void MainWindow::installCmdActions2(int row)
     if (row < 0 || row >= ui->tableProduits_2->rowCount()) return;
     QWidget *cell = new QWidget(ui->tableProduits_2);
     auto *layout = new QHBoxLayout(cell);
-    layout->setContentsMargins(8, 8, 8, 8);
-    layout->setSpacing(8);
+    layout->setContentsMargins(4, 0, 4, 0);
+    layout->setSpacing(4);
     layout->setAlignment(Qt::AlignCenter);
-    auto *btnPdf = new QPushButton("pdf", cell);
-    auto *btnEdit = new QPushButton("Modifier", cell);
-    auto *btnDelete = new QPushButton("Supprimer", cell);
-    styleTableActionButton(btnPdf);
-    styleTableActionButton(btnEdit);
-    styleTableActionButton(btnDelete);
+
+    // Yellow track button — compact pill style
+    QString stat = ui->tableProduits_2->item(row, 3)->text().toLower();
+    bool isDone = stat.contains("livr") || stat.contains("termin");
+    QPushButton *btnTrack = new QPushButton(isDone ? "Trajet effectué" : "Suivre la livraison", cell);
+    btnTrack->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
+    btnTrack->setStyleSheet(
+        "QPushButton { background-color: #f0c343; color: #2d2100; border-radius: 6px;"
+        " padding: 2px 6px; font-weight: 700; font-size: 9px; border: none; }"
+        "QPushButton:hover { background-color: #e3b232; }"
+    );
+    btnTrack->setFixedHeight(22);
+    btnTrack->setCursor(Qt::PointingHandCursor);
+    btnTrack->setProperty("row", row);
+    layout->addWidget(btnTrack);
+
+    // Icon-only circular buttons matching the exact emoji style requested
+    auto makeEmojiBtn2 = [&](const QString &icon, const QString &bgHover, const QString &textColor, const QString &borderColor, const QString &tooltip) -> QPushButton* {
+        auto *btn = new QPushButton(icon, cell);
+        btn->setFixedSize(36, 36);
+        QFont iconFont("Segoe UI Emoji", 16);
+        btn->setFont(iconFont);
+        btn->setToolTip(tooltip);
+        btn->setStyleSheet(QString(
+            "QPushButton {"
+            " background-color: transparent;"
+            " color: %2;"
+            " border: 1px solid %3;"
+            " border-radius: 18px;"
+            " text-align: center;"
+            " padding: 0;"
+            " margin: 0;"
+            "}"
+            "QPushButton:hover { background-color: %1; border-color: %2; }"
+            "QPushButton:pressed { background-color: rgba(0,0,0, 0.1); }"
+        ).arg(bgHover, textColor, borderColor));
+        btn->setCursor(Qt::PointingHandCursor);
+        return btn;
+    };
+
+    auto *btnPdf    = makeEmojiBtn2("\u2193", "rgba(37, 99, 235, 0.1)", "#1e40af", "#bfdbfe", "Exporter PDF");
+    auto *btnEdit   = makeEmojiBtn2(QString::fromUtf8("\xF0\x9F\x93\x9D"), "rgba(4, 120, 87, 0.1)", "#047857", "#a7f3d0", "Modifier");
+    auto *btnDelete = makeEmojiBtn2(QString::fromUtf8("\xE2\x9D\x8C"), "rgba(185, 28, 28, 0.1)", "#b91c1c", "#fca5a5", "Supprimer");
+    
     btnPdf->setProperty("row", row);
     btnEdit->setProperty("row", row);
     btnDelete->setProperty("row", row);
     layout->addWidget(btnPdf);
     layout->addWidget(btnEdit);
     layout->addWidget(btnDelete);
-    ui->tableProduits_2->setRowHeight(row, qMax(ui->tableProduits_2->rowHeight(row), 62));
     ui->tableProduits_2->setCellWidget(row, 8, cell);
     
+    if (btnTrack) {
+        connect(btnTrack, &QPushButton::clicked, this, [this, btnTrack]() {
+            const int currentRow = btnTrack->property("row").toInt();
+            if (!ui->tableProduits_2 || currentRow < 0 || currentRow >= ui->tableProduits_2->rowCount()) return;
+            
+            QString startAddr = ui->tableProduits_2->item(currentRow, 0)->data(Qt::UserRole + 2).toString();
+            QString pathHist  = ui->tableProduits_2->item(currentRow, 0)->data(Qt::UserRole + 3).toString();
+            QString adr       = ui->tableProduits_2->item(currentRow, 4)->text();
+            
+            QWidget* page = new QWidget();
+            QVBoxLayout* l = new QVBoxLayout(page);
+            l->setContentsMargins(20, 20, 20, 20);
+            
+            QPushButton* btnBack = new QPushButton("← Retour au Dashboard", page);
+            btnBack->setStyleSheet("QPushButton { background: #34495e; color: white; font-size: 16px; padding: 12px; border-radius: 8px; font-weight: bold; border: none; } QPushButton:hover { background: #2c3e50; }");
+            btnBack->setCursor(Qt::PointingHandCursor);
+            l->addWidget(btnBack);
+            
+            QQuickWidget* mapWidget = new QQuickWidget(QUrl("qrc:/assets/MapWidget.qml"), page);
+            mapWidget->rootContext()->setContextProperty("mainWindow", this);
+            mapWidget->setResizeMode(QQuickWidget::SizeRootObjectToView);
+            mapWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+            l->addWidget(mapWidget);
+            
+            double sLat = 0.0;
+            double sLon = 0.0;
+            if (!startAddr.isEmpty() && startAddr != "---") {
+                QStringList parts = startAddr.split(",");
+                if (parts.size() == 2) {
+                    sLat = parts[0].trimmed().toDouble();
+                    sLon = parts[1].trimmed().toDouble();
+                }
+            }
+            
+            if (mapWidget->rootObject()) {
+                mapWidget->rootObject()->setProperty("isReadOnly", true);
+                mapWidget->rootObject()->setProperty("showLocButton", false);
+                mapWidget->rootObject()->setProperty("showHistory", true);
+                if (ui->tableProduits_2->item(currentRow, 3)->text().toLower().contains("livr")) {
+                    mapWidget->rootObject()->setProperty("showOptimalRoute", false);
+                } else {
+                    mapWidget->rootObject()->setProperty("showOptimalRoute", true);
+                }
+                QMetaObject::invokeMethod(mapWidget->rootObject(), "setInitialLocation",
+                    Q_ARG(QVariant, sLat), Q_ARG(QVariant, sLon), Q_ARG(QVariant, adr == "---" ? "" : adr));
+                QMetaObject::invokeMethod(mapWidget->rootObject(), "setPathHistory",
+                    Q_ARG(QVariant, pathHist));
+            }
+            
+            mainStacked()->addWidget(page);
+            mainStacked()->setCurrentWidget(page);
+            
+            connect(btnBack, &QPushButton::clicked, [this, page]() {
+                if (auto *sw = mainStacked()) {
+                    if (auto *dash = sw->findChild<QWidget*>("pageCmdDashboard", Qt::FindDirectChildrenOnly)) {
+                        sw->setCurrentWidget(dash);
+                    }
+                }
+                page->deleteLater();
+            });
+        });
+    }
+
     // PDF Button Connection
     connect(btnPdf, &QPushButton::clicked, this, [this, btnPdf]() {
         const int currentRow = btnPdf->property("row").toInt();
@@ -25316,11 +27462,14 @@ void MainWindow::refreshDashboardTable(const QString &searchField, const QString
         QTableWidgetItem *refItem = new QTableWidgetItem(model->data(model->index(i, 0)).toString());
         refItem->setData(Qt::UserRole, model->data(model->index(i, 8)).toInt());    // id client
         refItem->setData(Qt::UserRole + 1, model->data(model->index(i, 10)).toInt()); // id commande
+        refItem->setData(Qt::UserRole + 2, model->data(model->index(i, 11)).toString()); // START_ADRESSE
+        refItem->setData(Qt::UserRole + 3, model->data(model->index(i, 12)).toString()); // PATH_HISTORY
+        
         ui->tableDashboard->setItem(row, 0, refItem);
         ui->tableDashboard->setItem(row, 1, new QTableWidgetItem(model->data(model->index(i, 2)).toString()));
+        ui->tableDashboard->setItem(row, 3, new QTableWidgetItem(model->data(model->index(i, 4)).toString())); // Status
+        ui->tableDashboard->setItem(row, 4, new QTableWidgetItem(model->data(model->index(i, 9)).toString())); // Address (Destination)
         ui->tableDashboard->setItem(row, 2, new QTableWidgetItem(model->data(model->index(i, 3)).toString()));
-        ui->tableDashboard->setItem(row, 3, new QTableWidgetItem(model->data(model->index(i, 4)).toString()));
-        ui->tableDashboard->setItem(row, 4, new QTableWidgetItem(model->data(model->index(i, 9)).toString()));
         ui->tableDashboard->setItem(row, 5, new QTableWidgetItem(model->data(model->index(i, 5)).toDate().toString("yyyy-MM-dd")));
         ui->tableDashboard->setItem(row, 6, new QTableWidgetItem(model->data(model->index(i, 6)).toDate().toString("yyyy-MM-dd")));
         ui->tableDashboard->setItem(row, 7, new QTableWidgetItem(model->data(model->index(i, 7)).toString() + " TND"));
@@ -27283,6 +29432,25 @@ void MainWindow::loadCmdToModificationForm(int row)
     if (ui->dsb_price_add_2) ui->dsb_price_add_2->setValue(prix);
     if (ui->textEdit_2) ui->textEdit_2->setPlainText(adresse == "---" ? "" : adresse);
 
+    if (m_mapModOrder && m_mapModOrder->rootObject()) {
+        QString startAddr = ui->tableProduits_2->item(row, 0)->data(Qt::UserRole + 2).toString();
+        double sLat = 0.0;
+        double sLon = 0.0;
+        if (!startAddr.isEmpty() && startAddr != "---") {
+            QStringList parts = startAddr.split(",");
+            if (parts.size() == 2) {
+                sLat = parts[0].trimmed().toDouble();
+                sLon = parts[1].trimmed().toDouble();
+            }
+        }
+        
+        m_mapModOrder->rootObject()->setProperty("isInitialSet", true);
+        QMetaObject::invokeMethod(m_mapModOrder->rootObject(), "setInitialLocation",
+            Q_ARG(QVariant, sLat), Q_ARG(QVariant, sLon), Q_ARG(QVariant, adresse == "---" ? "" : adresse));
+        QMetaObject::invokeMethod(m_mapModOrder->rootObject(), "setPathHistory",
+            Q_ARG(QVariant, ui->tableProduits_2->item(row, 0)->data(Qt::UserRole + 3).toString()));
+    }
+
     populateCommandeBacListMod(idCmd);
 
     QDate dCmd = QDate::fromString(ui->tableProduits_2->item(row, 5)->text(), "yyyy-MM-dd");
@@ -27474,6 +29642,16 @@ void MainWindow::on_btnSave_CmdMod_clicked()
     Ctmp.setPrixTotal(totalPrix);
     Ctmp.setAdresse(adresseUI);
 
+    // FIX: Store starting location
+    if (m_mapModOrder && m_mapModOrder->rootObject()) {
+        double sLat = m_mapModOrder->rootObject()->property("startLat").toDouble();
+        double sLon = m_mapModOrder->rootObject()->property("startLon").toDouble();
+        if (sLat != 0 || sLon != 0) {
+            QString startAddr = QString("%1, %2").arg(sLat, 0, 'f', 5).arg(sLon, 0, 'f', 5);
+            Ctmp.setStartAdresse(startAddr);
+        }
+    }
+
     if (ui->sb_qty_add_2) ui->sb_qty_add_2->setValue(totalQte);
     if (ui->dsb_price_add_2) ui->dsb_price_add_2->setValue(totalPrix);
 
@@ -27506,6 +29684,9 @@ void MainWindow::on_btnSave_CmdMod_clicked()
     }
 
     QMessageBox::information(this, "Succes", "Commande modifiee avec succes.");
+    if (m_mapModOrder && m_mapModOrder->rootObject()) {
+        QMetaObject::invokeMethod(m_mapModOrder->rootObject(), "resetMap");
+    }
     refreshCommandes();
     populateCommandeBacList();
     if (auto *sw = mainStacked()) {
@@ -27580,6 +29761,9 @@ void MainWindow::on_btnSave_CmdMod_clicked()
             }
         }
         QMessageBox::information(this, "Succes", "Commande modifiee.");
+        if (m_mapModOrder && m_mapModOrder->rootObject()) {
+            QMetaObject::invokeMethod(m_mapModOrder->rootObject(), "resetMap");
+        }
         refreshCommandes();
         populateCommandeBacList();
         if (auto *sw = mainStacked()) {
@@ -27669,6 +29853,16 @@ void MainWindow::on_btnSave_Mod_3_clicked()
     Ctmp.setPrixTotal(totalPrix);
     Ctmp.setAdresse(adresseUI);
 
+    // FIX: Store starting location
+    if (m_mapAddOrder && m_mapAddOrder->rootObject()) {
+        double sLat = m_mapAddOrder->rootObject()->property("startLat").toDouble();
+        double sLon = m_mapAddOrder->rootObject()->property("startLon").toDouble();
+        if (sLat != 0 || sLon != 0) {
+            QString startAddr = QString("%1, %2").arg(sLat, 0, 'f', 5).arg(sLon, 0, 'f', 5);
+            Ctmp.setStartAdresse(startAddr);
+        }
+    }
+
     if (ui->sb_qty_add_4) ui->sb_qty_add_4->setValue(totalQte);
     if (ui->dsb_price_add_4) ui->dsb_price_add_4->setValue(totalPrix);
 
@@ -27698,6 +29892,9 @@ void MainWindow::on_btnSave_Mod_3_clicked()
     }
 
     QMessageBox::information(this, "Succes", "Commande ajoutee avec succes.");
+    if (m_mapAddOrder && m_mapAddOrder->rootObject()) {
+        QMetaObject::invokeMethod(m_mapAddOrder->rootObject(), "resetMap");
+    }
     refreshCommandes();
     populateCommandeBacList();
     if (ui->dsb_price_add_4) ui->dsb_price_add_4->setValue(0.0);
@@ -27775,6 +29972,9 @@ void MainWindow::on_btnSave_Mod_3_clicked()
             }
         }
         QMessageBox::information(this, "Succes", "Commande ajoutee.");
+        if (m_mapAddOrder && m_mapAddOrder->rootObject()) {
+            QMetaObject::invokeMethod(m_mapAddOrder->rootObject(), "resetMap");
+        }
         refreshCommandes();
         populateCommandeBacList();
         if (auto *sw = mainStacked()) {
@@ -27797,6 +29997,16 @@ void MainWindow::on_prod_btnPdf_clicked()
     onGeminiPdfReply(nullptr);
 
     QTimer::singleShot(0, this, []() { s_pdfInFlight = false; });
+}
+
+void MainWindow::on_prod_btnBacStatus_clicked()
+{
+    // Make sure the serial bridge is up so the PIR motion frames feed
+    // bacMotionStateChanged() while the dialog is open.
+    ensureArduinoConnected();
+
+    BacStatusDialog dlg(this);
+    dlg.exec();
 }
 
 void MainWindow::on_prod_btnSave_Add_clicked()
@@ -27913,7 +30123,7 @@ void MainWindow::on_prod_btnSave_Add_clicked()
         combo->setCurrentIndex(-1);
     }
     if (ui->prod_dsb_price_add) ui->prod_dsb_price_add->setValue(0.0);
-    if (ui->prod_sb_qty_add) ui->prod_sb_qty_add->setValue(0);
+    if (ui->prod_sb_qty_add) ui->prod_sb_qty_add->setValue(1);
     if (ui->prod_slider_cap_add) ui->prod_slider_cap_add->setValue(qMax(0, ui->prod_slider_cap_add->maximum() / 2));
     if (ui->prod_slider_bat_add) ui->prod_slider_bat_add->setValue(10000);
     if (ui->prod_lstCharacteristics) {
@@ -28646,6 +30856,7 @@ void MainWindow::refreshClients() {
 
 void MainWindow::refreshCommandes(const QString &searchField, const QString &searchValue, const QString &sortCriteria)
 {
+    checkScheduledDeliveries();
     if (!ui->tableProduits_2) return;
     updateClientCombos();
     ui->tableProduits_2->setRowCount(0);
@@ -28672,6 +30883,8 @@ void MainWindow::refreshCommandes(const QString &searchField, const QString &sea
         int idCmd    = model->data(model->index(i, 10)).toInt();
         refItem->setData(Qt::UserRole, idClient);
         refItem->setData(Qt::UserRole + 1, idCmd);
+        refItem->setData(Qt::UserRole + 2, model->data(model->index(i, 11)).toString());
+        refItem->setData(Qt::UserRole + 3, model->data(model->index(i, 12)).toString());
         
         // Fetch Client Address from index 9
         QString adresse = model->data(model->index(i, 9)).toString();
@@ -30960,6 +33173,28 @@ void MainWindow::setupAccessibilityModule()
 }
 
 // ============ CLOSE EVENT - SAVE WINDOW STATE ============
+void MainWindow::resizeEvent(QResizeEvent *event)
+{
+    QMainWindow::resizeEvent(event);
+    onFloatingAIButtonPositionUpdate();
+
+    if (m_labibDock && m_labibDock->isVisible()) {
+        const int windowW = qMax(900, this->width());
+        const int minDockW = 400;
+        const int maxDockW = qMax(minDockW, windowW - 180);
+        const int preferredDockW = qBound(minDockW, static_cast<int>(windowW * 0.32), maxDockW);
+        m_labibDock->setMinimumWidth(minDockW);
+        m_labibDock->setMaximumWidth(maxDockW);
+        resizeDocks({m_labibDock}, {preferredDockW}, Qt::Horizontal);
+    }
+}
+
+void MainWindow::moveEvent(QMoveEvent *event)
+{
+    QMainWindow::moveEvent(event);
+    onFloatingAIButtonPositionUpdate();
+}
+
 void MainWindow::closeEvent(QCloseEvent *event)
 {
     // Sauvegarder la taille, position et état accessibilité
@@ -31298,9 +33533,9 @@ void MainWindow::on_btnMicrophone_clicked()
         m_voiceAssistant->stopListening();
         m_btnMicrophone->setText("Voix");
     } else {
+        m_voiceAssistant->speak("Je vous ecoute");
         m_voiceAssistant->startListening();
         m_btnMicrophone->setText("Ecoute...");
-        m_voiceAssistant->speak("Je vous ecoute");
     }
 }
 
@@ -31390,13 +33625,191 @@ void MainWindow::onVoiceRecognized(const QString &text)
 {
     m_lastVoiceRecognizedText = text;
     qDebug() << "[VOICE] Recognized:" << text;
+    if (m_btnMicrophone && !text.trimmed().isEmpty()) {
+        const QString tip = QString("Reconnu: %1").arg(text.left(160));
+        m_btnMicrophone->setToolTip(tip);
+        QToolTip::showText(m_btnMicrophone->mapToGlobal(QPoint(m_btnMicrophone->width() / 2, 0)),
+                           tip, m_btnMicrophone, QRect(), 2500);
+    }
 }
 
 void MainWindow::onVoiceCommandRecognized(const QString &command)
 {
     qDebug() << "[VOICE] Command:" << command;
 
-    if (command == "ADD_INTERVENTION") {
+    auto speakVoice = [this](const QString &text) {
+        if (m_voiceAssistant && m_voiceAssistant->isInitialized()) {
+            m_voiceAssistant->speak(text);
+        }
+    };
+    auto openProduits = [this]() {
+        if (ui && ui->btnProduits) ui->btnProduits->click();
+    };
+    auto openStock = [this]() {
+        if (ui && ui->btnStock) ui->btnStock->click();
+    };
+    auto openClients = [this]() {
+        if (ui && ui->btnClient) ui->btnClient->click();
+    };
+    auto openEmployes = [this]() {
+        if (ui && ui->btnEmployes) ui->btnEmployes->click();
+        else showEmployesPage();
+    };
+    auto openMaintenance = [this]() {
+        if (ui && ui->btnMaintenance) ui->btnMaintenance->click();
+    };
+
+    if (command == "OPEN_PRODUITS") {
+        openProduits();
+        speakVoice("Module produits ouvert.");
+    } else if (command == "OPEN_STOCK") {
+        openStock();
+        speakVoice("Module stock ouvert.");
+    } else if (command == "OPEN_CLIENTS") {
+        openClients();
+        speakVoice("Module clients ouvert.");
+    } else if (command == "OPEN_EMPLOYES") {
+        openEmployes();
+        speakVoice("Module employes ouvert.");
+    } else if (command == "OPEN_MAINTENANCE") {
+        openMaintenance();
+        speakVoice("Module maintenance ouvert.");
+    } else if (command == "ADD_PRODUIT") {
+        openProduits();
+        goAjout();
+        speakVoice("Page ajout produit ouverte.");
+    } else if (command == "DELETE_PRODUIT") {
+        openProduits();
+        QTableWidget *t = produitTable();
+        if (!t || t->rowCount() <= 0) {
+            speakVoice("Aucun produit disponible a supprimer.");
+            return;
+        }
+        int row = t->currentRow();
+        if (row < 0 || row >= t->rowCount()) row = currentProduitRow;
+        if (row < 0 || row >= t->rowCount()) {
+            speakVoice("Selectionnez d'abord un produit dans la table.");
+            return;
+        }
+
+        if (QMessageBox::question(this, "Supprimer", "Etes-vous sur de supprimer ce produit ?",
+                                  QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes) {
+            return;
+        }
+
+        int idProduit = -1;
+        QString reference;
+        if (QTableWidgetItem *it = t->item(row, 0)) {
+            reference = it->text().trimmed();
+            idProduit = it->data(PROD_ROLE_ID).toInt();
+        }
+        if (idProduit <= 0 && !reference.isEmpty()) {
+            int foundId = -1;
+            if (Ptmp.findIdByReference(reference, foundId)) {
+                idProduit = foundId;
+            }
+        }
+        if (idProduit <= 0) {
+            speakVoice("ID produit introuvable.");
+            return;
+        }
+        if (!Ptmp.supprimer(idProduit)) {
+            showFriendlySqlError(this, "supprimer le produit", Ptmp.lastError());
+            return;
+        }
+        refreshProduitTable();
+        if (m_isCardView) refreshCardView();
+        speakVoice("Produit supprime.");
+    } else if (command == "ADD_STOCK") {
+        openStock();
+        if (ui && ui->btnNew) ui->btnNew->click();
+        else if (ui && ui->stock_stackedWidget) ui->stock_stackedWidget->setCurrentIndex(1);
+        speakVoice("Page ajout stock ouverte.");
+    } else if (command == "DELETE_STOCK") {
+        openStock();
+        if (!ui || !ui->tableWidget || ui->tableWidget->rowCount() <= 0) {
+            speakVoice("Aucun element stock a supprimer.");
+            return;
+        }
+        int row = ui->tableWidget->currentRow();
+        if (row < 0 || row >= ui->tableWidget->rowCount()) {
+            speakVoice("Selectionnez d'abord un element stock.");
+            return;
+        }
+
+        if (QMessageBox::question(this, "Supprimer", "Etes-vous sur de supprimer cet element stock ?",
+                                  QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes) {
+            return;
+        }
+
+        int currentIdMp = ui->tableWidget->item(row, 0) ? ui->tableWidget->item(row, 0)->data(Qt::UserRole).toInt() : 0;
+        if (currentIdMp > 0) {
+            if (!Stmp.supprimer(currentIdMp)) {
+                QMessageBox::critical(this, "Erreur", "Erreur lors de la suppression: " + Stmp.lastError());
+                return;
+            }
+            setupStockTableData();
+        } else {
+            ui->tableWidget->removeRow(row);
+            if (m_isStockCardView) refreshStockCardView();
+        }
+        speakVoice("Element stock supprime.");
+    } else if (command == "ADD_CLIENT") {
+        openClients();
+        on_btnNouveau_client_clicked();
+        speakVoice("Page ajout client ouverte.");
+    } else if (command == "DELETE_CLIENT") {
+        openClients();
+        if (!ui || !ui->tableWidget_Client || ui->tableWidget_Client->rowCount() <= 0) {
+            speakVoice("Aucun client a supprimer.");
+            return;
+        }
+        int row = ui->tableWidget_Client->currentRow();
+        if ((row < 0 || row >= ui->tableWidget_Client->rowCount()) && currentClientRow >= 0) {
+            row = currentClientRow;
+        }
+        if (row < 0 || row >= ui->tableWidget_Client->rowCount()) {
+            speakVoice("Selectionnez d'abord un client.");
+            return;
+        }
+
+        if (QMessageBox::question(this, "Supprimer", "Voulez-vous supprimer ce client ?",
+                                  QMessageBox::Yes | QMessageBox::No) != QMessageBox::Yes) {
+            return;
+        }
+
+        QTableWidgetItem *matriculeItem = ui->tableWidget_Client->item(row, 1);
+        const int clientId = matriculeItem ? matriculeItem->data(Qt::UserRole).toInt() : 0;
+        if (clientId <= 0) {
+            speakVoice("ID client invalide.");
+            return;
+        }
+
+        Client tempClient;
+        if (!tempClient.supprimer(clientId)) {
+            QMessageBox::critical(this, "Erreur", "Impossible de supprimer le client: " + tempClient.lastError());
+            return;
+        }
+        QSqlDatabase::database().commit();
+        refreshClients();
+        speakVoice("Client supprime.");
+    } else if (command == "ADD_EMPLOYE") {
+        openEmployes();
+        on_btnNouveau_clicked();
+        speakVoice("Page ajout employe ouverte.");
+    } else if (command == "DELETE_EMPLOYE") {
+        openEmployes();
+        if (!ui || !ui->tableEmployes || ui->tableEmployes->rowCount() <= 0) {
+            speakVoice("Aucun employe a supprimer.");
+            return;
+        }
+        const int beforeCount = ui->tableEmployes->rowCount();
+        on_btnSupprimer_clicked();
+        const int afterCount = ui->tableEmployes ? ui->tableEmployes->rowCount() : beforeCount;
+        if (afterCount < beforeCount) {
+            speakVoice("Employe supprime.");
+        }
+    } else if (command == "ADD_INTERVENTION") {
         handleVoiceAddIntervention();
     } else if (command == "MODIFY_INTERVENTION") {
         handleVoiceModifyIntervention();
@@ -31428,6 +33841,13 @@ void MainWindow::onVoiceError(const QString &errorMsg)
     qWarning() << "[VOICE ERROR]" << errorMsg;
     if (m_btnMicrophone) {
         m_btnMicrophone->setText("Voix");
+        const QString clean = errorMsg.trimmed();
+        if (!clean.isEmpty()) {
+            const QString tip = QString("Voix: %1").arg(clean.left(180));
+            m_btnMicrophone->setToolTip(tip);
+            QToolTip::showText(m_btnMicrophone->mapToGlobal(QPoint(m_btnMicrophone->width() / 2, 0)),
+                               tip, m_btnMicrophone, QRect(), 3500);
+        }
     }
 }
 
@@ -31440,6 +33860,11 @@ void MainWindow::onVoiceSpeechFinished()
 void MainWindow::handleVoiceAddIntervention()
 {
     qDebug() << "Voice: Add Intervention";
+    if (auto *sw = mainStacked()) {
+        if (auto *page = sw->findChild<QWidget*>("page_Maintenance_Tab", Qt::FindDirectChildrenOnly)) {
+            sw->setCurrentWidget(page);
+        }
+    }
     if (ui && ui->stackedWidget_Maintenance && ui->page_Maint_Ajout) {
         ui->stackedWidget_Maintenance->setCurrentWidget(ui->page_Maint_Ajout);
     }
@@ -31451,6 +33876,11 @@ void MainWindow::handleVoiceAddIntervention()
 void MainWindow::handleVoiceModifyIntervention()
 {
     qDebug() << "Voice: Modify Intervention";
+    if (auto *sw = mainStacked()) {
+        if (auto *page = sw->findChild<QWidget*>("page_Maintenance_Tab", Qt::FindDirectChildrenOnly)) {
+            sw->setCurrentWidget(page);
+        }
+    }
 
     auto *table = maintenanceTable();
     if (!table) {
@@ -31559,6 +33989,11 @@ void MainWindow::handleVoiceModifyIntervention()
 void MainWindow::handleVoiceDeleteIntervention()
 {
     qDebug() << "Voice: Delete Intervention";
+    if (auto *sw = mainStacked()) {
+        if (auto *page = sw->findChild<QWidget*>("page_Maintenance_Tab", Qt::FindDirectChildrenOnly)) {
+            sw->setCurrentWidget(page);
+        }
+    }
 
     auto *table = maintenanceTable();
     if (!table) {
@@ -31637,7 +34072,12 @@ void MainWindow::handleVoiceExport()
 
 void MainWindow::handleVoiceHelp()
 {
-    QString help = "Commandes: ajouter intervention, enregistrer ajout, modifier intervention INT zero zero trois, enregistrer modification, supprimer intervention INT zero zero trois, rechercher, afficher, exporter";
+    QString help =
+        "Commandes principales: ouvrir produits, ouvrir stock, ouvrir clients, ouvrir employes, "
+        "ajouter produit, supprimer produit, ajouter stock, supprimer stock, "
+        "ajouter client, supprimer client, ajouter employe, supprimer employe, "
+        "ajouter intervention, enregistrer ajout, modifier intervention INT zero zero trois, "
+        "enregistrer modification, supprimer intervention INT zero zero trois.";
     qDebug() << "Voice: Help";
     if (m_voiceAssistant && m_voiceAssistant->isInitialized()) {
         m_voiceAssistant->speak(help);
@@ -31648,41 +34088,68 @@ void MainWindow::handleVoiceHelp()
 
 void MainWindow::checkAndNotifyExpiringContracts()
 {
-    QDate today = QDate::currentDate();
-    QDate notificationThreshold = today.addMonths(1); // Notify when expiration is ~1 month away
+    const QDate today = QDate::currentDate();
+    QSettings settings("WasteGuard", "WasteGuard");
+    const QDate startWindow = today.addDays(-7);   // catch recently expired if app was offline
+    const QDate endWindow = today.addDays(30);     // warning window for upcoming expirations
 
-    // Query contracts expiring within 7 days - using TO_DATE for Oracle compatibility
+    // Query contracts near expiry from DB continuously.
     QSqlQuery query;
     query.prepare(
-        "SELECT EMAIL, NOM, DATE_EXPIRATION_CONTRAT FROM CLIENT "
-        "WHERE DATE_EXPIRATION_CONTRAT <= TO_DATE(:threshold, 'YYYY-MM-DD') "
-        "AND DATE_EXPIRATION_CONTRAT >= TO_DATE(:today, 'YYYY-MM-DD') "
+        "SELECT EMAIL, NOM, DATE_EXPIRATION_CONTRAT, TYPE_CONTRAT FROM CLIENT "
+        "WHERE DATE_EXPIRATION_CONTRAT BETWEEN :startWindow AND :endWindow "
     );
-    query.bindValue(":threshold", notificationThreshold.toString("yyyy-MM-dd"));
-    query.bindValue(":today", today.toString("yyyy-MM-dd"));
+    query.bindValue(":startWindow", startWindow);
+    query.bindValue(":endWindow", endWindow);
 
-    if (!query.exec()) {
-        qDebug() << "Error checking expiring contracts:" << query.lastError().text();
+    bool queryOk = query.exec();
+    if (!queryOk) {
+        // Oracle fallback for date parameters in strict environments.
+        query.prepare(
+            "SELECT EMAIL, NOM, DATE_EXPIRATION_CONTRAT, TYPE_CONTRAT FROM CLIENT "
+            "WHERE DATE_EXPIRATION_CONTRAT BETWEEN TO_DATE(:startWindow, 'YYYY-MM-DD') "
+            "AND TO_DATE(:endWindow, 'YYYY-MM-DD') "
+        );
+        query.bindValue(":startWindow", startWindow.toString("yyyy-MM-dd"));
+        query.bindValue(":endWindow", endWindow.toString("yyyy-MM-dd"));
+        queryOk = query.exec();
+    }
+
+    if (!queryOk) {
+        qDebug() << "Erreur verification contrats expirants:" << query.lastError().text();
         return;
     }
 
-    // Send email notifications for each expiring contract
-    while (query.next()) {
-        QString email = query.value(0).toString();
-        QString nom = query.value(1).toString();
-        QString dateExpiration = query.value(2).toString();
+    int sentCount = 0;
 
-        if (!email.isEmpty()) {
-            sendContractExpirationEmail(email, nom, dateExpiration);
+    // Send once per contract expiration date (anti-duplicate).
+    while (query.next()) {
+        const QString email = query.value(0).toString().trimmed();
+        const QString nom = query.value(1).toString().trimmed();
+        const QDate expDate = query.value(2).toDate();
+        QString dateExpiration = expDate.isValid() ? expDate.toString("yyyy-MM-dd") : query.value(2).toString().trimmed();
+        const QString contractType = query.value(3).toString().trimmed();
+
+        const QString notifKey = QString("contractExpiryNotice/sent/%1/%2")
+                                     .arg(email.toLower(), dateExpiration);
+        const bool alreadySent = settings.value(notifKey, false).toBool();
+
+        if (!email.isEmpty() && !alreadySent) {
+            if (sendContractExpirationEmail(email, nom, dateExpiration, contractType)) {
+                settings.setValue(notifKey, true);
+                ++sentCount;
+            }
         }
     }
+
+    qDebug() << "[CONTRACT NOTIF] Scan DB" << startWindow.toString("yyyy-MM-dd")
+             << "->" << endWindow.toString("yyyy-MM-dd") << "emails envoyes:" << sentCount;
 }
 
-void MainWindow::sendContractExpirationEmail(const QString &clientEmail, const QString &clientName, const QString &expirationDate)
+bool MainWindow::sendContractExpirationEmail(const QString &clientEmail, const QString &clientName, const QString &expirationDate, const QString &contractType)
 {
-    // Create professional email notification
-    QString subject = "Notification Urgente: Votre contrat arrive a expiration - WasteGuard";
-    
+    QString subject = "Alerte WasteGuard : votre contrat arrive a expiration";
+
     QString htmlBody = QString(
         "<!DOCTYPE html>"
         "<html lang='fr'>"
@@ -31699,6 +34166,13 @@ void MainWindow::sendContractExpirationEmail(const QString &clientEmail, const Q
         ".info-section { background: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 16px; border-radius: 6px; margin-bottom: 20px; }"
         ".info-label { font-weight: 700; color: #0c4a6e; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }"
         ".info-value { color: #075985; font-size: 16px; font-weight: 600; margin-top: 4px; }"
+        ".separator { border: 0; border-top: 1px dashed #cbd5e1; margin: 18px 0; }"
+        ".summary { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; }"
+        ".summary ul { margin: 8px 0 0 18px; padding: 0; color: #334155; }"
+        ".summary li { margin: 6px 0; line-height: 1.4; }"
+        ".steps { margin: 10px 0 0 0; padding-left: 0; list-style: none; }"
+        ".steps li { margin: 8px 0; color: #334155; }"
+        ".steps b { color: #0f2b4c; }"
         ".action-button { display: inline-block; background: linear-gradient(135deg, #2a5298, #0f2b4c); color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 700; margin-top: 12px; font-size: 14px; }"
         ".footer { background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 30px; text-align: center; color: #64748b; font-size: 12px; }"
         ".timestamp { color: #94a3b8; font-size: 12px; }"
@@ -31707,33 +34181,40 @@ void MainWindow::sendContractExpirationEmail(const QString &clientEmail, const Q
         "<body>"
         "<div class='container'>"
         "<div class='header'>"
-        "<div class='status-icon'></div>"
+        "<div class='status-icon'>[ALERTE]</div>"
         "<h1>Notification d'Expiration de Contrat</h1>"
         "<p>WasteGuard - Systeme de Gestion Intelligente des Dechets</p>"
         "</div>"
         "<div class='content'>"
-        "<p>Chere <strong>%1</strong>,</p>"
+        "<p>Bonjour <strong>%1</strong>,</p>"
         "<div class='alert-box'>"
-        "<div class='alert-title'>ÃƒÂ¯Ã‚Â¸Ã‚Â ACTION REQUISE</div>"
-        "<div class='alert-text'>Votre contrat arrivera bientot a expiration. Nous vous recommandons de renouveler votre contrat des que possible.</div>"
+        "<div class='alert-title'>ACTION REQUISE</div>"
+        "<div class='alert-text'>Votre contrat arrive bientot a expiration. Nous vous recommandons de lancer le renouvellement des maintenant.</div>"
         "</div>"
-        "<div class='info-section'>"
-        "<div class='info-label'>Date d'Expiration</div>"
-        "<div class='info-value'>%2</div>"
+        "<div class='summary'>"
+        "<div class='info-label'>Resume du contrat</div>"
+        "<ul>"
+        "<li>- Contrat : <strong>%6</strong></li>"
+        "<li>- Date d'expiration : <strong>%2</strong></li>"
+        "<li>- Jours restants : <strong>%3</strong></li>"
+        "</ul>"
         "</div>"
-        "<div class='info-section'>"
-        "<div class='info-label'>Jours Restants</div>"
-        "<div class='info-value' id='daysLeft'>%3</div>"
-        "</div>"
+        "<hr class='separator'/>"
+        "<div class='info-label'>Prochaines etapes conseillees</div>"
+        "<ul class='steps'>"
+        "<li><b>1.</b> Verifiez les conditions de renouvellement de votre contrat.</li>"
+        "<li><b>2.</b> Contactez notre support pour finaliser le renouvellement.</li>"
+        "<li><b>3.</b> Conservez cet email comme rappel de suivi.</li>"
+        "</ul>"
         "<p style='margin: 20px 0; color: #475569;'>"
-        "Pour renouveler votre contrat ou obtenir plus d'informations, veuillez contacter notre equipe support.<br>"
-        "Nous sommes la pour assurer la continuite de votre service !"
+        "Pour renouveler votre contrat ou obtenir plus d'informations, contactez notre equipe support.<br>"
+        "Nous sommes a votre disposition pour assurer la continuite de votre service."
         "</p>"
         "<a href='mailto:support@wasteguard.com' class='action-button'>Contacter le Support</a>"
         "</div>"
         "<div class='footer'>"
         "<p style='margin: 0 0 8px 0;'>WasteGuard (C) 2026 - Tous droits reserves</p>"
-        "<p class='timestamp' style='margin: 0;'>Email envoye le: %4 a %5</p>"
+        "<p class='timestamp' style='margin: 0;'>Email envoye le %4 a %5</p>"
         "</div>"
         "</div>"
     );
@@ -31742,14 +34223,34 @@ void MainWindow::sendContractExpirationEmail(const QString &clientEmail, const Q
     int daysLeft = QDate::currentDate().daysTo(expDate);
     QString currentDate = QDate::currentDate().toString("dd/MM/yyyy");
     QString currentTime = QTime::currentTime().toString("HH:mm:ss");
-    
-    htmlBody = htmlBody.arg(clientName, expirationDate, QString::number(daysLeft), currentDate, currentTime);
+    QString daysLeftText;
+    if (daysLeft < 0) {
+        daysLeftText = QString("Expire il y a %1 jour(s)").arg(-daysLeft);
+    } else if (daysLeft == 0) {
+        daysLeftText = "Expire aujourd'hui";
+    } else {
+        daysLeftText = QString("%1 jour(s)").arg(daysLeft);
+    }
+    QString contractTypeText = contractType.trimmed().isEmpty() ? "Standard" : contractType.trimmed();
+
+    htmlBody = htmlBody.arg(clientName,
+                            expirationDate,
+                            daysLeftText,
+                            currentDate,
+                            currentTime,
+                            contractTypeText);
 
     if (m_emailManager) {
-        m_emailManager->sendEmail(clientEmail, subject, htmlBody);
+        const bool sent = m_emailManager->sendEmail(clientEmail, subject, htmlBody);
+        if (!sent) {
+            qWarning() << "Echec envoi email expiration contrat pour" << clientEmail;
+        }
+        return sent;
     }
-}
 
+    qWarning() << "Email manager non initialise. Impossible d'envoyer l'email d'expiration a" << clientEmail;
+    return false;
+}
 // ===================================================
 // CONTRACT PDF
 
@@ -31966,4 +34467,723 @@ void MainWindow::openEcoScoreInterface() {
         ui->chartContratDist->setChart(distChart);
         ui->chartContratDist->setRenderHint(QPainter::Antialiasing);
     }
+}
+
+// =============================================================================
+// THEME SETTINGS MODULE
+// Built entirely in code to avoid modifying mainwindow.ui.
+// =============================================================================
+
+#include <QColorDialog>
+#include <QRadioButton>
+#include <QScrollArea>
+#include <QGridLayout>
+#include <QButtonGroup>
+
+namespace {
+
+QWidget *makeThemeModeCard(QWidget *parent,
+                           const QString &title,
+                           const QString &subtitle,
+                           const ThemePalette &swatchPal,
+                           bool selected,
+                           const QString &objectName)
+{
+    auto *card = new QFrame(parent);
+    card->setObjectName(objectName);
+    card->setCursor(Qt::PointingHandCursor);
+    card->setMinimumHeight(160);
+
+    const QString border = selected ? swatchPal.primary : "#e2e8f0";
+    card->setStyleSheet(
+        QString("QFrame#%1{"
+                " background:#ffffff; border:2px solid %2; border-radius:14px;"
+                "}"
+                "QFrame#%1:hover{ border:2px solid %3; }"
+                "QLabel{ background:transparent; border:none; }"
+               ).arg(objectName, border, swatchPal.primary));
+
+    auto *lay = new QVBoxLayout(card);
+    lay->setContentsMargins(14, 14, 14, 14);
+    lay->setSpacing(8);
+
+    // Preview mini
+    auto *preview = new QFrame(card);
+    preview->setMinimumHeight(70);
+    preview->setStyleSheet(
+        QString("QFrame{"
+                " background:%1; border:1px solid %2; border-radius:10px;"
+                "}")
+            .arg(swatchPal.bgApp, swatchPal.border));
+    auto *pLay = new QHBoxLayout(preview);
+    pLay->setContentsMargins(8, 8, 8, 8);
+    pLay->setSpacing(6);
+
+    auto *sidebar = new QFrame(preview);
+    sidebar->setFixedWidth(22);
+    sidebar->setStyleSheet(QString("background:%1; border-radius:6px;").arg(swatchPal.sidebarBg));
+    pLay->addWidget(sidebar);
+
+    auto *cardMini = new QFrame(preview);
+    cardMini->setStyleSheet(QString("background:%1; border:1px solid %2; border-radius:6px;")
+                                .arg(swatchPal.bgCard, swatchPal.border));
+    auto *cLay = new QHBoxLayout(cardMini);
+    cLay->setContentsMargins(6, 6, 6, 6);
+    cLay->setSpacing(6);
+
+    auto *dotPrimary = new QFrame(cardMini);
+    dotPrimary->setFixedSize(16, 16);
+    dotPrimary->setStyleSheet(QString("background:%1; border-radius:8px;").arg(swatchPal.primary));
+    auto *dotAccent = new QFrame(cardMini);
+    dotAccent->setFixedSize(16, 16);
+    dotAccent->setStyleSheet(QString("background:%1; border-radius:8px;").arg(swatchPal.accent));
+    auto *dotDanger = new QFrame(cardMini);
+    dotDanger->setFixedSize(16, 16);
+    dotDanger->setStyleSheet(QString("background:%1; border-radius:8px;").arg(swatchPal.danger));
+    cLay->addWidget(dotPrimary);
+    cLay->addWidget(dotAccent);
+    cLay->addWidget(dotDanger);
+    cLay->addStretch();
+
+    pLay->addWidget(cardMini, 1);
+    lay->addWidget(preview);
+
+    auto *lblTitle = new QLabel(title, card);
+    lblTitle->setStyleSheet("font-size:14px; font-weight:800; color:#1a1a2e;");
+    lay->addWidget(lblTitle);
+
+    auto *lblSub = new QLabel(subtitle, card);
+    lblSub->setWordWrap(true);
+    lblSub->setStyleSheet("font-size:11px; color:#6c757d;");
+    lay->addWidget(lblSub);
+
+    lay->addStretch();
+    return card;
+}
+
+} // namespace
+
+void MainWindow::setupSettingsModule()
+{
+    if (!ui) return;
+
+    QStackedWidget *stack = mainStacked();
+    if (!stack) return;
+    if (stack->findChild<QWidget*>("pageSettings", Qt::FindDirectChildrenOnly)) return;
+
+    // ---------- Build the Settings page ----------
+    auto *page = new QWidget(stack);
+    page->setObjectName("pageSettings");
+    page->setAttribute(Qt::WA_StyledBackground, true);
+    m_settingsPage = page;
+
+    auto *rootLay = new QVBoxLayout(page);
+    rootLay->setContentsMargins(28, 24, 28, 24);
+    rootLay->setSpacing(18);
+
+    // Header
+    auto *header = new QWidget(page);
+    auto *headerLay = new QHBoxLayout(header);
+    headerLay->setContentsMargins(0, 0, 0, 0);
+    headerLay->setSpacing(10);
+    auto *lblTitle = new QLabel(
+        QString::fromUtf8("\xE2\x9A\x99\xEF\xB8\x8F  Parametres - Theme de l'application"), header);
+    lblTitle->setObjectName("settingsTitle");
+    lblTitle->setStyleSheet("font-size:22px; font-weight:800; color:#1a1a2e; background:transparent;");
+    headerLay->addWidget(lblTitle);
+    headerLay->addStretch();
+    rootLay->addWidget(header);
+
+    auto *lblHint = new QLabel(
+        QString::fromUtf8("Choisissez un theme preconcu ou personnalisez chaque couleur. "
+                          "Les modifications s'appliquent instantanement et sont sauvegardees."),
+        page);
+    lblHint->setWordWrap(true);
+    lblHint->setStyleSheet("font-size:13px; color:#64748b; background:transparent;");
+    rootLay->addWidget(lblHint);
+
+    // ---------- Mode selector (3 cards) ----------
+    auto *modesRow = new QWidget(page);
+    auto *modesLay = new QHBoxLayout(modesRow);
+    modesLay->setContentsMargins(0, 6, 0, 6);
+    modesLay->setSpacing(14);
+
+    ThemeManager *tm = ThemeManager::instance();
+
+    QWidget *cardDefault = makeThemeModeCard(
+        modesRow,
+        "Theme Clair (Defaut)",
+        QString::fromUtf8("Theme WasteGuard d'origine, clair et professionnel."),
+        ThemeManager::defaultPalette(),
+        tm->mode() == ThemeManager::Default,
+        "themeCardDefault");
+    QWidget *cardDark = makeThemeModeCard(
+        modesRow,
+        "Theme Sombre",
+        QString::fromUtf8("Interface sombre pour reduire la fatigue oculaire."),
+        ThemeManager::darkPalette(),
+        tm->mode() == ThemeManager::Dark,
+        "themeCardDark");
+    QWidget *cardCustom = makeThemeModeCard(
+        modesRow,
+        "Personnalise",
+        QString::fromUtf8("Ajustez chaque couleur manuellement selon vos preferences."),
+        tm->customPalette(),
+        tm->mode() == ThemeManager::Custom,
+        "themeCardCustom");
+
+    modesLay->addWidget(cardDefault, 1);
+    modesLay->addWidget(cardDark, 1);
+    modesLay->addWidget(cardCustom, 1);
+    rootLay->addWidget(modesRow);
+
+    // Click behaviour: cards propagate MouseButtonRelease via the MainWindow
+    // eventFilter (same mechanism used elsewhere in this class).
+    cardDefault->installEventFilter(this);
+    cardDark->installEventFilter(this);
+    cardCustom->installEventFilter(this);
+    cardDefault->setProperty("themeModeId", int(ThemeManager::Default));
+    cardDark->setProperty("themeModeId", int(ThemeManager::Dark));
+    cardCustom->setProperty("themeModeId", int(ThemeManager::Custom));
+
+    // Make all child widgets of the cards transparent to mouse events so the
+    // click reaches the top-level QFrame where the eventFilter is installed.
+    auto makeChildrenClickThrough = [](QWidget *card) {
+        for (QObject *o : card->findChildren<QWidget*>()) {
+            if (auto *w = qobject_cast<QWidget*>(o)) {
+                w->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+            }
+        }
+    };
+    makeChildrenClickThrough(cardDefault);
+    makeChildrenClickThrough(cardDark);
+    makeChildrenClickThrough(cardCustom);
+
+    // ---------- Custom color grid ----------
+    auto *customSection = new QFrame(page);
+    customSection->setObjectName("customSection");
+    customSection->setStyleSheet(
+        "QFrame#customSection{"
+        " background:#ffffff; border:1px solid #e8ecf0; border-radius:14px;"
+        "}"
+        "QLabel{ background:transparent; }"
+    );
+    auto *customLay = new QVBoxLayout(customSection);
+    customLay->setContentsMargins(18, 16, 18, 18);
+    customLay->setSpacing(10);
+
+    auto *customHeader = new QWidget(customSection);
+    auto *customHeaderLay = new QHBoxLayout(customHeader);
+    customHeaderLay->setContentsMargins(0, 0, 0, 0);
+    auto *lblCustom = new QLabel(QString::fromUtf8("Couleurs personnalisees"), customHeader);
+    lblCustom->setStyleSheet("font-size:15px; font-weight:800; color:#1a1a2e;");
+    customHeaderLay->addWidget(lblCustom);
+    customHeaderLay->addStretch();
+
+    auto *btnResetLight = new QPushButton(QString::fromUtf8("Base: Clair"), customHeader);
+    btnResetLight->setCursor(Qt::PointingHandCursor);
+    btnResetLight->setStyleSheet(
+        "QPushButton{ background:#f8fafc; color:#1e293b; border:1px solid #cbd5e1;"
+        " border-radius:8px; padding:7px 14px; font-weight:600; }"
+        "QPushButton:hover{ background:#e2e8f0; }");
+    auto *btnResetDark = new QPushButton(QString::fromUtf8("Base: Sombre"), customHeader);
+    btnResetDark->setCursor(Qt::PointingHandCursor);
+    btnResetDark->setStyleSheet(
+        "QPushButton{ background:#0f172a; color:#f8fafc; border:1px solid #1e293b;"
+        " border-radius:8px; padding:7px 14px; font-weight:600; }"
+        "QPushButton:hover{ background:#1e293b; }");
+    customHeaderLay->addWidget(btnResetLight);
+    customHeaderLay->addWidget(btnResetDark);
+    customLay->addWidget(customHeader);
+
+    auto *customHint = new QLabel(
+        QString::fromUtf8("Cliquez sur une pastille pour modifier la couleur. "
+                          "Les modifications n'affectent que le mode Personnalise."),
+        customSection);
+    customHint->setWordWrap(true);
+    customHint->setStyleSheet("font-size:12px; color:#64748b;");
+    customLay->addWidget(customHint);
+
+    auto *colorsGridWrap = new QWidget(customSection);
+    colorsGridWrap->setObjectName("colorsGridWrap");
+    auto *colorsGrid = new QGridLayout(colorsGridWrap);
+    colorsGrid->setContentsMargins(0, 4, 0, 0);
+    colorsGrid->setHorizontalSpacing(14);
+    colorsGrid->setVerticalSpacing(10);
+    customLay->addWidget(colorsGridWrap);
+
+    rootLay->addWidget(customSection, 1);
+
+    QObject::connect(btnResetLight, &QPushButton::clicked, this, [this]() {
+        ThemeManager::instance()->resetCustomToDefault();
+        applyThemeFromManager();
+        rebuildSettingsCustomColorsList();
+    });
+    QObject::connect(btnResetDark, &QPushButton::clicked, this, [this]() {
+        ThemeManager::instance()->resetCustomToDark();
+        applyThemeFromManager();
+        rebuildSettingsCustomColorsList();
+    });
+
+    stack->addWidget(page);
+
+    // Build initial color grid
+    rebuildSettingsCustomColorsList();
+
+    // React to theme changes (from anywhere) to keep page preview fresh
+    QObject::connect(tm, &ThemeManager::themeChanged, this, [this]() {
+        // Re-highlight the selected card by rebuilding simple borders
+        if (!m_settingsPage) return;
+        ThemeManager *tmgr = ThemeManager::instance();
+        const QString selBorder = tmgr->palette().primary;
+        auto markCard = [this, selBorder](const QString &name, bool sel) {
+            if (!m_settingsPage) return;
+            if (auto *c = m_settingsPage->findChild<QFrame*>(name)) {
+                const QString border = sel ? selBorder : "#e2e8f0";
+                QString qss = c->styleSheet();
+                // Simple rewrite: replace first "border:2px solid <color>" in the sheet
+                c->setStyleSheet(
+                    QString("QFrame#%1{"
+                            " background:#ffffff; border:2px solid %2; border-radius:14px;"
+                            "}"
+                            "QFrame#%1:hover{ border:2px solid %3; }"
+                            "QLabel{ background:transparent; border:none; }"
+                           ).arg(name, border, selBorder));
+            }
+        };
+        markCard("themeCardDefault", tmgr->mode() == ThemeManager::Default);
+        markCard("themeCardDark",    tmgr->mode() == ThemeManager::Dark);
+        markCard("themeCardCustom",  tmgr->mode() == ThemeManager::Custom);
+    });
+
+    // ---------- Sidebar button ----------
+    if (ui->sidebar && ui->sidebar->layout()) {
+        if (auto *layout = qobject_cast<QVBoxLayout*>(ui->sidebar->layout())) {
+            if (!ui->sidebar->findChild<QPushButton*>("btnParametres")) {
+                auto *btn = new QPushButton(ui->sidebar);
+                btn->setObjectName("btnParametres");
+                btn->setCursor(Qt::PointingHandCursor);
+                btn->setCheckable(true);
+                // Use text-presentation gear (U+2699 + U+FE0E) to match the
+                // monochrome style of the other sidebar buttons.
+                const QString gearText = QString(QChar(0x2699)) + QChar(0xFE0E);
+                btn->setText(gearText + QString("  Parametres"));
+
+                // Insert right before btnLogout if present, else before spacer.
+                int insertIndex = layout->count();
+                for (int i = 0; i < layout->count(); ++i) {
+                    QLayoutItem *item = layout->itemAt(i);
+                    if (!item) continue;
+                    if (item->widget() && item->widget()->objectName() == "btnLogout") {
+                        insertIndex = i;
+                        break;
+                    }
+                    if (item->spacerItem()) {
+                        insertIndex = i;
+                    }
+                }
+                layout->insertWidget(insertIndex, btn);
+                if (sidebarGroup) sidebarGroup->addButton(btn);
+
+                QObject::connect(btn, &QPushButton::clicked, this, [this]() {
+                    openSettingsPage();
+                });
+                m_btnParametres = btn;
+
+                // Apply the same per-state stylesheet as the other sidebar
+                // buttons (white text, hover/checked states) so it stops
+                // rendering with the muted default color.
+                updateSidebarState();
+            }
+        }
+    }
+}
+
+void MainWindow::openSettingsPage()
+{
+    if (!m_settingsPage) setupSettingsModule();
+    if (!m_settingsPage) return;
+    if (auto *sw = mainStacked()) {
+        sw->setCurrentWidget(m_settingsPage);
+    }
+    if (m_btnParametres) m_btnParametres->setChecked(true);
+    rebuildSettingsCustomColorsList();
+}
+
+void MainWindow::applyThemeFromManager()
+{
+    // Re-apply palette + global QSS, then rebuild WasteGuard design tokens.
+    ThemeManager::instance()->applyToApplication();
+    applyHomogeneousTheme();
+
+    // -----------------------------------------------------------------------
+    // Global recolor sweep: walk every child widget and replace known
+    // default-mode hardcoded hex tokens in their inline stylesheets with
+    // the current palette values.  This covers all scattered setStyleSheet()
+    // calls in module-setup functions that we haven't individually refactored.
+    //
+    // IMPORTANT: Do NOT add #ffffff here — it is used both as a background
+    // color AND as a text color (white text). Substituting it blindly would
+    // turn white text into a dark card color, making it invisible.
+    // Backgrounds are handled by the global application QSS in ThemeManager.
+    // -----------------------------------------------------------------------
+    const ThemePalette tp = ThemeManager::instance()->palette();
+    const bool isDarkMode = (ThemeManager::instance()->mode() != ThemeManager::Default);
+
+    // --- Pass 1: Full-token replacements (colors that unambiguously map) ---
+    // Only border/primary subs are safe here because they appear as both
+    // background and text in the same role.
+    struct ColorSub { QString from; QString to; };
+    const QVector<ColorSub> borderSubs = {
+        // Borders — same role in all contexts
+        { "#e8ecf0",  tp.border    },
+        { "#e2e8f0",  tp.border    },
+        { "#edf2f7",  tp.border    },
+        // Primary accent colours
+        { "#1e40af",  tp.primary   },
+        { "#1e3a8a",  tp.primaryDk },
+        { "#dbeafe",  tp.primaryLt },
+        // Legacy green primary shades
+        { "#15803d",  tp.primaryDk },
+        { "#dcfce7",  tp.primaryLt },
+    };
+
+    const auto widgets = findChildren<QWidget*>();
+    for (QWidget *w : widgets) {
+        if (!w) continue;
+        const QString orig = w->styleSheet();
+        if (orig.isEmpty()) continue;
+
+        QString updated = orig;
+        bool changed = false;
+        for (const ColorSub &sub : borderSubs) {
+            const QString fromLower = sub.from.toLower();
+            if (!updated.toLower().contains(fromLower)) continue;
+            QString tmp;
+            int i = 0;
+            while (i < updated.size()) {
+                if (updated.mid(i, 7).toLower() == fromLower) {
+                    tmp += sub.to;
+                    i += 7;
+                    changed = true;
+                } else {
+                    tmp += updated[i++];
+                }
+            }
+            updated = tmp;
+        }
+        if (changed) w->setStyleSheet(updated);
+    }
+
+    // --- Pass 2: TEXT-COLOR-ONLY sweep (dark mode only) ---
+    // This pass replaces legacy dark text colors with theme-correct light text,
+    // but ONLY when the color appears as a CSS `color:` property value
+    // (not background-color). This makes text readable on dark backgrounds
+    // without accidentally making backgrounds white or messing up white text.
+    if (isDarkMode) {
+        // We search for "color:" (with optional space) directly followed by
+        // the dark hex. Replace just the hex part.
+        struct TextSub { QString darkHex; QString lightHex; };
+        const QVector<TextSub> textSubs = {
+            { "#0f2b4c", tp.textTitle },   // legacy dark-navy → theme title
+            { "#1a1a2e", tp.textTitle },   // default dark title → theme title
+            { "#374151", tp.textBody  },   // default body text → theme body
+            { "#6c757d", tp.textMuted },   // default muted → theme muted
+            { "#16a34a", tp.primary   },   // legacy green accent → theme primary
+            { "#0f2b4c", tp.textTitle },   // (duplicate intentional – cover uppercase too)
+        };
+
+        for (QWidget *w : widgets) {
+            if (!w) continue;
+            QString ss = w->styleSheet();
+            if (ss.isEmpty()) continue;
+            bool changed = false;
+
+            for (const TextSub &sub : textSubs) {
+                // Match "color:" (with/without space) then the hex (any case)
+                // e.g.  "color:#0f2b4c" or "color: #0F2B4C"
+                const QStringList patterns = {
+                    "color:" + sub.darkHex,
+                    "color: " + sub.darkHex,
+                    // uppercase variants
+                    "color:" + sub.darkHex.toUpper(),
+                    "color: " + sub.darkHex.toUpper(),
+                };
+                for (const QString &pat : patterns) {
+                    if (ss.contains(pat, Qt::CaseInsensitive)) {
+                        // preserve the "color:" prefix, replace only the hex
+                        const QString pfx1 = "color:";
+                        const QString pfx2 = "color: ";
+                        ss.replace(pfx1 + sub.darkHex, pfx1 + sub.lightHex, Qt::CaseInsensitive);
+                        ss.replace(pfx2 + sub.darkHex, pfx2 + sub.lightHex, Qt::CaseInsensitive);
+                        changed = true;
+                        break;
+                    }
+                }
+            }
+
+            if (changed) w->setStyleSheet(ss);
+        }
+    }
+    // -----------------------------------------------------------------------
+
+    if (ui && ui->sidebar) {
+        ui->sidebar->style()->polish(ui->sidebar);
+    }
+}
+
+void MainWindow::rebuildSettingsCustomColorsList()
+{
+    if (!m_settingsPage) return;
+    QWidget *wrap = m_settingsPage->findChild<QWidget*>("colorsGridWrap");
+    if (!wrap) return;
+
+    QGridLayout *grid = qobject_cast<QGridLayout*>(wrap->layout());
+    if (!grid) return;
+
+    // Clear existing children
+    QLayoutItem *item = nullptr;
+    while ((item = grid->takeAt(0)) != nullptr) {
+        if (QWidget *w = item->widget()) w->deleteLater();
+        delete item;
+    }
+
+    ThemeManager *tm = ThemeManager::instance();
+    const bool editable = (tm->mode() == ThemeManager::Custom);
+    const QStringList keys = ThemeManager::customRoleKeys();
+
+    int row = 0, col = 0;
+    const int cols = 3;
+
+    for (const QString &key : keys) {
+        auto *rowW = new QFrame(wrap);
+        rowW->setObjectName("colorRow_" + key);
+        rowW->setStyleSheet(
+            "QFrame{ background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; }"
+            "QLabel{ background:transparent; border:none; }");
+        auto *rLay = new QHBoxLayout(rowW);
+        rLay->setContentsMargins(12, 10, 12, 10);
+        rLay->setSpacing(12);
+
+        const QString currentHex = tm->customColor(key);
+
+        auto *swatch = new QPushButton(rowW);
+        swatch->setFixedSize(32, 32);
+        swatch->setCursor(editable ? Qt::PointingHandCursor : Qt::ForbiddenCursor);
+        swatch->setEnabled(editable);
+        swatch->setStyleSheet(
+            QString("QPushButton{ background:%1; border:2px solid #cbd5e1; border-radius:8px; }"
+                    "QPushButton:hover{ border:2px solid #1e40af; }"
+                    "QPushButton:disabled{ border:2px solid #e2e8f0; }")
+                .arg(currentHex));
+        rLay->addWidget(swatch);
+
+        auto *labelCol = new QVBoxLayout();
+        labelCol->setContentsMargins(0, 0, 0, 0);
+        labelCol->setSpacing(2);
+        auto *lblRole = new QLabel(ThemeManager::roleLabel(key), rowW);
+        lblRole->setStyleSheet("font-size:12px; font-weight:700; color:#1a1a2e;");
+        auto *lblHex  = new QLabel(currentHex.toUpper(), rowW);
+        lblHex->setObjectName("hexLabel_" + key);
+        lblHex->setStyleSheet("font-size:11px; color:#64748b; font-family:'Consolas','Courier New',monospace;");
+        labelCol->addWidget(lblRole);
+        labelCol->addWidget(lblHex);
+        rLay->addLayout(labelCol, 1);
+
+        QObject::connect(swatch, &QPushButton::clicked, this, [this, key, swatch, lblHex]() {
+            const QColor initial(ThemeManager::instance()->customColor(key));
+            QColor chosen = QColorDialog::getColor(
+                initial, this,
+                QString::fromUtf8("Choisir la couleur: ") + ThemeManager::roleLabel(key));
+            if (!chosen.isValid()) return;
+            const QString hex = chosen.name(QColor::HexRgb);
+            ThemeManager::instance()->setCustomColor(key, hex);
+            swatch->setStyleSheet(
+                QString("QPushButton{ background:%1; border:2px solid #cbd5e1; border-radius:8px; }"
+                        "QPushButton:hover{ border:2px solid #1e40af; }")
+                    .arg(hex));
+            lblHex->setText(hex.toUpper());
+            applyThemeFromManager();
+        });
+
+        grid->addWidget(rowW, row, col);
+        col++;
+        if (col >= cols) { col = 0; row++; }
+    }
+
+    // Stretch final column so grid fills horizontally.
+    grid->setColumnStretch(0, 1);
+    grid->setColumnStretch(1, 1);
+    grid->setColumnStretch(2, 1);
+
+    // Informational banner at top when not in Custom mode.
+    QLabel *banner = wrap->parentWidget()
+                         ? wrap->parentWidget()->findChild<QLabel*>("customLockedBanner")
+                         : nullptr;
+    if (!banner && wrap->parentWidget()) {
+        banner = new QLabel(wrap->parentWidget());
+        banner->setObjectName("customLockedBanner");
+        banner->setWordWrap(true);
+        banner->setStyleSheet(
+            "QLabel{ background:#fef9c3; color:#713f12; border:1px solid #facc15;"
+            " border-radius:10px; padding:10px 14px; font-size:12px; font-weight:600; }");
+        // Insert banner above the grid
+        if (auto *parentLay = qobject_cast<QVBoxLayout*>(wrap->parentWidget()->layout())) {
+            int idx = parentLay->indexOf(wrap);
+            parentLay->insertWidget(idx, banner);
+        }
+    }
+    if (banner) {
+        if (editable) {
+            banner->setVisible(false);
+        } else {
+            banner->setText(QString::fromUtf8(
+                "Les couleurs ci-dessous sont en lecture seule. "
+                "Passez en mode \"Personnalise\" pour les modifier."));
+            banner->setVisible(true);
+        }
+    }
+}
+
+
+void MainWindow::fetchDeviceLocation(QObject* mapObject)
+{
+    if (!mapObject) return;
+    
+    QProcess *process = new QProcess(this);
+    // Forced-Loading .NET Legacy Bridge
+    QString psScript = 
+        "$ProgressPreference = 'SilentlyContinue'; "
+        "try { "
+        "  Add-Type -AssemblyName System.Device -ErrorAction SilentlyContinue; "
+        "  $GeoWatcher = New-Object System.Device.Location.GeoCoordinateWatcher; "
+        "  $GeoWatcher.Start(); "
+        "  $i=0; while (($GeoWatcher.Status -ne 'Ready') -and ($i -lt 40)) { Start-Sleep -m 100; $i++ }; "
+        "  if ($GeoWatcher.Position.Location.IsUnknown) { echo '0,0' } "
+        "  else { echo \"$($GeoWatcher.Position.Location.Latitude),$($GeoWatcher.Position.Location.Longitude)\" } "
+        "} catch { "
+        "  echo \"FATAL_EXCEPTION_$($_.Exception.Message)\" "
+        "}";
+    
+    qDebug() << "Launching PowerShell Native Location Bridge...";
+    
+    connect(process, &QProcess::errorOccurred, this, [this](QProcess::ProcessError error) {
+        qDebug() << "PS Process error:" << error;
+    });
+    
+    connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this, [mapObject, process, this](int exitCode, QProcess::ExitStatus /*exitStatus*/) {
+        if (exitCode == 0) {
+            QString out = process->readAllStandardOutput().trimmed();
+            qDebug() << "PS Bridge result:" << out;
+            
+            QStringList parts = out.contains(",") ? out.split(",") : out.split("\n");
+            if (parts.size() >= 2) {
+                double lLat = parts[0].trimmed().toDouble();
+                double lLon = parts[1].trimmed().toDouble();
+                
+                if (lLat != 0 || lLon != 0) {
+                    QMetaObject::invokeMethod(mapObject, "updateFromBridge", Q_ARG(QVariant, lLat), Q_ARG(QVariant, lLon));
+                } else {
+                    qDebug() << "Location unknown by OS. Ensure Location Permissions are enabled.";
+                    QMessageBox::warning(this, "Geolocation", "Could not retrieve your location. Check your Windows Privacy settings.");
+                }
+            }
+        } else {
+            qDebug() << "PS Bridge failed with exit code:" << exitCode;
+            qDebug() << "Error output:" << process->readAllStandardError();
+        }
+        process->deleteLater();
+    });
+    
+    process->start("powershell", QStringList() << "-NoProfile" << "-ExecutionPolicy" << "Bypass" << "-Command" << psScript);
+}
+
+
+void MainWindow::fetchMyPosition()
+{
+    if (m_mapAddOrder && m_mapAddOrder->isVisible() && m_mapAddOrder->rootObject()) {
+        fetchDeviceLocation(m_mapAddOrder->rootObject());
+    } else if (m_mapModOrder && m_mapModOrder->isVisible() && m_mapModOrder->rootObject()) {
+        fetchDeviceLocation(m_mapModOrder->rootObject());
+    }
+}
+
+
+void MainWindow::setupCommandesNavigation()
+{
+    auto safeConnectCmd = [this](const QString& btnName, const QString& targetPageName){
+        QPushButton* btn = findChild<QPushButton*>(btnName);
+        QWidget* target = findChild<QWidget*>(targetPageName);
+        if (btn && target && mainStacked()) {
+            connect(btn, &QPushButton::clicked, this, [this, target](){
+                mainStacked()->setCurrentWidget(target);
+            });
+        }
+    };
+
+    safeConnectCmd("btnTempToModifier", "pageCmdModifier");
+    safeConnectCmd("btnCancel_Mod", "pageCmdDashboard");
+    safeConnectCmd("btnCancel_Mod_3", "pageCmdDashboard");
+
+    if (QPushButton* btnAdd = findChild<QPushButton*>("btnAddDashboard")) {
+        connect(btnAdd, &QPushButton::clicked, this, [this](){
+            if (auto *sw = mainStacked()) {
+                if (auto *page = sw->findChild<QWidget*>("pageCmdAjout", Qt::FindDirectChildrenOnly)) {
+                    sw->setCurrentWidget(page);
+                    if (ui->sb_qty_add_4) ui->sb_qty_add_4->setValue(0);
+                    if (ui->cb_model_add_4) ui->cb_model_add_4->setCurrentIndex(0);
+                    if (ui->cb_status_add_4) ui->cb_status_add_4->setCurrentIndex(0);
+                    if (ui->dsb_price_add_4) ui->dsb_price_add_4->setValue(0.0);
+                    if (ui->textEdit) ui->textEdit->clear();
+                    populateCommandeBacList();
+
+                    QDate now = QDate::currentDate();
+                    if (ui->comboBox_19) ui->comboBox_19->setCurrentText(QString("%1").arg(now.day(), 2, 10, QChar('0')));
+                    if (ui->comboBox_20) ui->comboBox_20->setCurrentText(QString("%1").arg(now.month(), 2, 10, QChar('0')));
+                    if (ui->comboBox_21) ui->comboBox_21->setCurrentText(QString::number(now.year()));
+
+                    QDate dLiv = now.addDays(7);
+                    if (ui->comboBox_22) ui->comboBox_22->setCurrentText(QString("%1").arg(dLiv.day(), 2, 10, QChar('0')));
+                    if (ui->comboBox_23) ui->comboBox_23->setCurrentText(QString("%1").arg(dLiv.month(), 2, 10, QChar('0')));
+                    if (ui->comboBox_24) ui->comboBox_24->setCurrentText(QString::number(dLiv.year()));
+
+                    if (ui->cb_status_add_4) ui->cb_status_add_4->show();
+                    if (ui->comboPrioAdd) ui->comboPrioAdd->show();
+                    if (ui->comboBox_22) ui->comboBox_22->show();
+                    if (ui->comboBox_23) ui->comboBox_23->show();
+                    if (ui->comboBox_24) ui->comboBox_24->show();
+                    for (auto* lbl : page->findChildren<QLabel*>()) {
+                        QString t = lbl->text().toLower();
+                        if (t.contains("statut") || t.contains("priorit") || t.contains("livraison") || t == "jour" || t == "mois" || t == "annee") {
+                            lbl->show();
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    auto connectCmdModifierCancelToCommandesUnique = [this](const QString &btnName) {
+        QWidget *cmdModPage = findChild<QWidget*>("pageCmdModifier");
+        if (!cmdModPage) return;
+        QPushButton *btn = cmdModPage->findChild<QPushButton*>(btnName);
+        if (!btn) return;
+        connect(btn, &QPushButton::clicked, this, [this]() {
+            if (auto *sw = mainStacked()) {
+                if (auto *cmdDashboard = sw->findChild<QWidget*>("pageCmdDashboard", Qt::FindDirectChildrenOnly)) {
+                    sw->setCurrentWidget(cmdDashboard);
+                    if (auto *content = cmdDashboard->findChild<QStackedWidget*>("contentStack")) {
+                        if (auto *pageCommandes = cmdDashboard->findChild<QWidget*>("pageCommandes")) {
+                            content->setCurrentWidget(pageCommandes);
+                        } else {
+                            content->setCurrentIndex(1);
+                        }
+                    }
+                }
+            }
+        });
+    };
+
+    connectCmdModifierCancelToCommandesUnique("btnCancel_Mod1");
+    connectCmdModifierCancelToCommandesUnique("btnCancel_Mod");
 }

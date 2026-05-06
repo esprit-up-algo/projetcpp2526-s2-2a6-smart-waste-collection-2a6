@@ -41,6 +41,45 @@
 #include <QQuickWidget>
 #include <QQmlContext>
 #include <QQuickItem>
+#include <QCalendarWidget>
+#include <QPainter>
+#include <QProcess>
+
+class DotCalendar : public QCalendarWidget {
+    Q_OBJECT
+public:
+    explicit DotCalendar(QWidget *parent = nullptr) : QCalendarWidget(parent) {}
+    void setDayDots(const QDate &date, const QList<QColor> &dots) {
+        m_dayData[date] = dots;
+        update();
+    }
+    void clearDayDots() { m_dayData.clear(); update(); }
+protected:
+    void paintCell(QPainter *painter, const QRect &rect, QDate date) const override {
+        QCalendarWidget::paintCell(painter, rect, date);
+        if (m_dayData.contains(date)) {
+            const auto &dots = m_dayData[date];
+            int n = qMin(dots.size(), 8);
+            if (n > 0) {
+                painter->save();
+                painter->setRenderHint(QPainter::Antialiasing);
+                int dotSize = 5;
+                int spacing = 2;
+                int totalWidth = n * dotSize + (n - 1) * spacing;
+                int startX = rect.center().x() - totalWidth / 2;
+                int y = rect.bottom() - dotSize - 4;
+                for (int i = 0; i < n; ++i) {
+                    painter->setPen(Qt::NoPen);
+                    painter->setBrush(dots[i]);
+                    painter->drawEllipse(startX + i * (dotSize + spacing), y, dotSize, dotSize);
+                }
+                painter->restore();
+            }
+        }
+    }
+private:
+    QMap<QDate, QList<QColor>> m_dayData;
+};
 
 #include "employe.h"
 #include "produit.h"
@@ -54,6 +93,9 @@
 #include "voiceassistant.h"
 #include "labibassistant.h"
 #include "emailnotificationmanager.h"
+#include "maintenancestatusdelegate.h"
+#include "arduino.h"
+#include "repairdialog.h"
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
@@ -62,6 +104,10 @@ class QStackedWidget;
 class QTableWidget;
 class QWidget;
 class QPushButton;
+class QLineEdit;
+class QDockWidget;
+class QResizeEvent;
+class QMoveEvent;
 
 class MainWindow : public QMainWindow
 {
@@ -76,6 +122,10 @@ public:
 signals:
     void logoutRequested();
 
+public slots:
+    Q_INVOKABLE void fetchDeviceLocation(QObject* mapObject);
+    Q_INVOKABLE void fetchMyPosition();
+
 private slots:
     // Employe
     void on_btnNouveau_clicked();
@@ -85,11 +135,13 @@ private slots:
     void on_btnSave_clicked();
     void on_btnAnalyser_clicked();
     void on_btnSimulerBadge_clicked();
+    void onRfidSerialDataReady();
     void on_btnSupprimer_clicked();
     void on_cbProjetStats_currentIndexChanged(const QString &arg1);
     void on_btnFichePaie_clicked();
     void on_btnCommsSend_clicked();
     void on_btnLogout_clicked();
+    void onAiProcessFinished(int exitCode, QProcess::ExitStatus status);
     
    
     // Client module slots (from mainwindowcl)
@@ -124,6 +176,7 @@ private slots:
     void on_prod_btnUpload_Mod_clicked();
     void applyProduitFilterAndSort();
     void on_prod_btnPdf_clicked();
+    void on_prod_btnBacStatus_clicked();
     void on_prod_btnMap3D_clicked();
     void onGeminiPdfReply(QNetworkReply *reply);
     void onProductImageDownloaded(QNetworkReply *reply, const QString &numSerie);
@@ -227,6 +280,7 @@ private:
     void applyStyleFix();
     void refreshActionButtons();
     void buildStatsCharts();
+    void refreshProduitDashboardSummary();
     void refreshProduitTable();
     void addExampleRow();
     void verifyFournisseurEmail(QLineEdit *emailField);
@@ -293,6 +347,7 @@ private:
     void generateMaintenancePdf();
 
     void setupCommandesModule();
+    void setupCommandesNavigation();
     void refreshCommandes(const QString &searchField = "", const QString &searchValue = "", const QString &sortCriteria = "");
     void refreshCmdStats();
     void buildCommandeStats();
@@ -313,6 +368,9 @@ private:
     void installCmdActions2(int row);
     void reindexCmdActions();
     void reindexCmdActions2();
+    void showCalendarView();
+    void refreshCalendarEvents();
+    void checkScheduledDeliveries();
     int currentCmdRow = -1;
     QTableWidget* m_lastCmdTable = nullptr;
     int m_lastCmdIndex = -1;
@@ -360,6 +418,8 @@ private:
     QByteArray m_employeePhotoAjout;
     QString m_employeeFaceTemplateAjout;
     QByteArray m_employeePhotoModif;
+    QString m_employeeFaceTemplateModif;
+    QString m_currentEmployeeRfidOriginal;
 
     int currentProduitRow;
     int currentClientRow;
@@ -374,7 +434,7 @@ private:
     int getRowForClientWidget(QWidget *widget);
     void refreshClients();
     void checkAndNotifyExpiringContracts();
-    void sendContractExpirationEmail(const QString &clientEmail, const QString &clientName, const QString &expirationDate);
+    bool sendContractExpirationEmail(const QString &clientEmail, const QString &clientName, const QString &expirationDate, const QString &contractType = QString());
     void exportClientPdf();
     void showClientStats();
     void openEcoScoreInterface();
@@ -426,8 +486,12 @@ private:
     QString m_photoApresPath;
     QString m_photoModPath;
 
+    // Maintenance status delegate for row coloring
+    MaintenanceStatusDelegate *m_maintenanceDelegate = nullptr;
+
     // Notification system
     QTimer *m_stockNotifTimer = nullptr;
+    QTimer *m_clientContractNotifTimer = nullptr;
     QSystemTrayIcon *m_trayIcon = nullptr;
 
     // Produit photo paths
@@ -456,6 +520,7 @@ private:
 
     // Labib AI Assistant
     LabibAssistant *m_labibAssistant = nullptr;
+    QDockWidget *m_labibDock = nullptr;
     void openLabibAssistant();
 
     QQuickWidget *m_mapAddOrder = nullptr;
@@ -469,14 +534,72 @@ private:
     // Email Notification Manager for client notifications
     EmailNotificationManager *m_emailManager = nullptr;
 
+    // --- RFID / Pointage ---
+    Arduino *m_arduino = nullptr;
+    QByteArray m_rfidSerialBuffer;
+    QLineEdit *m_rfidScanTarget = nullptr;
+    QDialog *m_rfidScanDialog = nullptr;
+    void enterPointagePage();
+    void ensureArduinoConnected();
+    void performDailyAttendanceResetIfNeeded();
+    void handleRfidTag(const QString &rfidTag);
+    void appendPointageLog(const QString &rfidTag, const QString &employeName, const QString &status);
+    void appendPointageLog(const QString &rfidTag, const QString &employeName, const QString &status, const QString &hoursDisplay);
+    void startRfidCapture(QLineEdit *targetField);
+    void stopRfidCapture();
+
+    // --- Repair Mode (Technician RFID) ---
+    bool m_repairModeActive = false;
+    QString m_repairTechnicianName;
+    int m_repairTechnicianId = -1;
+    void handleTechnicianRfid(int empId, const QString &empName);
+    void openRepairDialog();
+    void closeRepairMode();
+
+    // --- Capteur de mouvement (PIR sur A0 du meme Arduino) ---
+    // Default: false (EN ATTENTE). Set to true when the sketch publishes
+    // a MOTION:1 frame; held true for 60 s after the last detection, then
+    // auto-revert to false. The bac status dialog listens to
+    // bacMotionStateChanged() to flip its global badge live, and BAC_INTEL.
+    // STATUT_BAC is updated in step (EN_ATTENTE <-> EN_SERVICE) - rows in
+    // EN_PANNE / A_VIDER are never overwritten.
+    bool m_bacMotionActive = false;
+    int  m_motionTargetBacId = 0;   // 0 = no bac selected -> motion ignored
+    QTimer *m_motionHoldTimer = nullptr;
+    QProcess *m_aiProcess = nullptr;
+    void onMotionHoldExpired();
+    void applyBacMotionDbState(bool active, int idBac);
+public:
+    bool isBacMotionActive() const { return m_bacMotionActive; }
+    int  motionTargetBacId() const { return m_motionTargetBacId; }
+    // Called by BacStatusDialog whenever the user picks a bac. Switching
+    // bacs while motion is active immediately reverts the previous bac
+    // back to EN_ATTENTE and resets the hold so the new bac will only
+    // become EN_SERVICE on the next PIR edge.
+    void setMotionTargetBac(int idBac);
+signals:
+    void bacMotionStateChanged(bool active);
+private:
+
     // Initialize accessibility features
     void setupAccessibilityModule();
     void setupMaintenanceAccessibility();
     void addAccessibilityButtonsToMaintenance();
     void ensureScrollbarsVisible();
 
+    // Settings / Theme customization module
+    QWidget *m_settingsPage = nullptr;
+    QPushButton *m_btnParametres = nullptr;
+    void setupSettingsModule();
+    void openSettingsPage();
+    void rebuildSettingsCustomColorsList();
+    void applyThemeFromManager();
+    void recolorHardcodedStylesForTheme();
+
 protected:
     void closeEvent(QCloseEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
+    void moveEvent(QMoveEvent *event) override;
 
 private slots:
     void on_btnToggleSidebar_clicked();
