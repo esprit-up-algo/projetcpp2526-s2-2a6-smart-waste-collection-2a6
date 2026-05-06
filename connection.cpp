@@ -1,40 +1,82 @@
 #include "connection.h"
 
-// Return the unique instance (Singleton)
-Connection& Connection::createInstance()
-{
-    static Connection instance;   // Created once only
-    return instance;
-}
+#include <QSqlError>
+#include <QDebug>
 
-// Private constructor
+Connection* Connection::p_instance = nullptr;
+
 Connection::Connection()
 {
     db = QSqlDatabase::addDatabase("QODBC");
 }
 
-// Destructor
-Connection::~Connection()
+Connection* Connection::instance()
 {
-    if(db.isOpen())
-        db.close();
+    if (!p_instance) {
+        p_instance = new Connection();
+    }
+    return p_instance;
 }
 
-// Create and open connection
-bool Connection::createConnection()
+bool Connection::createConnect()
 {
-    db.setDatabaseName("Source_Projet2A");  // Your ODBC name
-    db.setUserName("bakwini");             // Your username
-    db.setPassword("123");                 // Your password
+    if (db.isOpen()) {
+        db.close();
+    }
 
-    if(db.open())
-    {
-        qDebug() << "Connexion réussie !";
+    db.setDatabaseName("Source_Projet2A");
+    db.setUserName("wasteguard");
+    db.setPassword("123");
+
+    if (db.open()) {
+        qDebug() << "Connexion a la base de donnees reussie";
         return true;
     }
-    else
-    {
-        qDebug() << "Erreur :" << db.lastError().text();
-        return false;
+
+    qDebug() << "Erreur de connexion:" << db.lastError().text();
+    return false;
+}
+
+bool Connection::createConnect(const QString &userName, const QString &password)
+{
+    if (db.isOpen()) {
+        db.close();
+    }
+
+    const QString user = userName.trimmed();
+
+    db.setDatabaseName("Source_Projet2A");
+    db.setUserName(user);
+    db.setPassword(password);
+
+    const bool ok = db.open();
+    if (ok) {
+        qDebug() << "Connexion base reussie pour" << db.userName();
+    } else {
+        qDebug() << "Erreur de connexion:" << db.lastError().text();
+    }
+    return ok;
+}
+
+void Connection::closeConnection()
+{
+    if (db.isOpen()) {
+        db.close();
     }
 }
+
+bool Connection::isOpen() const
+{
+    return db.isOpen();
+}
+
+QString Connection::lastError() const
+{
+    return db.lastError().text();
+}
+
+Connection::~Connection()
+{
+    closeConnection();
+}
+

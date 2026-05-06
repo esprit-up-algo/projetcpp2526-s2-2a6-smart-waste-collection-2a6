@@ -134,6 +134,12 @@ public:
     QLabel *lblCIN_Modif;
     QLineEdit *txtCIN_Modif;
     QLineEdit *txtEmailModif;
+    QLabel *lblRFID_Modif;
+    QVBoxLayout *rfidWrap_Modif;
+    QHBoxLayout *rfidRow_Modif;
+    QLineEdit *txtRFID_Modif;
+    QPushButton *btnScanRFID_Modif;
+    QLabel *lblRFIDStatus_Modif;
     QSpacerItem *verticalSpacer_Form;
     QHBoxLayout *horizontalLayout_Buttons;
     QPushButton *btnDelete;
@@ -170,6 +176,12 @@ public:
     QLabel *label_2;
     QLabel *lblCIN_Ajout;
     QLineEdit *txtCIN_Ajout;
+    QLabel *lblRFID_Ajout;
+    QVBoxLayout *rfidWrap_Ajout;
+    QHBoxLayout *rfidRow_Ajout;
+    QLineEdit *txtRFID_Ajout;
+    QPushButton *btnScanRFID_Ajout;
+    QLabel *lblRFIDStatus_Ajout;
     QSpacerItem *verticalSpacer_Form_2;
     QHBoxLayout *horizontalLayout_Buttons_2;
     QSpacerItem *horizontalSpacer_Buttons_2;
@@ -2762,7 +2774,7 @@ public:
         verticalLayout_FormRight->setObjectName("verticalLayout_FormRight");
         formLayout_Modif = new QFormLayout();
         formLayout_Modif->setObjectName("formLayout_Modif");
-        formLayout_Modif->setVerticalSpacing(65);
+        formLayout_Modif->setVerticalSpacing(20);
         lblMatricule = new QLabel(cardFrame);
         lblMatricule->setObjectName("lblMatricule");
 
@@ -2859,6 +2871,43 @@ public:
         txtEmailModif->setObjectName("txtEmailModif");
 
         formLayout_Modif->setWidget(1, QFormLayout::FieldRole, txtEmailModif);
+
+        lblRFID_Modif = new QLabel(cardFrame);
+        lblRFID_Modif->setObjectName("lblRFID_Modif");
+
+        formLayout_Modif->setWidget(7, QFormLayout::LabelRole, lblRFID_Modif);
+
+        rfidWrap_Modif = new QVBoxLayout();
+        rfidWrap_Modif->setSpacing(6);
+        rfidWrap_Modif->setObjectName("rfidWrap_Modif");
+        rfidRow_Modif = new QHBoxLayout();
+        rfidRow_Modif->setSpacing(10);
+        rfidRow_Modif->setObjectName("rfidRow_Modif");
+        txtRFID_Modif = new QLineEdit(cardFrame);
+        txtRFID_Modif->setObjectName("txtRFID_Modif");
+        txtRFID_Modif->setMinimumSize(QSize(0, 38));
+        txtRFID_Modif->setClearButtonEnabled(true);
+
+        rfidRow_Modif->addWidget(txtRFID_Modif);
+
+        btnScanRFID_Modif = new QPushButton(cardFrame);
+        btnScanRFID_Modif->setObjectName("btnScanRFID_Modif");
+        btnScanRFID_Modif->setMinimumSize(QSize(140, 38));
+        btnScanRFID_Modif->setMaximumSize(QSize(160, 38));
+        btnScanRFID_Modif->setCursor(QCursor(Qt::CursorShape::PointingHandCursor));
+
+        rfidRow_Modif->addWidget(btnScanRFID_Modif);
+
+
+        rfidWrap_Modif->addLayout(rfidRow_Modif);
+
+        lblRFIDStatus_Modif = new QLabel(cardFrame);
+        lblRFIDStatus_Modif->setObjectName("lblRFIDStatus_Modif");
+
+        rfidWrap_Modif->addWidget(lblRFIDStatus_Modif);
+
+
+        formLayout_Modif->setLayout(7, QFormLayout::FieldRole, rfidWrap_Modif);
 
 
         verticalLayout_FormRight->addLayout(formLayout_Modif);
@@ -2966,7 +3015,7 @@ public:
         verticalLayout_FormRight_2->setObjectName("verticalLayout_FormRight_2");
         formLayout_Ajout = new QFormLayout();
         formLayout_Ajout->setObjectName("formLayout_Ajout");
-        formLayout_Ajout->setVerticalSpacing(65);
+        formLayout_Ajout->setVerticalSpacing(20);
         label_7 = new QLabel(cardFrame_2);
         label_7->setObjectName("label_7");
 
@@ -3047,6 +3096,43 @@ public:
         txtCIN_Ajout->setObjectName("txtCIN_Ajout");
 
         formLayout_Ajout->setWidget(5, QFormLayout::FieldRole, txtCIN_Ajout);
+
+        lblRFID_Ajout = new QLabel(cardFrame_2);
+        lblRFID_Ajout->setObjectName("lblRFID_Ajout");
+
+        formLayout_Ajout->setWidget(6, QFormLayout::LabelRole, lblRFID_Ajout);
+
+        rfidWrap_Ajout = new QVBoxLayout();
+        rfidWrap_Ajout->setSpacing(6);
+        rfidWrap_Ajout->setObjectName("rfidWrap_Ajout");
+        rfidRow_Ajout = new QHBoxLayout();
+        rfidRow_Ajout->setSpacing(10);
+        rfidRow_Ajout->setObjectName("rfidRow_Ajout");
+        txtRFID_Ajout = new QLineEdit(cardFrame_2);
+        txtRFID_Ajout->setObjectName("txtRFID_Ajout");
+        txtRFID_Ajout->setMinimumSize(QSize(0, 38));
+        txtRFID_Ajout->setClearButtonEnabled(true);
+
+        rfidRow_Ajout->addWidget(txtRFID_Ajout);
+
+        btnScanRFID_Ajout = new QPushButton(cardFrame_2);
+        btnScanRFID_Ajout->setObjectName("btnScanRFID_Ajout");
+        btnScanRFID_Ajout->setMinimumSize(QSize(140, 38));
+        btnScanRFID_Ajout->setMaximumSize(QSize(160, 38));
+        btnScanRFID_Ajout->setCursor(QCursor(Qt::CursorShape::PointingHandCursor));
+
+        rfidRow_Ajout->addWidget(btnScanRFID_Ajout);
+
+
+        rfidWrap_Ajout->addLayout(rfidRow_Ajout);
+
+        lblRFIDStatus_Ajout = new QLabel(cardFrame_2);
+        lblRFIDStatus_Ajout->setObjectName("lblRFIDStatus_Ajout");
+
+        rfidWrap_Ajout->addWidget(lblRFIDStatus_Ajout);
+
+
+        formLayout_Ajout->setLayout(6, QFormLayout::FieldRole, rfidWrap_Ajout);
 
 
         verticalLayout_FormRight_2->addLayout(formLayout_Ajout);
@@ -7539,6 +7625,12 @@ public:
         lblCIN_Modif->setText(QCoreApplication::translate("MainWindow", "CIN", nullptr));
         txtCIN_Modif->setPlaceholderText(QCoreApplication::translate("MainWindow", "00000000", nullptr));
         txtEmailModif->setPlaceholderText(QCoreApplication::translate("MainWindow", "xyz@emeple.com", nullptr));
+        lblRFID_Modif->setText(QCoreApplication::translate("MainWindow", "RFID (facultatif)", nullptr));
+        txtRFID_Modif->setPlaceholderText(QCoreApplication::translate("MainWindow", "Badge RFID (optionnel)", nullptr));
+        btnScanRFID_Modif->setStyleSheet(QCoreApplication::translate("MainWindow", "QPushButton { background-color: #f39c12; color: white; border: none; border-radius: 6px; font-weight: 600; padding: 6px 12px; } QPushButton:hover { background-color: #e67e22; } QPushButton:pressed { background-color: #d35400; }", nullptr));
+        btnScanRFID_Modif->setText(QCoreApplication::translate("MainWindow", "Scanner badge", nullptr));
+        lblRFIDStatus_Modif->setText(QCoreApplication::translate("MainWindow", "Aucun badge RFID attribue a cet employe", nullptr));
+        lblRFIDStatus_Modif->setStyleSheet(QCoreApplication::translate("MainWindow", "QLabel { color: #95a5a6; font-size: 11px; font-style: italic; padding-left: 2px; }", nullptr));
         btnDelete->setText(QCoreApplication::translate("MainWindow", "Supprimer", nullptr));
         btnAnnuler->setText(QCoreApplication::translate("MainWindow", "Annuler", nullptr));
         btnSave->setText(QCoreApplication::translate("MainWindow", "Sauvegarder", nullptr));
@@ -7561,12 +7653,18 @@ public:
         label_2->setText(QCoreApplication::translate("MainWindow", "EMAIL", nullptr));
         lblCIN_Ajout->setText(QCoreApplication::translate("MainWindow", "CIN", nullptr));
         txtCIN_Ajout->setPlaceholderText(QCoreApplication::translate("MainWindow", "00000000", nullptr));
+        lblRFID_Ajout->setText(QCoreApplication::translate("MainWindow", "RFID (facultatif)", nullptr));
+        txtRFID_Ajout->setPlaceholderText(QCoreApplication::translate("MainWindow", "Badge RFID (optionnel)", nullptr));
+        btnScanRFID_Ajout->setStyleSheet(QCoreApplication::translate("MainWindow", "QPushButton { background-color: #f39c12; color: white; border: none; border-radius: 6px; font-weight: 600; padding: 6px 12px; } QPushButton:hover { background-color: #e67e22; } QPushButton:pressed { background-color: #d35400; }", nullptr));
+        btnScanRFID_Ajout->setText(QCoreApplication::translate("MainWindow", "Scanner badge", nullptr));
+        lblRFIDStatus_Ajout->setText(QCoreApplication::translate("MainWindow", "Aucun badge scanne. Cliquez sur Scanner badge ou saisissez un identifiant.", nullptr));
+        lblRFIDStatus_Ajout->setStyleSheet(QCoreApplication::translate("MainWindow", "QLabel { color: #95a5a6; font-size: 11px; font-style: italic; padding-left: 2px; }", nullptr));
         btnAnnuler_Ajout->setText(QCoreApplication::translate("MainWindow", "Annuler", nullptr));
         btnAjouter->setText(QCoreApplication::translate("MainWindow", "Ajouter", nullptr));
         lblTitreMission->setText(QCoreApplication::translate("MainWindow", "Definition de la Mission", nullptr));
         txtMission->setText(QCoreApplication::translate("MainWindow", "Reparation Moteur bac Zone Nord - Urgent", nullptr));
         txtMission->setPlaceholderText(QCoreApplication::translate("MainWindow", "Ex: Reparation Moteur bac Urgent...", nullptr));
-        btnAnalyser->setText(QCoreApplication::translate("MainWindow", "Lancer l'Analyse IA && Trouver l'Equipe", nullptr));
+        btnAnalyser->setText(QCoreApplication::translate("MainWindow", "chercher l agent convenable a votre mission", nullptr));
         lblResultat->setText(QString());
         QTableWidgetItem *___qtablewidgetitem29 = tableResultat->horizontalHeaderItem(0);
         ___qtablewidgetitem29->setText(QCoreApplication::translate("MainWindow", "Choix", nullptr));
