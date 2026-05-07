@@ -6,7 +6,7 @@
 ** WARNING! All changes made in this file will be lost!
 *****************************************************************************/
 
-#include "../voiceassistant.h"
+#include "../../Finale - Copy (2)/voiceassistant.h"
 #include <QtCore/qmetatype.h>
 
 #include <QtCore/qtmochelpers.h>

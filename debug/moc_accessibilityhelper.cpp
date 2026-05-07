@@ -6,7 +6,7 @@
 ** WARNING! All changes made in this file will be lost!
 *****************************************************************************/
 
-#include "../accessibilityhelper.h"
+#include "../../Finale - Copy (2)/accessibilityhelper.h"
 #include <QtCore/qmetatype.h>
 
 #include <QtCore/qtmochelpers.h>

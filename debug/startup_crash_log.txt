@@ -101,3 +101,29 @@ Running: setupCmdCardViewContainer
 Running: setupCommandesModule
 Running: applyHomogeneousTheme
 MainWindow created successfully!
+Running: setupStatistics
+Running: setupAccueilDashboard
+Running: setupProduitModule
+Running: setupEmployeModule
+Running: setupStockModule
+Running: setupClientCardViewContainer
+Running: setupAccessibilityModule
+Running: setupMaintenanceModule
+Running: setupMaintCardViewContainer
+Running: setupCmdCardViewContainer
+Running: setupCommandesModule
+Running: applyHomogeneousTheme
+MainWindow created successfully!
+Running: setupStatistics
+Running: setupAccueilDashboard
+Running: setupProduitModule
+Running: setupEmployeModule
+Running: setupStockModule
+Running: setupClientCardViewContainer
+Running: setupAccessibilityModule
+Running: setupMaintenanceModule
+Running: setupMaintCardViewContainer
+Running: setupCmdCardViewContainer
+Running: setupCommandesModule
+Running: applyHomogeneousTheme
+MainWindow created successfully!

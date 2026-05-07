@@ -6,7 +6,7 @@
 ** WARNING! All changes made in this file will be lost!
 *****************************************************************************/
 
-#include "../viewer3ddialog.h"
+#include "../../Finale - Copy (2)/viewer3ddialog.h"
 #include <QtGui/qtextcursor.h>
 #include <QtCore/qmetatype.h>
 

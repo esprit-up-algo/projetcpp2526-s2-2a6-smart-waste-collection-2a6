@@ -6,7 +6,7 @@
 ** WARNING! All changes made in this file will be lost!
 *****************************************************************************/
 
-#include "../stockmapwidget.h"
+#include "../../Finale - Copy (2)/stockmapwidget.h"
 #include <QtGui/qtextcursor.h>
 #include <QtCore/qmetatype.h>
 
