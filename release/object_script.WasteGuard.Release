@@ -16,7 +16,16 @@ release/modelviewerwidget.o
 release/accessibilityhelper.o
 release/voiceassistant.o
 release/labibassistant.o
+release/labibchat.o
+release/labibmediacircle.o
 release/emailnotificationmanager.o
+release/thememanager.o
+release/bacdetector.o
+release/bacstatusdialog.o
+release/maintenancestatusdelegate.o
+release/arduino.o
+release/employeehistorystore.o
+release/repairdialog.o
 release/qrc_logo.o
 release/moc_mainwindow.o
 release/moc_mascotwidget.o
@@ -28,3 +37,9 @@ release/moc_modelviewerwidget.o
 release/moc_accessibilityhelper.o
 release/moc_voiceassistant.o
 release/moc_labibassistant.o
+release/moc_labibmediacircle.o
+release/moc_thememanager.o
+release/moc_bacdetector.o
+release/moc_bacstatusdialog.o
+release/moc_maintenancestatusdelegate.o
+release/moc_repairdialog.o

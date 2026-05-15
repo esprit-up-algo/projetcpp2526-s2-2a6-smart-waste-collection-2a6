@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<RCC>
+    <qresource prefix="/">
+        <file alias="login_logo.png">../login_logo.png</file>
+        <file alias="wasteguard_logo.png">../wasteguard_logo.png</file>
+        <file alias="logo1.png">../logo1.png</file>
+        <file alias="logo2.png">../logo2.png</file>
+        <file alias="WASTEGUARD (1) (1).png">../WASTEGUARD (1) (1).png</file>
+        <file alias="WASTEGUARD (1).png">../WASTEGUARD (1).png</file>
+        <file alias="assets/bin.png">../assets/bin.png</file>
+        <file alias="assets/sensor.png">../assets/sensor.png</file>
+        <file alias="assets/compactor.png">../assets/compactor.png</file>
+        <file alias="assets/landscape_bin.png">../assets/landscape_bin.png</file>
+        <file alias="assets/icons/spin_up.png">../assets/icons/spin_up.png</file>
+        <file alias="assets/icons/spin_down.png">../assets/icons/spin_down.png</file>
+        <file alias="assets/MapWidget.qml">../assets/MapWidget.qml</file>
+    </qresource>
+</RCC>

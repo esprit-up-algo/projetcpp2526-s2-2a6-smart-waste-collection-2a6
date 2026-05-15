@@ -1,10 +1,14 @@
+import os
 import sys
 import requests
 import numpy as np
 from PIL import Image
 from transformers import pipeline
 
-URL = "http://192.168.1.18/capture.raw"
+# URL is taken from the ESP32_CAM_URL env var (set by MainWindow to match
+# whatever IP the bin-status dialog is polling). The hardcoded value is
+# only a fallback when the script is run by hand.
+URL = os.environ.get("ESP32_CAM_URL", "http://10.161.104.88/capture.raw")
 WIDTH = 160
 HEIGHT = 120
 
@@ -22,7 +26,7 @@ def convert_rgb565(raw):
 
 def map_to_bin(label):
     label = label.lower()
-    if "cardboard" in label: return "CARDBOARD"
+    if "plastic" in label: return "PLASTIC"
     if "metal" in label: return "METAL"
     if "glass" in label: return "GLASS"
     return "GENERAL_WASTE"

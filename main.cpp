@@ -40,9 +40,14 @@
 #include <QSslSocket>
 #include <QtMath>
 #include <QDebug>
+#include <QSettings>
+#include <QProcessEnvironment>
+#include <QtSerialPort/QSerialPort>
+#include <QtSerialPort/QSerialPortInfo>
 #include <cstdio>
 
 #include "connection.h"
+#include "thememanager.h"
 
 namespace {
 
@@ -79,22 +84,23 @@ void ensureFaceColumnsExist()
     static bool checked = false;
     if (checked) return;
 
-    QSqlQuery probe;
-    if (probe.exec("SELECT face_template, face_template_updated_at, face_enabled FROM EMPLOYE WHERE 1=0")) {
-        checked = true;
-        return;
-    }
-
-    if (!hasMissingColumnError(probe.lastError().text())) {
-        checked = true;
-        return;
-    }
+    auto columnMissing = [](const QString &col) {
+        QSqlQuery probe;
+        probe.exec(QString("SELECT %1 FROM EMPLOYE WHERE 1=0").arg(col));
+        return probe.lastError().isValid();
+    };
 
     QSqlQuery q;
-    q.exec("ALTER TABLE EMPLOYE ADD (face_template CLOB)");
-    q.exec("ALTER TABLE EMPLOYE ADD (face_template_updated_at DATE)");
-    q.exec("ALTER TABLE EMPLOYE ADD (face_enabled NUMBER(1) DEFAULT 1)");
-    q.exec("UPDATE EMPLOYE SET face_enabled = 1 WHERE face_enabled IS NULL");
+    if (columnMissing("face_template"))
+        q.exec("ALTER TABLE EMPLOYE ADD (face_template CLOB)");
+    if (columnMissing("face_template_bin"))
+        q.exec("ALTER TABLE EMPLOYE ADD (face_template_bin BLOB)");
+    if (columnMissing("face_template_updated_at"))
+        q.exec("ALTER TABLE EMPLOYE ADD (face_template_updated_at DATE)");
+    if (columnMissing("face_enabled")) {
+        q.exec("ALTER TABLE EMPLOYE ADD (face_enabled NUMBER(1) DEFAULT 1)");
+        q.exec("UPDATE EMPLOYE SET face_enabled = 1 WHERE face_enabled IS NULL");
+    }
     checked = true;
 }
 
@@ -218,10 +224,31 @@ double cosineSimilarity(const QVector<float> &a, const QVector<float> &b)
     return dot / qSqrt(na * nb);
 }
 
+QString faceApiCredential(const char *envKey, const QString &settingsKey, const QString &fallback = QString())
+{
+    // 1) Process env (what qEnvironmentVariable reads).
+    const QString envValue = qEnvironmentVariable(envKey).trimmed();
+    if (!envValue.isEmpty()) return envValue;
+
+    // 2) System env snapshot (redundant but harmless safety net).
+    const QString sysValue =
+        QProcessEnvironment::systemEnvironment().value(QString::fromLatin1(envKey)).trimmed();
+    if (!sysValue.isEmpty()) return sysValue;
+
+    // 3) Persistent QSettings fallback — immune to Windows env-var propagation
+    //    quirks (setx / SetEnvironmentVariable not visible to already-running
+    //    parent processes like Qt Creator / Explorer).
+    QSettings settings("WasteGuard", "WasteGuard");
+    const QString stored = settings.value(settingsKey).toString().trimmed();
+    if (!stored.isEmpty()) return stored;
+
+    return fallback;
+}
+
 bool isFaceApiEnabled()
 {
-    const QString key = qEnvironmentVariable("WG_FACE_API_KEY").trimmed();
-    const QString secret = qEnvironmentVariable("WG_FACE_API_SECRET").trimmed();
+    const QString key = faceApiCredential("WG_FACE_API_KEY", "faceApi/key");
+    const QString secret = faceApiCredential("WG_FACE_API_SECRET", "faceApi/secret");
     return !key.isEmpty() && !secret.isEmpty();
 }
 
@@ -290,14 +317,35 @@ bool compareFacesWithApi(const QByteArray &probeImage,
     strictThreshold = -1.0;
     errorText.clear();
 
-    const QString key = qEnvironmentVariable("WG_FACE_API_KEY").trimmed();
-    const QString secret = qEnvironmentVariable("WG_FACE_API_SECRET").trimmed();
-    const QString endpoint = qEnvironmentVariable(
-        "WG_FACE_API_URL",
-        "https://api-us.faceplusplus.com/facepp/v3/compare").trimmed();
+    const QString key = faceApiCredential("WG_FACE_API_KEY", "faceApi/key");
+    const QString secret = faceApiCredential("WG_FACE_API_SECRET", "faceApi/secret");
+    QString endpoint = faceApiCredential("WG_FACE_API_URL", "faceApi/url",
+                                         "https://api-us.faceplusplus.com/facepp/v3/compare");
+    if (endpoint.isEmpty()) {
+        endpoint = "https://api-us.faceplusplus.com/facepp/v3/compare";
+    }
+    // Auto-correct common misconfiguration: base URL without /compare action.
+    // Face++ replies "API_NOT_FOUND" when hitting /facepp/v3 directly.
+    {
+        QString trimmedEndpoint = endpoint.trimmed();
+        while (trimmedEndpoint.endsWith('/')) trimmedEndpoint.chop(1);
+        const bool missingAction =
+            trimmedEndpoint.endsWith("/facepp/v3", Qt::CaseInsensitive) ||
+            trimmedEndpoint.endsWith("/facepp/v3.0", Qt::CaseInsensitive) ||
+            trimmedEndpoint.endsWith("faceplusplus.com", Qt::CaseInsensitive);
+        if (missingAction) {
+            const QString corrected = trimmedEndpoint + "/compare";
+            qWarning().nospace()
+                << "[FaceAPI] URL endpoint semble incomplet (" << endpoint
+                << "), redirection automatique vers " << corrected;
+            endpoint = corrected;
+        }
+    }
 
     if (key.isEmpty() || secret.isEmpty()) {
-        errorText = "Face API non configuree.";
+        errorText = "Face API non configuree. Definissez WG_FACE_API_KEY / WG_FACE_API_SECRET "
+                    "(relancez Qt Creator apres setx) ou les cles faceApi/key et faceApi/secret "
+                    "dans QSettings WasteGuard.";
         return false;
     }
     if (probeImage.isEmpty() || referenceImage.isEmpty()) {
@@ -346,6 +394,13 @@ bool compareFacesWithApi(const QByteArray &probeImage,
     appendImagePart("image_file1", probeNormalized, "probe.jpg");
     appendImagePart("image_file2", referenceNormalized, "reference.jpg");
 
+    qInfo().nospace() << "[FaceAPI] POST " << endpoint
+                      << " ssl=" << QSslSocket::supportsSsl()
+                      << " sslBuild=" << QSslSocket::sslLibraryBuildVersionString()
+                      << " sslRuntime=" << QSslSocket::sslLibraryVersionString()
+                      << " probe=" << probeNormalized.size() << "B"
+                      << " ref=" << referenceNormalized.size() << "B";
+
     QNetworkAccessManager manager;
     QEventLoop loop;
     QNetworkReply *reply = manager.post(req, multiPart);
@@ -356,21 +411,32 @@ bool compareFacesWithApi(const QByteArray &probeImage,
         for (const QSslError &e : errors) {
             sslErrors << e.errorString();
         }
+        qWarning() << "[FaceAPI] SSL errors:" << sslErrors;
     });
+    QObject::connect(reply, &QNetworkReply::errorOccurred, &loop, [&](QNetworkReply::NetworkError err) {
+        qWarning() << "[FaceAPI] errorOccurred:" << err << reply->errorString();
+    });
+    bool timedOut = false;
     QTimer timeoutTimer;
     timeoutTimer.setSingleShot(true);
     QObject::connect(&timeoutTimer, &QTimer::timeout, &loop, [&]() {
         if (reply && reply->isRunning()) {
+            qWarning() << "[FaceAPI] Timeout after 20s, aborting.";
+            timedOut = true;
             reply->abort();
         }
         loop.quit();
     });
     QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-    timeoutTimer.start(8000);
+    timeoutTimer.start(20000);
     loop.exec();
     timeoutTimer.stop();
 
-    const QByteArray body = reply->readAll();
+    const QByteArray body = timedOut ? QByteArray() : reply->readAll();
+    qInfo().nospace() << "[FaceAPI] reply err=" << reply->error()
+                      << " http=" << reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt()
+                      << " bodyBytes=" << body.size()
+                      << " bodyHead=" << QString::fromUtf8(body.left(300));
     const QJsonDocument docForError = QJsonDocument::fromJson(body);
     const QString apiBodyError = docForError.isObject()
                                      ? docForError.object().value("error_message").toString().trimmed()
@@ -389,6 +455,7 @@ bool compareFacesWithApi(const QByteArray &probeImage,
         } else {
             errorText = "Face API indisponible: " + reply->errorString();
         }
+        qWarning() << "[FaceAPI] FAIL ->" << errorText << "(netErr=" << netErr << ")";
         reply->deleteLater();
         return false;
     }
@@ -433,7 +500,7 @@ public:
         setMinimumSize(450, 650);
         setStyleSheet("QDialog { background-color: #1F110B; }");
 
-        setFixedSize(460, 680);
+        setFixedSize(460, 720);
         setWindowFlags(Qt::FramelessWindowHint);
         setAttribute(Qt::WA_TranslucentBackground);
 
@@ -520,8 +587,8 @@ public:
         containerLayout->addWidget(formArea);
 
         mascot = new MascotWidget(this);
-        mascot->setMinimumHeight(200);
-        mascot->setMaximumHeight(200);
+        mascot->setMinimumHeight(170);
+        mascot->setMaximumHeight(170);
         formAreaLayout->addWidget(mascot);
 
         QLabel *lblMascotName = new QLabel("LABIB", this);
@@ -585,18 +652,35 @@ public:
         );
         loginLayout->addWidget(btnLogin);
 
-        QPushButton *btnFaceId = new QPushButton("Connexion par reconnaissance faciale", this);
+        QHBoxLayout *altAuthRow = new QHBoxLayout();
+        altAuthRow->setSpacing(10);
+        altAuthRow->setContentsMargins(0, 0, 0, 0);
+
+        QPushButton *btnFaceId = new QPushButton("Visage", this);
         btnFaceId->setStyleSheet(
             "QPushButton { background: transparent; color: #1e40af; font-weight: 700; "
             "font-size: 13px; border-radius: 10px; padding: 10px; "
             "border: 1.5px solid #bfdbfe; } "
             "QPushButton:hover { background-color: #eff6ff; border-color: #1e40af; }"
         );
-        btnFaceId->setMinimumHeight(44);
+        btnFaceId->setMinimumHeight(42);
         btnFaceId->setCursor(Qt::PointingHandCursor);
-        loginLayout->addWidget(btnFaceId);
+        altAuthRow->addWidget(btnFaceId, 1);
 
-        QLabel *lblAuthModes = new QLabel("Email + CIN  ou  Visage + Email", this);
+        QPushButton *btnRfidLogin = new QPushButton("Badge RFID", this);
+        btnRfidLogin->setStyleSheet(
+            "QPushButton { background: transparent; color: #b45309; font-weight: 700; "
+            "font-size: 13px; border-radius: 10px; padding: 10px; "
+            "border: 1.5px solid #fde68a; } "
+            "QPushButton:hover { background-color: #fffbeb; border-color: #b45309; }"
+        );
+        btnRfidLogin->setMinimumHeight(42);
+        btnRfidLogin->setCursor(Qt::PointingHandCursor);
+        altAuthRow->addWidget(btnRfidLogin, 1);
+
+        loginLayout->addLayout(altAuthRow);
+
+        QLabel *lblAuthModes = new QLabel("Email + CIN  ·  Visage  ·  Badge RFID", this);
         lblAuthModes->setAlignment(Qt::AlignCenter);
         lblAuthModes->setStyleSheet("color:#94a3b8;font-size:11px;background:transparent;");
         loginLayout->addWidget(lblAuthModes);
@@ -668,6 +752,8 @@ public:
             startFaceId();
             mascot->setState(MascotWidget::Magnifier);
         });
+
+        connect(btnRfidLogin, &QPushButton::clicked, this, &LoginDialog::attemptRfidLogin);
 
         connect(btnBack, &QPushButton::clicked, this, [this]() {
             stopFaceId();
@@ -805,6 +891,206 @@ private:
             "Email ou CIN invalide.\n\nUtilisez un email/CIN employe valide, ou admin@wasteguard.com / 0000.");
         txtPass->clear();
         txtPass->setFocus();
+    }
+
+    void attemptRfidLogin()
+    {
+        Connection *connection = Connection::instance();
+        if (!connection->isOpen() && !connection->createConnect()) {
+            QMessageBox::critical(
+                this,
+                "Connexion base",
+                "Impossible de joindre la base de donnees.\n\nDetails: " + connection->lastError());
+            return;
+        }
+
+        // Locate an Arduino-like serial port and open it.
+        QString portName;
+        for (const QSerialPortInfo &info : QSerialPortInfo::availablePorts()) {
+            const QString desc = info.description().toLower();
+            const QString mfr = info.manufacturer().toLower();
+            if (desc.contains("bluetooth") || mfr.contains("bluetooth")) continue;
+            if (info.hasVendorIdentifier() && info.vendorIdentifier() == 9025
+                && info.hasProductIdentifier() && info.productIdentifier() == 67) {
+                portName = info.portName();
+                break;
+            }
+            if (portName.isEmpty()
+                && (desc.contains("arduino") || desc.contains("ch340")
+                    || desc.contains("ch341") || desc.contains("usb-serial")
+                    || desc.contains("ftdi") || desc.contains("cp210")
+                    || mfr.contains("arduino") || mfr.contains("ftdi")
+                    || mfr.contains("silicon labs") || mfr.contains("wch"))) {
+                portName = info.portName();
+            }
+        }
+
+        QSerialPort *rfidSerial = new QSerialPort(this);
+        if (!portName.isEmpty()) {
+            rfidSerial->setPortName(portName);
+            rfidSerial->setBaudRate(QSerialPort::Baud9600);
+            rfidSerial->setDataBits(QSerialPort::Data8);
+            rfidSerial->setParity(QSerialPort::NoParity);
+            rfidSerial->setStopBits(QSerialPort::OneStop);
+            rfidSerial->setFlowControl(QSerialPort::NoFlowControl);
+            if (!rfidSerial->open(QIODevice::ReadOnly)) {
+                qWarning() << "[RFID Login] Failed to open" << portName << ":" << rfidSerial->errorString();
+            }
+        }
+
+        QDialog dlg(this);
+        dlg.setWindowTitle("Connexion par badge RFID");
+        dlg.setModal(true);
+        dlg.setMinimumWidth(420);
+
+        auto *layout = new QVBoxLayout(&dlg);
+        layout->setContentsMargins(24, 24, 24, 20);
+        layout->setSpacing(14);
+
+        auto *info = new QLabel(QString::fromUcs4(U"\U0001F4E1") +
+                                "  Approchez votre badge du lecteur...", &dlg);
+        info->setAlignment(Qt::AlignCenter);
+        info->setStyleSheet("font-size: 15px; font-weight: 600; color:#1e293b; padding: 8px;");
+        layout->addWidget(info);
+
+        auto *portLbl = new QLabel(&dlg);
+        portLbl->setAlignment(Qt::AlignCenter);
+        portLbl->setStyleSheet("font-size: 12px; color: #475569;");
+        if (rfidSerial->isOpen()) {
+            portLbl->setText(QString("Lecteur connecte sur %1 (9600 bauds)").arg(portName));
+        } else {
+            portLbl->setText(portName.isEmpty()
+                                 ? "Lecteur RFID non detecte. Branchez l'Arduino puis cliquez Reessayer."
+                                 : QString("Echec ouverture %1. Fermez le moniteur serie puis Reessayer.").arg(portName));
+            portLbl->setStyleSheet("font-size: 12px; color: #c0392b; font-weight: 600;");
+        }
+        layout->addWidget(portLbl);
+
+        auto *status = new QLabel(&dlg);
+        status->setAlignment(Qt::AlignCenter);
+        status->setStyleSheet("font-size: 13px; color: #475569;");
+        status->setWordWrap(true);
+        layout->addWidget(status);
+
+        auto *btnRow = new QHBoxLayout();
+        auto *retryBtn = new QPushButton("Reessayer", &dlg);
+        auto *cancelBtn = new QPushButton("Annuler", &dlg);
+        btnRow->addWidget(retryBtn);
+        btnRow->addStretch();
+        btnRow->addWidget(cancelBtn);
+        layout->addLayout(btnRow);
+
+        QByteArray buffer;
+        QString matchedEmail;
+
+        auto tryReopen = [rfidSerial, portLbl, status]() {
+            if (rfidSerial->isOpen()) rfidSerial->close();
+            QString newPort;
+            for (const QSerialPortInfo &i : QSerialPortInfo::availablePorts()) {
+                const QString d = i.description().toLower();
+                const QString m = i.manufacturer().toLower();
+                if (d.contains("bluetooth") || m.contains("bluetooth")) continue;
+                if (d.contains("arduino") || d.contains("ch340") || d.contains("ch341")
+                    || d.contains("usb-serial") || d.contains("ftdi") || d.contains("cp210")
+                    || m.contains("arduino") || m.contains("ftdi")
+                    || m.contains("silicon labs") || m.contains("wch")) {
+                    newPort = i.portName();
+                    break;
+                }
+            }
+            if (newPort.isEmpty()) {
+                portLbl->setText("Lecteur RFID non detecte. Branchez l'Arduino puis Reessayer.");
+                portLbl->setStyleSheet("font-size: 12px; color: #c0392b; font-weight: 600;");
+                return;
+            }
+            rfidSerial->setPortName(newPort);
+            rfidSerial->setBaudRate(QSerialPort::Baud9600);
+            rfidSerial->setDataBits(QSerialPort::Data8);
+            rfidSerial->setParity(QSerialPort::NoParity);
+            rfidSerial->setStopBits(QSerialPort::OneStop);
+            rfidSerial->setFlowControl(QSerialPort::NoFlowControl);
+            if (rfidSerial->open(QIODevice::ReadOnly)) {
+                portLbl->setText(QString("Lecteur connecte sur %1 (9600 bauds)").arg(newPort));
+                portLbl->setStyleSheet("font-size: 12px; color: #16a34a; font-weight: 600;");
+                status->setText("");
+            } else {
+                portLbl->setText(QString("Echec ouverture %1.").arg(newPort));
+                portLbl->setStyleSheet("font-size: 12px; color: #c0392b; font-weight: 600;");
+            }
+        };
+
+        connect(retryBtn, &QPushButton::clicked, &dlg, tryReopen);
+        connect(cancelBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
+
+        connect(rfidSerial, &QSerialPort::readyRead, &dlg, [&]() {
+            buffer.append(rfidSerial->readAll());
+            while (true) {
+                const int nl = buffer.indexOf('\n');
+                if (nl < 0) break;
+                const QByteArray line = buffer.left(nl);
+                buffer.remove(0, nl + 1);
+                const QString text = QString::fromLatin1(line).trimmed();
+                if (text.isEmpty()) continue;
+                static const QString kRfidPrefix = "RFID_TAG:";
+                if (!text.startsWith(kRfidPrefix, Qt::CaseInsensitive)) continue;
+                const QString tag = text.mid(kRfidPrefix.length()).trimmed().toUpper();
+                if (tag.isEmpty()) continue;
+
+                QSqlQuery q;
+                q.prepare(
+                    "SELECT id_emp, email FROM EMPLOYE "
+                    "WHERE UPPER(TRIM(rfid)) = UPPER(TRIM(:tag)) "
+                    "AND rfid IS NOT NULL");
+                q.bindValue(":tag", tag);
+                if (!q.exec()) {
+                    status->setText(QString("Erreur base: %1").arg(q.lastError().text()));
+                    status->setStyleSheet("font-size: 13px; color: #c0392b; font-weight: 700;");
+                    continue;
+                }
+                if (q.next()) {
+                    const int idEmp = q.value(0).toInt();
+                    matchedEmail = q.value(1).toString().trimmed();
+
+                    QSqlQuery upd;
+                    upd.prepare(
+                        "UPDATE EMPLOYE "
+                        "SET disponibilite = 'DISPONIBLE', last_pointage_date = SYSDATE "
+                        "WHERE id_emp = :id");
+                    upd.bindValue(":id", idEmp);
+                    if (!upd.exec()) {
+                        qWarning() << "[RFID Login] Pointage update failed (with date):"
+                                   << upd.lastError().text();
+                        QSqlQuery fallback;
+                        fallback.prepare(
+                            "UPDATE EMPLOYE SET disponibilite = 'DISPONIBLE' "
+                            "WHERE id_emp = :id");
+                        fallback.bindValue(":id", idEmp);
+                        if (!fallback.exec()) {
+                            qWarning() << "[RFID Login] Pointage fallback failed:"
+                                       << fallback.lastError().text();
+                        }
+                    }
+
+                    status->setText(QString::fromUcs4(U"✓") +
+                                    QString(" Badge reconnu : %1\nPresence enregistree.").arg(matchedEmail));
+                    status->setStyleSheet("font-size: 14px; color: #16a34a; font-weight: 800;");
+                    QTimer::singleShot(550, &dlg, &QDialog::accept);
+                    return;
+                }
+                status->setText(QString("Badge inconnu : %1. Approchez un autre badge.").arg(tag));
+                status->setStyleSheet("font-size: 13px; color: #c0392b; font-weight: 700;");
+            }
+        });
+
+        const int rc = dlg.exec();
+        if (rfidSerial->isOpen()) rfidSerial->close();
+        rfidSerial->deleteLater();
+
+        if (rc == QDialog::Accepted && !matchedEmail.isEmpty()) {
+            if (txtUser) txtUser->setText(matchedEmail);
+            m_faceMatchedEmail.clear();
+            grantAccess(false);
+        }
     }
 
     void startFaceId()
@@ -1066,9 +1352,11 @@ private:
         hasTemplate = false;
         errorText.clear();
 
+        // Lecture robuste : BLOB binaire d'abord, fallback CLOB texte.
         QSqlQuery q;
         q.prepare(
-            "SELECT id_emp, nom, face_template, COALESCE(face_enabled,1), photo "
+            "SELECT id_emp, nom, face_template_bin, face_template, "
+            "       COALESCE(face_enabled,1), photo "
             "FROM EMPLOYE "
             "WHERE LOWER(TRIM(email)) = LOWER(TRIM(:email))");
         q.bindValue(":email", email);
@@ -1115,9 +1403,16 @@ private:
 
         accountId = q.value(0).toInt();
         accountName = q.value(1).toString().trimmed();
-        const QString templateRaw = q.value(2).toString();
-        const bool enabled = q.value(3).toInt() != 0;
-        accountPhoto = q.value(4).toByteArray();
+        // 1) BLOB binaire
+        QString templateRaw;
+        const QByteArray bin = q.value(2).toByteArray();
+        if (!bin.isEmpty()) templateRaw = QString::fromUtf8(bin);
+        // 2) Fallback CLOB texte (anciens enregistrements)
+        if (templateRaw.trimmed().isEmpty()) {
+            templateRaw = q.value(3).toString();
+        }
+        const bool enabled = q.value(4).toInt() != 0;
+        accountPhoto = q.value(5).toByteArray();
         if (!enabled) {
             errorText = "Face ID desactive pour ce compte.";
             return false;
@@ -1150,10 +1445,18 @@ private:
         bestScore = -1.0;
         if (secondBestScore) *secondBestScore = -1.0;
 
+        // Lecture robuste : BLOB binaire d'abord, fallback CLOB texte.
         QSqlQuery query;
-        if (!query.exec("SELECT id_emp, email, nom, face_template, COALESCE(face_enabled,1) FROM EMPLOYE")) {
-            errorText = "Erreur SQL Face ID: " + query.lastError().text();
-            return false;
+        bool useBlob = true;
+        if (!query.exec("SELECT id_emp, email, nom, face_template_bin, face_template, "
+                        "COALESCE(face_enabled,1) FROM EMPLOYE")) {
+            // Colonne BLOB absente : on retombe sur l'ancienne SELECT.
+            useBlob = false;
+            if (!query.exec("SELECT id_emp, email, nom, face_template, COALESCE(face_enabled,1) "
+                           "FROM EMPLOYE")) {
+                errorText = "Erreur SQL Face ID: " + query.lastError().text();
+                return false;
+            }
         }
 
         bool anyTemplate = false;
@@ -1165,8 +1468,18 @@ private:
             const QString nom = query.value(2).toString().trimmed();
             if (email.isEmpty()) continue;
 
-            const QString templateRaw = query.value(3).toString();
-            const bool enabled = query.value(4).toInt() != 0;
+            QString templateRaw;
+            bool enabled = true;
+            if (useBlob) {
+                const QByteArray bin = query.value(3).toByteArray();
+                if (!bin.isEmpty()) templateRaw = QString::fromUtf8(bin);
+                if (templateRaw.trimmed().isEmpty())
+                    templateRaw = query.value(4).toString();
+                enabled = query.value(5).toInt() != 0;
+            } else {
+                templateRaw = query.value(3).toString();
+                enabled = query.value(4).toInt() != 0;
+            }
             if (!enabled) continue;
 
             const QVector<float> dbDesc = resolveEmployeeDescriptor(templateRaw);
@@ -1259,12 +1572,17 @@ private:
             return false;
         }
 
+        // Double ecriture : BLOB binaire (robuste sur QODBC/Oracle) + CLOB (compat).
+        const QString tplStr = descriptorToString(liveDesc);
+        const QByteArray tplBin = tplStr.toUtf8();
         QSqlQuery up;
         up.prepare(
             "UPDATE EMPLOYE "
-            "SET face_template=:tpl, face_template_updated_at=SYSDATE, face_enabled=1 "
+            "SET face_template=:tpl, face_template_bin=:bin, "
+            "    face_template_updated_at=SYSDATE, face_enabled=1 "
             "WHERE id_emp=:id");
-        up.bindValue(":tpl", descriptorToString(liveDesc));
+        up.bindValue(":tpl", tplStr);
+        up.bindValue(":bin", tplBin);
         up.bindValue(":id", targetId);
         if (!up.exec()) {
             errorText = "Impossible d'enregistrer le visage: " + up.lastError().text();
@@ -1327,7 +1645,42 @@ int main(int argc, char *argv[])
 
     QApplication a(argc, argv);
     a.setQuitOnLastWindowClosed(false);
+    QCoreApplication::setOrganizationName("WasteGuard");
+    QCoreApplication::setOrganizationDomain("wasteguard.local");
+    QCoreApplication::setApplicationName("WasteGuard");
+    ThemeManager::instance()->applyToApplication();
     qDebug() << "Drivers disponibles:" << QSqlDatabase::drivers();
+
+    // One-shot CLI registration for Face API creds (bypasses Windows env-var
+    // propagation issues). Usage:
+    //   WasteGuard.exe --set-face-api KEY SECRET [URL]
+    {
+        const QStringList args = QCoreApplication::arguments();
+        const int idx = args.indexOf("--set-face-api");
+        if (idx >= 0 && idx + 2 < args.size()) {
+            QSettings settings("WasteGuard", "WasteGuard");
+            settings.setValue("faceApi/key", args.at(idx + 1).trimmed());
+            settings.setValue("faceApi/secret", args.at(idx + 2).trimmed());
+            if (idx + 3 < args.size() && !args.at(idx + 3).startsWith("--")) {
+                settings.setValue("faceApi/url", args.at(idx + 3).trimmed());
+            }
+            settings.sync();
+            qInfo() << "[FaceAPI] Cles enregistrees dans QSettings WasteGuard.";
+            return 0;
+        }
+    }
+
+    // Diagnostic: report which source (env / settings) provided Face API creds.
+    {
+        const bool envKey = !qEnvironmentVariable("WG_FACE_API_KEY").trimmed().isEmpty();
+        const bool envSec = !qEnvironmentVariable("WG_FACE_API_SECRET").trimmed().isEmpty();
+        QSettings s("WasteGuard", "WasteGuard");
+        const bool setKey = !s.value("faceApi/key").toString().trimmed().isEmpty();
+        const bool setSec = !s.value("faceApi/secret").toString().trimmed().isEmpty();
+        qInfo().nospace() << "[FaceAPI] env(KEY=" << envKey << ",SECRET=" << envSec
+                          << ") settings(KEY=" << setKey << ",SECRET=" << setSec
+                          << ") -> enabled=" << isFaceApiEnabled();
+    }
 
     while (true) {
         LoginDialog login;

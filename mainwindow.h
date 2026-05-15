@@ -104,6 +104,7 @@ class QStackedWidget;
 class QTableWidget;
 class QWidget;
 class QPushButton;
+class QLabel;
 class QLineEdit;
 class QDockWidget;
 class QResizeEvent;
@@ -141,8 +142,7 @@ private slots:
     void on_btnFichePaie_clicked();
     void on_btnCommsSend_clicked();
     void on_btnLogout_clicked();
-    void onAiProcessFinished(int exitCode, QProcess::ExitStatus status);
-    
+
    
     // Client module slots (from mainwindowcl)
     void on_btnClient_clicked();
@@ -528,6 +528,12 @@ private:
 
     // Floating AI Button
     QPushButton *m_floatingAIButton = nullptr;
+    QLabel *m_labibPeekLabel = nullptr;
+    // Drag de la mascotte flottante (style bulle Messenger deplacable)
+    QPoint m_floatingDragStartLocal;
+    QPoint m_floatingDragStartGlobal;
+    bool   m_floatingIsDragging   = false;
+    bool   m_floatingHasCustomPos = false;
     void createFloatingAIButton();
     void onFloatingAIButtonPositionUpdate();
 
@@ -536,6 +542,23 @@ private:
 
     // --- RFID / Pointage ---
     Arduino *m_arduino = nullptr;
+    // Second Arduino dedicated to the servo block (lid + ultrasonic).
+    // MainWindow forwards LID:OPEN / LID:CLOSE / MEASURE lines from the
+    // main Arduino to this one, and parses the FILL:<pct> reply.
+    Arduino *m_servoArduino = nullptr;
+    QByteArray m_servoSerialBuffer;     // line accumulator for servo Arduino stdout
+    int        m_lastClassifiedBin = 0; // bin of the most recent AI:<material>
+    void ensureServoArduinoConnected();
+    void forwardLidCommand(const QByteArray &cmd);
+    void onServoArduinoSerialDataReady();
+    // Auto-swap m_arduino <-> m_servoArduino when we discover the COM-port
+    // assignments are reversed. Triggered by PING-probe mismatch, an IDENT
+    // line on the wrong port, or an ERR:unknown:AI:* reply on the main port.
+    void swapArduinoAssignments();
+    // Synchronous probe: sends "PING\n" on the given QSerialPort and waits
+    // briefly for "PONG". The servo sketch replies; the main sketch ignores.
+    bool probePortIsServo(class QSerialPort *port);
+    bool m_arduinoAssignmentVerified = false;
     QByteArray m_rfidSerialBuffer;
     QLineEdit *m_rfidScanTarget = nullptr;
     QDialog *m_rfidScanDialog = nullptr;
@@ -566,10 +589,21 @@ private:
     bool m_bacMotionActive = false;
     int  m_motionTargetBacId = 0;   // 0 = no bac selected -> motion ignored
     QTimer *m_motionHoldTimer = nullptr;
-    QProcess *m_aiProcess = nullptr;
+    QProcess *m_aiProcess = nullptr;          // persistent classify_service.py
+    QString   m_esp32CamUrl;                  // forwarded via ESP32_CAM_URL env var
+    QByteArray m_aiStdoutBuffer;              // line-accumulator for service stdout
+    bool      m_aiServiceReady = false;       // true once the daemon emits READY
+    bool      m_aiPendingClassify = false;    // queued trigger while model is loading
     void onMotionHoldExpired();
     void applyBacMotionDbState(bool active, int idBac);
+    void onAiServiceStdoutReady();
+    void onAiServiceErrorReady();
+    void onAiServiceFinished(int exitCode, QProcess::ExitStatus status);
 public:
+    // Lazy-starts the persistent waste-classification daemon. Safe to call
+    // multiple times. The dialog calls this on open so the model loads
+    // while the user is reading the bin info.
+    void ensureClassificationService();
     bool isBacMotionActive() const { return m_bacMotionActive; }
     int  motionTargetBacId() const { return m_motionTargetBacId; }
     // Called by BacStatusDialog whenever the user picks a bac. Switching
@@ -577,8 +611,24 @@ public:
     // back to EN_ATTENTE and resets the hold so the new bac will only
     // become EN_SERVICE on the next PIR edge.
     void setMotionTargetBac(int idBac);
+    // Public so BacStatusDialog can mirror the physical pin-5 button
+    // with an in-app button. Spawns classify_single.py, then forwards
+    // AI:<material> to the Arduino which rotates the NEMA17 90 deg per bin.
+    void triggerWasteClassification(const QString &source = QStringLiteral("manual"));
+    // The bac-status dialog calls this so classify_single.py uses the
+    // same ESP32-CAM URL the dialog is polling for the live preview.
+    void setEsp32CamUrl(const QString &url) { m_esp32CamUrl = url; }
 signals:
     void bacMotionStateChanged(bool active);
+    // Emitted whenever a classification cycle progresses, so the bac
+    // status dialog can mirror the live state next to the camera feed.
+    // phase: "started" / "result" / "error"
+    void wasteClassificationUpdate(const QString &phase, const QString &material);
+    // Arduino published a fresh ultrasonic measurement after dropping
+    // waste in compartment <binIndex>. percent in [0..100], or -1 on error.
+    void binFillUpdated(int binIndex, int percent);
+    // Arduino-side power state (button-driven for now, PIR later).
+    void machineStateChanged(bool on);
 private:
 
     // Initialize accessibility features
